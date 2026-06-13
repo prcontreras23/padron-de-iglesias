@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Estado de Solicitud — Asociación Dominicana del Sureste</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f8; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .card { background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(30,53,100,.12); width: 100%; max-width: 520px; overflow: hidden; }
+  .header { background: #1e3564; padding: 28px 32px; }
+  .header h1 { color: white; font-size: 22px; font-weight: 700; }
+  .header p { color: #93c5fd; font-size: 13px; margin-top: 4px; }
+  .body { padding: 28px 32px; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: 700; margin-bottom: 20px; }
+  .badge.aprobada  { background: #dcfce7; color: #166534; }
+  .badge.rechazada { background: #fee2e2; color: #7f1d1d; }
+  .badge.pendiente { background: #fef9c3; color: #854d0e; }
+  .row { display: flex; padding: 10px 0; border-bottom: 1px solid #f0f2f8; font-size: 14px; }
+  .row .lbl { color: #6b7280; width: 120px; flex-shrink: 0; }
+  .row .val { color: #1a2340; font-weight: 500; }
+  .section-title { font-size: 13px; font-weight: 700; color: #1a2340; margin: 22px 0 10px; text-transform: uppercase; letter-spacing: .06em; }
+  .ap-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #f0f2f8; }
+  .sistema-badge { display: inline-block; background: #eef2ff; color: #1e3564; font-weight: 700; padding: 2px 12px; border-radius: 20px; }
+  .loading { text-align: center; padding: 40px; color: #9ca3af; font-size: 14px; }
+  .btn-reload { display: block; margin: 20px auto 0; padding: 10px 24px; background: #1e3564; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <h1>Estado de Solicitud</h1>
+    <p>Asociación Dominicana del Sureste</p>
+  </div>
+  <div class="body" id="contenido">
+    <div class="loading">Cargando…</div>
+  </div>
+</div>
+
+<script>
+const id = new URLSearchParams(location.search).get('id');
+
+async function cargar() {
+  if (!id) { document.getElementById('contenido').innerHTML = '<p style="color:#7f1d1d;">No se especificó un ID de solicitud.</p>'; return; }
+  const res  = await fetch(`/api/status?id=${id}`);
+  const data = await res.json();
+  if (!res.ok) { document.getElementById('contenido').innerHTML = `<p style="color:#7f1d1d;">${data.error}</p>`; return; }
+
+  const aprobadas  = data.aprobaciones.filter(a=>a.estado==='aprobado').length;
+  const rechazadas = data.aprobaciones.filter(a=>a.estado==='rechazado').length;
+  const total      = data.aprobaciones.length;
+
+  const badgeClass = data.estado==='aprobada' ? 'aprobada' : data.estado==='rechazada' ? 'rechazada' : 'pendiente';
+  const badgeText  = data.estado==='aprobada' ? '✅ Aprobada' : data.estado==='rechazada' ? '❌ Rechazada' : `⏳ Pendiente — ${aprobadas}/${total} aprobaciones`;
+
+  document.getElementById('contenido').innerHTML = `
+    <span class="badge ${badgeClass}">${badgeText}</span>
+    <div class="row"><span class="lbl">Solicitante</span><span class="val">${esc(data.nombre)}</span></div>
+    <div class="row"><span class="lbl">Correo</span><span class="val">${esc(data.email)}</span></div>
+    ${data.cargo ? `<div class="row"><span class="lbl">Cargo</span><span class="val">${esc(data.cargo)}</span></div>` : ''}
+    <div class="row"><span class="lbl">Sistema</span><span class="val"><span class="sistema-badge">${esc(data.sistema)}</span></span></div>
+    <div class="row"><span class="lbl">Enviada</span><span class="val">${new Date(data.created_at).toLocaleString('es-DO')}</span></div>
+
+    <div class="section-title">Aprobaciones</div>
+    ${data.aprobaciones.map(a=>`
+      <div class="ap-row">
+        <span style="font-size:14px;color:#374151;font-weight:500;">${esc(a.aprobador)}</span>
+        <div style="text-align:right;">
+          <span style="font-size:12px;font-weight:600;padding:2px 10px;border-radius:20px;${
+            a.estado==='aprobado'  ? 'background:#dcfce7;color:#166534;' :
+            a.estado==='rechazado' ? 'background:#fee2e2;color:#7f1d1d;' :
+                                     'background:#f3f4f6;color:#6b7280;'
+          }">${a.estado==='aprobado'?'✅ Aprobó':a.estado==='rechazado'?'❌ Rechazó':'⏳ Pendiente'}</span>
+          ${a.ts ? `<div style="font-size:11px;color:#9ca3af;margin-top:2px;">${new Date(a.ts).toLocaleString('es-DO')}</div>` : ''}
+          ${a.comentario ? `<div style="font-size:12px;color:#6b7280;margin-top:2px;font-style:italic;">"${esc(a.comentario)}"</div>` : ''}
+        </div>
+      </div>`).join('')}
+    ${data.estado==='pendiente' ? '<button class="btn-reload" onclick="cargar()">🔄 Actualizar estado</button>' : ''}`;
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+cargar();
+</script>
+</body>
+</html>

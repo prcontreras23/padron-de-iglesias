@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Solicitud de Acceso — Asociación Dominicana del Sureste</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f8; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .card { background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(30,53,100,.12); width: 100%; max-width: 520px; overflow: hidden; }
+  .header { background: #1e3564; padding: 28px 32px; }
+  .header h1 { color: white; font-size: 22px; font-weight: 700; }
+  .header p { color: #93c5fd; font-size: 13px; margin-top: 4px; }
+  .body { padding: 28px 32px; }
+  .field { margin-bottom: 18px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+  label span { color: #ef4444; margin-left: 2px; }
+  input, select, textarea { width: 100%; padding: 11px 14px; border: 1.5px solid #e8eaf2; border-radius: 9px; font-size: 14px; color: #1a2340; outline: none; font-family: inherit; transition: border-color .15s; }
+  input:focus, select:focus, textarea:focus { border-color: #1e3564; }
+  textarea { resize: vertical; min-height: 80px; }
+  .btn { width: 100%; padding: 13px; background: #1e3564; color: white; border: none; border-radius: 9px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background .15s; margin-top: 8px; }
+  .btn:hover { background: #162a50; }
+  .btn:disabled { background: #9ca3af; cursor: not-allowed; }
+  .msg { margin-top: 16px; padding: 14px 16px; border-radius: 9px; font-size: 14px; display: none; }
+  .msg.success { background: #dcfce7; color: #166534; display: block; }
+  .msg.error   { background: #fee2e2; color: #7f1d1d; display: block; }
+  .estado-link { display: block; margin-top: 12px; text-align: center; font-size: 13px; color: #6b7280; }
+  .estado-link a { color: #1e3564; font-weight: 600; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <h1>Solicitud de Acceso</h1>
+    <p>Asociación Dominicana del Sureste</p>
+  </div>
+  <div class="body">
+    <p style="font-size:14px;color:#6b7280;margin-bottom:20px;">Completa el formulario para solicitar acceso a uno de los sistemas. Los aprobadores serán notificados automáticamente.</p>
+
+    <div class="field">
+      <label>Nombre completo <span>*</span></label>
+      <input id="nombre" type="text" placeholder="Apellido, Nombre" />
+    </div>
+    <div class="field">
+      <label>Correo electrónico <span>*</span></label>
+      <input id="email" type="email" placeholder="tu@correo.com" />
+    </div>
+    <div class="field">
+      <label>Cargo / Posición</label>
+      <input id="cargo" type="text" placeholder="Ej: Tesorero de iglesia" />
+    </div>
+    <div class="field">
+      <label>Sistema solicitado <span>*</span></label>
+      <select id="sistema">
+        <option value="">— Selecciona un sistema —</option>
+        <option>SunPlus</option>
+        <option>Ecclesia</option>
+        <option>Infomac</option>
+        <option>ACMS</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Motivo de la solicitud</label>
+      <textarea id="motivo" placeholder="¿Por qué necesitas acceso a este sistema?"></textarea>
+    </div>
+
+    <button class="btn" id="btn-enviar">Enviar solicitud →</button>
+    <div class="msg" id="msg"></div>
+    <p class="estado-link" id="estado-link" style="display:none;">
+      Guarda este enlace para ver el estado de tu solicitud:<br>
+      <a id="enlace-estado" href="#" target="_blank"></a>
+    </p>
+  </div>
+</div>
+
+<script>
+document.getElementById('btn-enviar').addEventListener('click', async () => {
+  const nombre  = document.getElementById('nombre').value.trim();
+  const email   = document.getElementById('email').value.trim();
+  const cargo   = document.getElementById('cargo').value.trim();
+  const sistema = document.getElementById('sistema').value;
+  const motivo  = document.getElementById('motivo').value.trim();
+  const msg     = document.getElementById('msg');
+  const btn     = document.getElementById('btn-enviar');
+
+  msg.className = 'msg'; msg.textContent = '';
+
+  if (!nombre || !email || !sistema) {
+    msg.className = 'msg error'; msg.textContent = 'Por favor completa los campos requeridos (*).'; return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  try {
+    const res = await fetch('/api/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre, email, cargo, sistema, motivo }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error desconocido');
+
+    msg.className = 'msg success';
+    msg.innerHTML = '✅ <strong>Solicitud enviada.</strong> Los 4 aprobadores han sido notificados por correo y WhatsApp.';
+    btn.textContent = 'Enviado';
+
+    const url = `${location.origin}/estado.html?id=${data.id}`;
+    document.getElementById('enlace-estado').href = url;
+    document.getElementById('enlace-estado').textContent = url;
+    document.getElementById('estado-link').style.display = 'block';
+  } catch (e) {
+    msg.className = 'msg error'; msg.textContent = 'Error: ' + e.message;
+    btn.disabled = false; btn.textContent = 'Enviar solicitud →';
+  }
+});
+</script>
+</body>
+</html>

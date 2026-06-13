@@ -1,0 +1,7 @@
+{
+  "name": "aprobaciones-sistemas",
+  "version": "1.0.0",
+  "description": "Sistema de aprobaciones para SunPlus, Ecclesia, Infomac y ACMS",
+  "private": true,
+  "engines": { "node": ">=18" }
+}

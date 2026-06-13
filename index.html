@@ -3,115 +3,1332 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Solicitud de Acceso — Asociación Dominicana del Sureste</title>
+<title>Sistema de Iglesias — Asoc. Dom. Sureste</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f8; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-  .card { background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(30,53,100,.12); width: 100%; max-width: 520px; overflow: hidden; }
-  .header { background: #1e3564; padding: 28px 32px; }
-  .header h1 { color: white; font-size: 22px; font-weight: 700; }
-  .header p { color: #93c5fd; font-size: 13px; margin-top: 4px; }
-  .body { padding: 28px 32px; }
-  .field { margin-bottom: 18px; }
-  label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
-  label span { color: #ef4444; margin-left: 2px; }
-  input, select, textarea { width: 100%; padding: 11px 14px; border: 1.5px solid #e8eaf2; border-radius: 9px; font-size: 14px; color: #1a2340; outline: none; font-family: inherit; transition: border-color .15s; }
-  input:focus, select:focus, textarea:focus { border-color: #1e3564; }
-  textarea { resize: vertical; min-height: 80px; }
-  .btn { width: 100%; padding: 13px; background: #1e3564; color: white; border: none; border-radius: 9px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background .15s; margin-top: 8px; }
-  .btn:hover { background: #162a50; }
-  .btn:disabled { background: #9ca3af; cursor: not-allowed; }
-  .msg { margin-top: 16px; padding: 14px 16px; border-radius: 9px; font-size: 14px; display: none; }
-  .msg.success { background: #dcfce7; color: #166534; display: block; }
-  .msg.error   { background: #fee2e2; color: #7f1d1d; display: block; }
-  .estado-link { display: block; margin-top: 12px; text-align: center; font-size: 13px; color: #6b7280; }
-  .estado-link a { color: #1e3564; font-weight: 600; text-decoration: none; }
+  html, body { height: 100%; font-family: 'DM Sans', system-ui, sans-serif; background: #f0f2f7; color: #1a2340; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #c5cbe0; border-radius: 3px; }
+  input, select, button, textarea { font-family: inherit; }
+  @keyframes fadeUp  { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes modalIn { from { opacity:0; transform:scale(.96); }        to { opacity:1; transform:scale(1); } }
+  @keyframes spin    { to { transform: rotate(360deg); } }
+  @keyframes toastIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="header">
-    <h1>Solicitud de Acceso</h1>
-    <p>Asociación Dominicana del Sureste</p>
-  </div>
-  <div class="body">
-    <p style="font-size:14px;color:#6b7280;margin-bottom:20px;">Completa el formulario para solicitar acceso a uno de los sistemas. Los aprobadores serán notificados automáticamente.</p>
-
-    <div class="field">
-      <label>Nombre completo <span>*</span></label>
-      <input id="nombre" type="text" placeholder="Apellido, Nombre" />
-    </div>
-    <div class="field">
-      <label>Correo electrónico <span>*</span></label>
-      <input id="email" type="email" placeholder="tu@correo.com" />
-    </div>
-    <div class="field">
-      <label>Cargo / Posición</label>
-      <input id="cargo" type="text" placeholder="Ej: Tesorero de iglesia" />
-    </div>
-    <div class="field">
-      <label>Sistema solicitado <span>*</span></label>
-      <select id="sistema">
-        <option value="">— Selecciona un sistema —</option>
-        <option>SunPlus</option>
-        <option>Ecclesia</option>
-        <option>Infomac</option>
-        <option>ACMS</option>
-      </select>
-    </div>
-    <div class="field">
-      <label>Motivo de la solicitud</label>
-      <textarea id="motivo" placeholder="¿Por qué necesitas acceso a este sistema?"></textarea>
-    </div>
-
-    <button class="btn" id="btn-enviar">Enviar solicitud →</button>
-    <div class="msg" id="msg"></div>
-    <p class="estado-link" id="estado-link" style="display:none;">
-      Guarda este enlace para ver el estado de tu solicitud:<br>
-      <a id="enlace-estado" href="#" target="_blank"></a>
-    </p>
-  </div>
-</div>
-
+<div id="app"></div>
 <script>
-document.getElementById('btn-enviar').addEventListener('click', async () => {
-  const nombre  = document.getElementById('nombre').value.trim();
-  const email   = document.getElementById('email').value.trim();
-  const cargo   = document.getElementById('cargo').value.trim();
-  const sistema = document.getElementById('sistema').value;
-  const motivo  = document.getElementById('motivo').value.trim();
-  const msg     = document.getElementById('msg');
-  const btn     = document.getElementById('btn-enviar');
+/* =====================================================================
+   CONSTANTS
+   ===================================================================== */
+const SB_URL_DEFAULT = 'https://gvbknabnrlliofbchczv.supabase.co';
+const SB_KEY_DEFAULT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2YmtuYWJucmxsaW9mYmNoY3p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMjg3MTcsImV4cCI6MjA5NjkwNDcxN30.v7IXmkGpidbpCPZsDh_wFh_pLsP13QhTueYtiLfkH9Q';
 
-  msg.className = 'msg'; msg.textContent = '';
+/* =====================================================================
+   DATA
+   ===================================================================== */
+let RAW = { zonas: [], distritos: [], iglesias: [], pastores: [] };
 
-  if (!nombre || !email || !sistema) {
-    msg.className = 'msg error'; msg.textContent = 'Por favor completa los campos requeridos (*).'; return;
+/* =====================================================================
+   STATE
+   ===================================================================== */
+let S = {
+  view: 'dashboard',
+  sidebarOpen: window.innerWidth >= 768,
+  search: '', fZona: 'all', fDistrito: 'all', fPastor: 'all', sortCol: 'nombre', sortDir: 'asc',
+  showSearch: false, searchQuery: '', loadError: '', _historialData: null, _historialLoading: false,
+  page: 1, pageSize: 25,
+  // Iglesia modal
+  showModal: false, modalMode: 'add', editId: null,
+  form: { nombre:'', cod:'', codZona:'', codDistrito:'', distrito:'', zona:'', pastor:'', carpetaDrive:'', datosExtra:{} },
+  saving: false, showDeleteConfirm: false, deleteTarget: null,
+  // Zona modal
+  showZonaModal: false, zonaModalMode: 'add', editZonaCod: null,
+  formZona: { cod:'', nombre:'' },
+  showDeleteZonaConfirm: false, deleteZonaCod: null,
+  // Distrito modal
+  showDistritoModal: false, distritoModalMode: 'add', editDistritoCod: null,
+  formDistrito: { cod:'', nombre:'', codZona:'', zona:'' },
+  showDeleteDistritoConfirm: false, deleteDistritoCod: null,
+  // Pastor modal
+  showPastorModal: false, pastorModalMode: 'add', editPastorCod: null,
+  formPastor: { cod:'', nombre:'', telefono:'', email:'', codZona:'', zona:'', codDistrito:'', distrito:'' },
+  showDeletePastorConfirm: false, deletePastorCod: null,
+  // Campo modal
+  showCampoModal: false, campoModalMode: 'add', editCampoIdx: null,
+  formCampo: { id:'', nombre:'', tipo:'text', placeholder:'' },
+  camposCustom: [],
+  // Supabase
+  showSb: false,
+  sbUrl: localStorage.getItem('sb_url') || SB_URL_DEFAULT,
+  sbKey: localStorage.getItem('sb_key') || SB_KEY_DEFAULT,
+  sbTable: localStorage.getItem('sb_table') || 'iglesias',
+  sbErr: '', sbOk: '', sbConnected: false, sbClient: null,
+  toast: null, toastTimer: null, loaded: false,
+  showImportModal: false, importPreview: null, importing: false, importResult: null,
+};
+
+/* =====================================================================
+   ICONS
+   ===================================================================== */
+const ic = (path, size=18, stroke='currentColor', sw=2) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
+
+const icons = {
+  grid:    ic('<rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>'),
+  globe:   ic('<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>'),
+  users:   ic('<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>'),
+  home:    ic('<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>'),
+  user:    ic('<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
+  menu:    ic('<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>'),
+  search:  ic('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'),
+  plus:    ic('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'),
+  x:       ic('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'),
+  edit:    ic('<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>'),
+  trash:   ic('<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>',16),
+  spin:    ic('<path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>'),
+  settings:ic('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>'),
+  clock:   ic('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'),
+  download:ic('<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>'),
+  link:    ic('<path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>',16),
+  phone:   ic('<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.7A2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.27 7.91a16 16 0 006.72 6.72l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>',15),
+  mail:    ic('<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',15),
+};
+
+/* =====================================================================
+   AUTO-CODIGO
+   ===================================================================== */
+function nextZonaCod() {
+  const nums = RAW.zonas.map(z => parseInt(z.cod.replace(/\D/g,''))||0);
+  return 'Z' + String((nums.length ? Math.max(...nums) : 0) + 1).padStart(2,'0');
+}
+function nextDistritoCod() {
+  const nums = RAW.distritos.map(d => parseInt(d.cod.replace(/\D/g,''))||0);
+  return 'DT' + String((nums.length ? Math.max(...nums) : 0) + 1).padStart(3,'0');
+}
+function nextPastorCod() {
+  const nums = RAW.pastores.map(p => parseInt(p.cod.replace(/\D/g,''))||0);
+  return 'P' + String((nums.length ? Math.max(...nums) : 0) + 1).padStart(3,'0');
+}
+
+/* =====================================================================
+   FILTER HELPERS
+   ===================================================================== */
+function getFilteredIglesias() {
+  let list = RAW.iglesias;
+  if (S.fZona !== 'all') list = list.filter(i => i.codZona === S.fZona);
+  if (S.fDistrito !== 'all') list = list.filter(i => i.codDistrito === S.fDistrito);
+  if (S.fPastor !== 'all') list = list.filter(i => (S.fPastor === '__sin_pastor__' ? (!i.pastor||!i.pastor.trim()) : (i.pastor||'') === S.fPastor));
+  if (S.search.trim()) {
+    const q = S.search.toLowerCase();
+    list = list.filter(i =>
+      i.nombre.toLowerCase().includes(q) ||
+      i.cod.toLowerCase().includes(q) ||
+      (i.pastor||'').toLowerCase().includes(q) ||
+      (i.distrito||'').toLowerCase().includes(q)
+    );
+  }
+  // Ordenar
+  list = [...list].sort((a,b) => {
+    const av = (a[S.sortCol]||'').toLowerCase();
+    const bv = (b[S.sortCol]||'').toLowerCase();
+    return S.sortDir==='asc' ? av.localeCompare(bv,'es') : bv.localeCompare(av,'es');
+  });
+  return list;
+}
+function getFilteredDistritos() {
+  let list = RAW.distritos;
+  if (S.fZona !== 'all') list = list.filter(d => d.codZona === S.fZona);
+  if (S.search.trim()) {
+    const q = S.search.toLowerCase();
+    list = list.filter(d => d.nombre.toLowerCase().includes(q) || d.cod.toLowerCase().includes(q));
+  }
+  return list;
+}
+function getFilteredPastores() {
+  let list = RAW.pastores;
+  if (S.search.trim()) {
+    const q = S.search.toLowerCase();
+    list = list.filter(p =>
+      p.nombre.toLowerCase().includes(q) ||
+      (p.distrito||'').toLowerCase().includes(q) ||
+      (p.email||'').toLowerCase().includes(q)
+    );
+  }
+  return [...list].sort((a,b) => a.nombre.localeCompare(b.nombre));
+}
+
+/* =====================================================================
+   DEBOUNCE
+   ===================================================================== */
+function debounce(fn, ms) {
+  let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+const debouncedRender = debounce(render, 160);
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+function render() {
+  const app = document.getElementById('app');
+  if (!app) return;
+  app.innerHTML = buildHTML();
+  bindEvents();
+}
+
+function buildHTML() {
+  return `
+  <div style="display:flex;height:100vh;overflow:hidden;background:#f0f2f7;">
+    ${buildSidebar()}
+    <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;">
+      ${buildHeader()}
+      <main style="flex:1;overflow-y:auto;padding:24px;">${buildContent()}</main>
+    </div>
+  </div>
+  ${S.showModal                 ? buildChurchModal()           : ''}
+  ${S.showZonaModal             ? buildZonaModal()             : ''}
+  ${S.showDistritoModal         ? buildDistritoModal()         : ''}
+  ${S.showPastorModal           ? buildPastorModal()           : ''}
+  ${S.showCampoModal            ? buildCampoModal()            : ''}
+  ${S.showSb                    ? buildSbModal()               : ''}
+  ${S.showDeleteConfirm         ? buildDeleteIglesiaConfirm()  : ''}
+  ${S.showDeleteZonaConfirm     ? buildDeleteZonaConfirm()     : ''}
+  ${S.showDeleteDistritoConfirm ? buildDeleteDistritoConfirm() : ''}
+  ${S.showDeletePastorConfirm   ? buildDeletePastorConfirm()   : ''}
+  ${S.showSearch                  ? buildSearchModal()           : ''}
+  ${S.showImportModal            ? buildImportModal()           : ''}
+  ${S.toast                     ? buildToast()                 : ''}
+  `;
+}
+
+/* ---- SIDEBAR ---- */
+function buildSidebar() {
+  const w = S.sidebarOpen ? '260px' : '0px';
+  const navItem = (id, label, iconHtml, badge) => {
+    const active = S.view === id;
+    return `<button data-nav="${id}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-weight:500;width:100%;text-align:left;background:${active?'rgba(212,168,32,.18)':'transparent'};color:${active?'#d4a820':'rgba(255,255,255,.75)'};">
+      <span style="flex-shrink:0;opacity:.9;">${iconHtml}</span>
+      ${label}
+      ${badge !== undefined ? `<span style="margin-left:auto;background:rgba(255,255,255,.1);color:rgba(255,255,255,.55);border-radius:20px;padding:1px 8px;font-size:11px;">${badge}</span>` : ''}
+    </button>`;
+  };
+  return `
+  <aside style="width:${w};min-width:${w};background:#1e3564;display:flex;flex-direction:column;transition:width .3s,min-width .3s;overflow:hidden;z-index:100;box-shadow:4px 0 24px rgba(30,53,100,.18);">
+    <div style="padding:22px 18px 18px;border-bottom:1px solid rgba(255,255,255,.08);">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:38px;height:38px;background:#d4a820;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          ${icons.home.replace('currentColor','white')}
+        </div>
+        <div style="overflow:hidden;">
+          <div style="color:white;font-weight:700;font-size:13px;line-height:1.2;white-space:nowrap;">Asoc. Dom. Sureste</div>
+          <div style="color:rgba(255,255,255,.45);font-size:11px;white-space:nowrap;">Sistema de Gestión</div>
+        </div>
+      </div>
+    </div>
+    <nav style="flex:1;padding:14px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;">
+      <div style="color:rgba(255,255,255,.3);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:6px 10px 4px;">Principal</div>
+      ${navItem('dashboard','Dashboard',icons.grid)}
+      <div style="color:rgba(255,255,255,.3);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:10px 10px 4px;">Estructura</div>
+      ${navItem('zonas','Zonas',icons.globe,RAW.zonas.length)}
+      ${navItem('distritos','Distritos',icons.users,RAW.distritos.length)}
+      ${navItem('iglesias','Iglesias',icons.home,RAW.iglesias.length)}
+      ${navItem('pastores','Pastores',icons.user,RAW.pastores.length)}
+      <div style="color:rgba(255,255,255,.3);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:10px 10px 4px;">Sistema</div>
+      ${navItem('historial','Historial',icons.clock)}
+      ${navItem('configuracion','Configuracion',icons.settings)}
+    </nav>
+    <div style="padding:10px 12px 14px;border-top:1px solid rgba(255,255,255,.08);">
+      <button id="btn-import-excel" style="display:flex;align-items:center;gap:8px;width:100%;background:rgba(212,168,32,.12);border:none;cursor:pointer;padding:8px;border-radius:8px;margin-bottom:6px;">
+        <span style="color:#d4a820;font-size:16px;line-height:1;">⬆</span>
+        <span style="color:rgba(255,255,255,.75);font-size:12px;font-weight:500;">Importar desde Excel</span>
+      </button>
+      <button id="btn-sb-cfg" style="display:flex;align-items:center;gap:8px;width:100%;background:transparent;border:none;cursor:pointer;padding:8px;border-radius:8px;">
+        <div style="width:8px;height:8px;border-radius:50%;background:${S.sbConnected?'#22c55e':'#f59e0b'};flex-shrink:0;"></div>
+        <span style="color:rgba(255,255,255,.55);font-size:12px;">${S.sbConnected?'Supabase conectado':'Configurar Supabase'}</span>
+      </button>
+    </div>
+  </aside>`;
+}
+
+/* ---- HEADER ---- */
+function buildHeader() {
+  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Pastores', configuracion:'Configuracion' };
+  const needsSearch = ['iglesias','distritos','pastores'].includes(S.view);
+  const addBtn = (id,label) => `<button id="${id}" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;">${icons.plus.replace('currentColor','white')} ${label}</button>`;
+  const searchBtn = `<button id="btn-global-search" title="Ctrl+K" style="background:#f0f2f7;border:none;border-radius:8px;padding:8px;cursor:pointer;color:#6b7280;display:flex;align-items:center;">${icons.search}</button>`;
+  const exportBtn = `<button id="btn-export-excel" style="display:flex;align-items:center;gap:6px;background:#15803d;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;">${icons.download.replace('currentColor','white')} Exportar</button>`;
+  const addBtns = { zonas:addBtn('btn-add-zona','Nueva Zona'), distritos:addBtn('btn-add-distrito','Nuevo Distrito'), iglesias:exportBtn+addBtn('btn-add-iglesia','Nueva Iglesia'), pastores:exportBtn+addBtn('btn-add-pastor','Nuevo Pastor') };
+  return `
+  <header style="background:white;padding:0 22px;height:60px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #e8eaf2;flex-shrink:0;z-index:50;">
+    <button id="btn-sidebar-toggle" style="background:transparent;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#6b7280;display:flex;align-items:center;">${icons.menu}</button>
+    <h1 style="font-size:16px;font-weight:600;color:#1a2340;flex:1;">${titles[S.view]||'Dashboard'}</h1>
+    ${searchBtn}
+    ${needsSearch ? `<div style="position:relative;display:flex;align-items:center;"><span style="position:absolute;left:10px;pointer-events:none;color:#9ca3af;">${icons.search}</span><input id="main-search" value="${escHtml(S.search)}" placeholder="Buscar..." style="padding:8px 12px 8px 34px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:13px;width:220px;outline:none;background:#f8f9fc;color:#1a2340;" /></div>` : ''}
+    ${addBtns[S.view]||''}
+  </header>`;
+}
+
+/* ---- CONTENT ROUTER ---- */
+function buildContent() {
+  if (!S.loaded) return `<div style="display:flex;align-items:center;justify-content:center;height:200px;color:#9ca3af;font-size:14px;">Cargando datos...</div>`;
+  if (S.loadError) return `<div style="margin:20px 0;padding:16px 20px;background:#fee2e2;border-radius:12px;color:#b91c1c;font-size:14px;display:flex;align-items:center;gap:12px;"><span style="font-size:20px;">&#9888;</span><div><strong>Error de conexion</strong><br>${escHtml(S.loadError)}<br><button onclick="location.reload()" style="margin-top:8px;padding:6px 14px;border-radius:6px;border:none;background:#b91c1c;color:white;font-size:12px;cursor:pointer;">Reintentar</button></div></div>`;
+  switch(S.view) {
+    case 'dashboard':     return buildDashboard();
+    case 'zonas':         return buildZonas();
+    case 'distritos':     return buildDistritos();
+    case 'iglesias':      return buildIglesias();
+    case 'pastores':      return buildPastores();
+    case 'historial':     return buildHistorialView();
+    case 'configuracion': return buildConfiguracion();
+    default:              return buildDashboard();
+  }
+}
+
+/* ---- DASHBOARD ---- */
+function buildDashboard() {
+  const stat = (num, label, bg, color, iconHtml) => `
+  <div style="background:white;border-radius:14px;padding:22px;box-shadow:0 1px 4px rgba(30,53,100,.07);display:flex;align-items:center;gap:16px;border:1px solid #e8eaf2;">
+    <div style="width:52px;height:52px;background:${bg};border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconHtml.replace('currentColor',color)}</div>
+    <div><div style="font-size:32px;font-weight:700;color:#1e3564;line-height:1;">${num}</div><div style="font-size:13px;color:#6b7280;margin-top:2px;">${label}</div></div>
+  </div>`;
+  const maxIg = Math.max(...RAW.zonas.map(z => z._igCount||0), 1);
+  const colors = ['#1e3564','#2d5090','#d4a820','#3a6ab0','#e8c040','#4a7ac0','#f0d060'];
+  const bars = RAW.zonas.map((z,i) => {
+    const cnt = z._igCount||0; const pct = Math.max((cnt/maxIg)*100,4);
+    return `<div data-nav-zona-ig="${z.cod}" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+      <div style="width:56px;font-size:12px;color:#6b7280;text-align:right;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${z.nombre.replace(/ZONA /i,'Z')}</div>
+      <div style="flex:1;height:26px;background:#f0f2f7;border-radius:6px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${colors[i%colors.length]};border-radius:6px;display:flex;align-items:center;padding-left:8px;font-size:11px;font-weight:600;color:white;min-width:28px;">${cnt}</div></div>
+    </div>`;
+  }).join('');
+  const topD = [...RAW.distritos].sort((a,b)=>b.iglesias-a.iglesias).slice(0,8);
+  const topRows = topD.map((d,i) => `
+  <div style="display:flex;align-items:center;gap:12px;padding:10px 0;${i<topD.length-1?'border-bottom:1px solid #f0f2f7;':''}">
+    <div style="width:24px;height:24px;border-radius:50%;background:${i<3?'#d4a820':'#e8eaf2'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${i<3?'white':'#9ca3af'};flex-shrink:0;">${i+1}</div>
+    <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:500;color:#1a2340;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(d.nombre)}</div><div style="font-size:12px;color:#9ca3af;">${escHtml(d.zona)}</div></div>
+    <span style="background:#fff8e6;color:#d4a820;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600;">${d.iglesias||0}</span>
+  </div>`).join('');
+  const igSinPastor = RAW.iglesias.filter(i=>!i.pastor||!i.pastor.trim());
+  const sinPastor = igSinPastor.length;
+  const pastSinDistrito = RAW.pastores.filter(p=>!p.codDistrito);
+  const sinDistrito = pastSinDistrito.length;
+  const distsSinIg = RAW.distritos.filter(d=>!d.iglesias||d.iglesias===0);
+  const distSinIg = distsSinIg.length;
+
+  function buildAlertCard(icon, title, color, bg, action, names) {
+    const MAX = 6;
+    const shown = names.slice(0, MAX);
+    const extra = names.length - MAX;
+    const nameList = shown.length
+      ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">${shown.map(n=>`<span style="background:rgba(0,0,0,.08);border-radius:20px;padding:1px 8px;font-size:11px;color:${color};">${escHtml(n)}</span>`).join('')}${extra>0?`<span style="font-size:11px;color:${color};padding:1px 6px;">+${extra} más</span>`:''}</div>`
+      : '';
+    return `<div data-alerta="${action}" style="padding:12px 16px;background:${bg};border-radius:10px;cursor:pointer;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="width:20px;height:20px;border-radius:50%;background:${color};color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${icon}</span>
+        <span style="font-size:13px;font-weight:600;color:${color};flex:1;">${title}</span>
+        <span style="font-size:12px;color:${color};">Ver &rsaquo;</span>
+      </div>
+      ${nameList}
+    </div>`;
   }
 
-  btn.disabled = true; btn.textContent = 'Enviando…';
+  const alertItems = [];
+  if (sinPastor>0) alertItems.push(buildAlertCard('!',sinPastor+' iglesia'+(sinPastor!==1?'s':'')+' sin pastor asignado','#854d0e','#fef9c3','iglesias-sin-pastor',igSinPastor.map(i=>i.nombre)));
+  if (sinDistrito>0) alertItems.push(buildAlertCard('!',sinDistrito+' pastor'+(sinDistrito!==1?'es':'')+' sin distrito asignado','#9a3412','#ffedd5','pastores',pastSinDistrito.map(p=>p.nombre)));
+  if (distSinIg>0) alertItems.push(buildAlertCard('i',distSinIg+' distrito'+(distSinIg!==1?'s':'')+' sin iglesias registradas','#1e40af','#dbeafe','distritos',distsSinIg.map(d=>d.nombre)));
+  const alertSection = alertItems.length ? '<div style="background:white;border-radius:14px;padding:20px 22px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;"><div style="font-size:15px;font-weight:600;color:#1a2340;margin-bottom:14px;">Alertas</div><div style="display:flex;flex-direction:column;gap:10px;">'+alertItems.join('')+'</div></div>' : '';
+  return `
+  <div style="display:flex;flex-direction:column;gap:20px;">
+    ${alertSection}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;">
+      ${stat(RAW.zonas.length,'Zonas','#eef2ff','#1e3564',icons.globe)}
+      ${stat(RAW.distritos.length,'Distritos','#fff8e6','#d4a820',icons.users)}
+      ${stat(RAW.iglesias.length,'Iglesias','#eef2ff','#1e3564',icons.home)}
+      ${stat(RAW.pastores.length,'Pastores','#fff8e6','#d4a820',icons.user)}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:20px;align-items:start;">
+      <div style="background:white;border-radius:14px;padding:22px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;">
+        <h3 style="font-size:15px;font-weight:600;color:#1a2340;margin-bottom:16px;">Iglesias por Zona</h3>
+        <div style="display:flex;flex-direction:column;gap:9px;">${bars}</div>
+      </div>
+      <div style="background:white;border-radius:14px;padding:22px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;">
+        <h3 style="font-size:15px;font-weight:600;color:#1a2340;margin-bottom:16px;">Distritos con mas iglesias</h3>
+        ${topRows}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ---- ZONAS ---- */
+function buildZonas() {
+  const colors=['#1e3564','#2d5090','#d4a820','#3a6ab0','#e8c040','#4a7ac0','#c9991a'];
+  const cards = RAW.zonas.map((z,i) => `
+  <div style="background:white;border-radius:14px;padding:22px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;animation:fadeUp .2s ease;">
+    <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;">
+      <div style="width:44px;height:44px;background:${colors[i%colors.length]};border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:white;flex-shrink:0;">${z.cod.replace(/\D/g,'')}</div>
+      <div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:15px;color:#1a2340;">${escHtml(z.nombre)}</div><div style="font-size:12px;color:#9ca3af;">${z.cod}</div></div>
+      <div style="display:flex;gap:5px;flex-shrink:0;">
+        <button data-edit-zona="${escHtml(z.cod)}" style="background:transparent;border:1px solid #e8eaf2;border-radius:6px;padding:5px 8px;cursor:pointer;color:#6b7280;display:flex;align-items:center;">${icons.edit}</button>
+        <button data-del-zona="${escHtml(z.cod)}" style="background:transparent;border:1px solid #fee2e2;border-radius:6px;padding:5px 8px;cursor:pointer;color:#ef4444;display:flex;align-items:center;">${icons.trash}</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <div data-nav-zona="${escHtml(z.cod)}" style="flex:1;background:#f8f9fc;border-radius:8px;padding:10px;text-align:center;cursor:pointer;" title="Ver distritos">
+        <div style="font-size:22px;font-weight:700;color:#1e3564;">${z.distritos||0}</div><div style="font-size:11px;color:#9ca3af;margin-top:2px;">Distritos</div>
+      </div>
+      <div data-nav-zona-ig="${escHtml(z.cod)}" style="flex:1;background:#fff8e6;border-radius:8px;padding:10px;text-align:center;cursor:pointer;" title="Ver iglesias">
+        <div style="font-size:22px;font-weight:700;color:#d4a820;">${z._igCount||0}</div><div style="font-size:11px;color:#9ca3af;margin-top:2px;">Iglesias</div>
+      </div>
+    </div>
+  </div>`).join('');
+  return cards
+    ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px;">${cards}</div>`
+    : `<div style="padding:60px;text-align:center;color:#9ca3af;">No hay zonas registradas</div>`;
+}
+
+/* ---- DISTRITOS ---- */
+function buildDistritos() {
+  const zonaFilters = `<button data-filter-zona="all" style="padding:6px 14px;border-radius:20px;border:1.5px solid ${S.fZona==='all'?'#1e3564':'#e8eaf2'};background:${S.fZona==='all'?'#1e3564':'white'};color:${S.fZona==='all'?'white':'#6b7280'};font-size:12px;font-weight:500;cursor:pointer;">Todas</button>
+    ${RAW.zonas.map(z=>`<button data-filter-zona="${z.cod}" style="padding:6px 14px;border-radius:20px;border:1.5px solid ${S.fZona===z.cod?'#1e3564':'#e8eaf2'};background:${S.fZona===z.cod?'#1e3564':'white'};color:${S.fZona===z.cod?'white':'#6b7280'};font-size:12px;font-weight:500;cursor:pointer;">${escHtml(z.nombre.replace(/ZONA /i,'Zona '))}</button>`).join('')}`;
+  const list = getFilteredDistritos();
+  const rows = list.map(d => `
+  <tr style="border-bottom:1px solid #f0f2f7;" onmouseover="this.style.background='#f8f9fc'" onmouseout="this.style.background=''">
+    <td style="padding:13px 20px;font-weight:500;color:#1a2340;">${escHtml(d.nombre)}</td>
+    <td style="padding:13px 20px;color:#9ca3af;font-family:monospace;font-size:12px;">${d.cod}</td>
+    <td style="padding:13px 20px;"><span style="background:#eef2ff;color:#1e3564;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:500;">${escHtml(d.zona)}</span></td>
+    <td style="padding:13px 20px;text-align:center;"><span style="background:#fff8e6;color:#d4a820;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">${d.iglesias||0}</span></td>
+    <td style="padding:13px 16px;"><div style="display:flex;gap:6px;justify-content:flex-end;">
+      <button data-ver-distrito="${d.cod}" data-ver-zona="${d.codZona}" style="background:transparent;border:1px solid #e8eaf2;border-radius:6px;padding:5px 10px;font-size:12px;color:#6b7280;cursor:pointer;">Ver iglesias</button>
+      <button data-edit-distrito="${escHtml(d.cod)}" style="background:transparent;border:1px solid #e8eaf2;border-radius:6px;padding:5px 8px;cursor:pointer;color:#6b7280;display:flex;align-items:center;">${icons.edit}</button>
+      <button data-del-distrito="${escHtml(d.cod)}" style="background:transparent;border:1px solid #fee2e2;border-radius:6px;padding:5px 8px;cursor:pointer;color:#ef4444;display:flex;align-items:center;">${icons.trash}</button>
+    </div></td>
+  </tr>`).join('');
+  return `
+  <div style="display:flex;flex-direction:column;gap:16px;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">${zonaFilters}</div>
+    <div style="background:white;border-radius:14px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;overflow:hidden;">
+      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:640px;">
+        <thead><tr style="background:#f8f9fc;">${thCell('Distrito')}${thCell('Codigo')}${thCell('Zona')}${thCell('Iglesias','center')}${thCell('')}</tr></thead>
+        <tbody>${rows||emptyRow(5,'No se encontraron distritos')}</tbody>
+      </table></div>
+    </div>
+  </div>`;
+}
+
+/* ---- IGLESIAS ---- */
+function buildIglesias() {
+  const distritoOpts = S.fZona==='all' ? RAW.distritos : RAW.distritos.filter(d=>d.codZona===S.fZona);
+  const selectZona = `<select id="sel-zona" style="padding:8px 12px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:13px;color:#374151;background:white;outline:none;cursor:pointer;min-width:160px;">
+    <option value="all" ${S.fZona==='all'?'selected':''}>Todas las zonas</option>
+    ${RAW.zonas.map(z=>`<option value="${z.cod}" ${S.fZona===z.cod?'selected':''}>${escHtml(z.nombre)}</option>`).join('')}</select>`;
+  const pastoresList = [...new Set(RAW.iglesias.map(i=>i.pastor||'').filter(Boolean))].sort();
+  const selectPastor = `<select id="sel-pastor" style="padding:8px 12px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:13px;color:#374151;background:white;outline:none;cursor:pointer;min-width:170px;">
+    <option value="all" ${S.fPastor==='all'?'selected':''}>Todos los pastores</option>
+    <option value="__sin_pastor__" ${S.fPastor==='__sin_pastor__'?'selected':''}>Sin pastor</option>
+    ${pastoresList.map(p=>`<option value="${escHtml(p)}" ${S.fPastor===p?'selected':''}>${escHtml(p)}</option>`).join('')}</select>`;
+  const selectDistrito = `<select id="sel-distrito" style="padding:8px 12px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:13px;color:#374151;background:white;outline:none;cursor:pointer;min-width:190px;">
+    <option value="all" ${S.fDistrito==='all'?'selected':''}>Todos los distritos</option>
+    ${distritoOpts.map(d=>`<option value="${d.cod}" ${S.fDistrito===d.cod?'selected':''}>${escHtml(d.nombre)}</option>`).join('')}</select>`;
+  const filtered = getFilteredIglesias();
+  const total = filtered.length;
+  const pages = Math.max(1, Math.ceil(total / S.pageSize));
+  const page  = Math.min(S.page, pages);
+  const slice = filtered.slice((page-1)*S.pageSize, page*S.pageSize);
+  const rows = slice.map(ig => {
+    const realIdx = RAW.iglesias.indexOf(ig);
+    const driveLink = ig.carpeta_drive ? `<a href="${escHtml(ig.carpeta_drive)}" target="_blank" title="Abrir carpeta Drive" style="color:#1a73e8;display:flex;align-items:center;">${icons.link}</a>` : '';
+    return `<tr style="border-bottom:1px solid #f0f2f7;" onmouseover="this.style.background='#f8f9fc'" onmouseout="this.style.background=''">
+      <td style="padding:13px 20px;font-weight:500;color:#1a2340;">${escHtml(ig.nombre)}</td>
+      <td style="padding:13px 20px;color:#9ca3af;font-family:monospace;font-size:12px;">${ig.cod}</td>
+      <td style="padding:13px 20px;color:#6b7280;font-size:13px;">${escHtml(ig.distrito||'')}</td>
+      <td style="padding:13px 20px;"><span style="background:#eef2ff;color:#1e3564;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:500;">${escHtml(ig.zona||'')}</span></td>
+      <td style="padding:13px 20px;color:#6b7280;font-size:13px;">${escHtml(ig.pastor||'—')}</td>
+      <td style="padding:13px 10px;text-align:center;">${driveLink}</td>
+      <td style="padding:13px 16px;"><div style="display:flex;gap:6px;justify-content:flex-end;">
+        <button data-edit-iglesia="${realIdx}" style="background:transparent;border:1px solid #e8eaf2;border-radius:6px;padding:5px 10px;font-size:12px;color:#6b7280;cursor:pointer;display:flex;align-items:center;gap:4px;">${icons.edit} Editar</button>
+        <button data-del-iglesia="${realIdx}" style="background:transparent;border:1px solid #fee2e2;border-radius:6px;padding:5px 10px;font-size:12px;color:#ef4444;cursor:pointer;display:flex;align-items:center;gap:4px;">${icons.trash} Eliminar</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+  return `
+  <div style="display:flex;flex-direction:column;gap:16px;">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">${selectZona}${selectDistrito}${selectPastor}<span style="margin-left:auto;font-size:13px;color:#9ca3af;">${total} iglesia${total!==1?'s':''}</span></div>
+    <div style="background:white;border-radius:14px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;overflow:hidden;">
+      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:820px;">
+        <thead><tr style="background:#f8f9fc;">${thSort('Iglesia','nombre')}${thSort('Codigo','cod')}${thSort('Distrito','distrito')}${thSort('Zona','zona')}${thSort('Pastor','pastor')}${thCell('Drive','center')}${thCell('')}</tr></thead>
+        <tbody>${rows||emptyRow(7,'No se encontraron iglesias')}</tbody>
+      </table></div>
+      <div style="padding:14px 20px;border-top:1px solid #f0f2f7;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <span style="font-size:13px;color:#9ca3af;">Pagina ${page} de ${pages}</span>
+        <div style="display:flex;gap:6px;">
+          <button id="btn-prev" ${page<=1?'disabled':''} style="padding:6px 14px;border-radius:7px;border:1.5px solid #e8eaf2;background:white;color:${page<=1?'#c5cbe0':'#374151'};font-size:13px;cursor:${page<=1?'default':'pointer'};">Anterior</button>
+          <button id="btn-next" ${page>=pages?'disabled':''} style="padding:6px 14px;border-radius:7px;border:1.5px solid #e8eaf2;background:white;color:${page>=pages?'#c5cbe0':'#374151'};font-size:13px;cursor:${page>=pages?'default':'pointer'};">Siguiente</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ---- PASTORES ---- */
+function buildPastores() {
+  const igByPastor = {}; RAW.iglesias.forEach(i => { if(i.pastor) igByPastor[i.pastor] = (igByPastor[i.pastor]||0)+1; });
+  const list = getFilteredPastores();
+  const cards = list.map(p => {
+    const parts = p.nombre.split(/[\s,]+/).filter(Boolean);
+    const initials = parts.slice(0,2).map(w=>w[0].toUpperCase()).join('');
+    return `<div style="background:white;border-radius:12px;padding:16px 18px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;display:flex;align-items:flex-start;gap:14px;animation:fadeUp .15s ease;">
+      <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#1e3564,#2d5090);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:white;flex-shrink:0;">${initials||'?'}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;font-size:14px;color:#1a2340;">${escHtml(p.nombre)}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">${p.distrito?`<span style="font-size:12px;color:#6b7280;">${escHtml(p.distrito)}</span>`:''}<span style="background:#eef2ff;color:#1e3564;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:600;">${igByPastor[p.nombre]||0} iglesia${(igByPastor[p.nombre]||0)!==1?'s':''}</span></div>
+        ${p.telefono?`<div style="font-size:12px;color:#9ca3af;margin-top:2px;display:flex;align-items:center;gap:4px;">${icons.phone} ${escHtml(p.telefono)}</div>`:''}
+        ${p.email?`<div style="font-size:12px;color:#9ca3af;margin-top:1px;display:flex;align-items:center;gap:4px;">${icons.mail} ${escHtml(p.email)}</div>`:''}
+      </div>
+      <div style="display:flex;gap:5px;flex-shrink:0;">
+        <button data-edit-pastor="${escHtml(p.cod)}" style="background:transparent;border:1px solid #e8eaf2;border-radius:6px;padding:5px 8px;cursor:pointer;color:#6b7280;display:flex;align-items:center;">${icons.edit}</button>
+        <button data-del-pastor="${escHtml(p.cod)}" style="background:transparent;border:1px solid #fee2e2;border-radius:6px;padding:5px 8px;cursor:pointer;color:#ef4444;display:flex;align-items:center;">${icons.trash}</button>
+      </div>
+    </div>`;
+  }).join('');
+  return list.length
+    ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;">${cards}</div>`
+    : `<div style="padding:60px;text-align:center;color:#9ca3af;font-size:14px;">No se encontraron pastores</div>`;
+}
+
+/* ---- CONFIGURACION ---- */
+function buildConfiguracion() {
+  const tipoLabel = { text:'Texto', number:'Numero', date:'Fecha', url:'Enlace URL', boolean:'Si / No' };
+  const rows = S.camposCustom.map((c,i) => `
+  <tr style="border-bottom:1px solid #f0f2f7;" onmouseover="this.style.background='#f8f9fc'" onmouseout="this.style.background=''">
+    <td style="padding:13px 20px;font-weight:500;color:#1a2340;">${escHtml(c.nombre)}</td>
+    <td style="padding:13px 20px;"><span style="background:#eef2ff;color:#1e3564;border-radius:20px;padding:3px 10px;font-size:12px;">${tipoLabel[c.tipo]||c.tipo}</span></td>
+    <td style="padding:13px 20px;color:#9ca3af;font-size:13px;">${escHtml(c.placeholder||'—')}</td>
+    <td style="padding:13px 16px;"><div style="display:flex;gap:6px;justify-content:flex-end;">
+      <button data-edit-campo="${i}" style="background:transparent;border:1px solid #e8eaf2;border-radius:6px;padding:5px 8px;cursor:pointer;color:#6b7280;display:flex;align-items:center;">${icons.edit}</button>
+      <button data-del-campo="${i}" style="background:transparent;border:1px solid #fee2e2;border-radius:6px;padding:5px 8px;cursor:pointer;color:#ef4444;display:flex;align-items:center;">${icons.trash}</button>
+    </div></td>
+  </tr>`).join('');
+  return `
+  <div style="display:flex;flex-direction:column;gap:20px;max-width:820px;">
+    <div style="background:white;border-radius:14px;padding:24px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;">
+        <div><h2 style="font-size:16px;font-weight:700;color:#1a2340;">Campos personalizados de Iglesias</h2><p style="font-size:13px;color:#9ca3af;margin-top:4px;">Agrega campos extra que apareceran en el formulario de cada iglesia.</p></div>
+        <button id="btn-add-campo" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;flex-shrink:0;">${icons.plus.replace('currentColor','white')} Nuevo campo</button>
+      </div>
+      ${S.camposCustom.length ? `<div style="overflow-x:auto;margin-top:16px;"><table style="width:100%;border-collapse:collapse;font-size:14px;"><thead><tr style="background:#f8f9fc;">${thCell('Campo')}${thCell('Tipo')}${thCell('Placeholder')}${thCell('')}</tr></thead><tbody>${rows}</tbody></table></div>` : `<div style="padding:30px 0;text-align:center;color:#9ca3af;font-size:14px;">No hay campos personalizados. Agrega el primero.</div>`}
+    </div>
+    <div style="background:#fff8e6;border-radius:12px;padding:18px 20px;border:1px solid #f0d880;">
+      <div style="font-weight:600;font-size:14px;color:#92650a;margin-bottom:6px;">Integracion con Google Drive</div>
+      <p style="font-size:13px;color:#7a5a0a;line-height:1.6;">Para vincular carpetas de Drive a cada iglesia, edita la iglesia y pega la URL de la carpeta en el campo <strong>Carpeta Drive</strong>. El enlace aparecera como icono en la tabla de iglesias.</p>
+    </div>
+  </div>`;
+}
+
+/* =====================================================================
+   MODALES
+   ===================================================================== */
+
+function buildChurchModal() {
+  const f = S.form;
+  const title = S.modalMode==='add' ? 'Nueva Iglesia' : 'Editar Iglesia';
+  const distritoOpts = f.codZona ? RAW.distritos.filter(d=>d.codZona===f.codZona) : RAW.distritos;
+  const pastoresFiltrados = f.codZona ? RAW.pastores.filter(p=>!p.codZona||p.codZona===f.codZona) : RAW.pastores;
+  const camposExtra = S.camposCustom.map(c => {
+    const val = (f.datosExtra||{})[c.id] || '';
+    if (c.tipo === 'boolean') return `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">${escHtml(c.nombre)}</label><select id="campo-${c.id}" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;"><option value="">—</option><option value="si" ${val==='si'?'selected':''}>Si</option><option value="no" ${val==='no'?'selected':''}>No</option></select></div>`;
+    const t = c.tipo==='number'?'number':c.tipo==='date'?'date':c.tipo==='url'?'url':'text';
+    return formField(c.nombre,`campo-${c.id}`,val,t,c.placeholder||'');
+  }).join('');
+  return `
+  <div id="modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;max-height:92vh;overflow-y:auto;">
+      <div style="padding:24px 24px 0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <h2 style="font-size:18px;font-weight:700;color:#1a2340;">${title}</h2>
+          <button id="btn-modal-close" style="background:transparent;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#9ca3af;">${icons.x}</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px;padding-bottom:24px;">
+          ${formField('Nombre de la Iglesia','modal-nombre',f.nombre,'text','Ej: Iglesia Beracah','',true)}
+          ${formField('Codigo','modal-cod',f.cod,'text','Ej: TBERAC01','monospace',true)}
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Zona</label>
+            <select id="modal-zona" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
+              <option value="">Seleccionar zona...</option>
+              ${RAW.zonas.map(z=>`<option value="${z.cod}" ${f.codZona===z.cod?'selected':''}>${escHtml(z.nombre)}</option>`).join('')}
+            </select></div>
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Distrito</label>
+            <select id="modal-distrito" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
+              <option value="">Seleccionar distrito...</option>
+              ${distritoOpts.map(d=>`<option value="${d.cod}" ${f.codDistrito===d.cod?'selected':''}>${escHtml(d.nombre)}</option>`).join('')}
+            </select></div>
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Pastor</label>
+            <select id="modal-pastor" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
+              <option value="">Sin pastor asignado</option>
+              ${pastoresFiltrados.map(p=>`<option value="${escHtml(p.nombre)}" ${f.pastor===p.nombre?'selected':''}>${escHtml(p.nombre)}</option>`).join('')}
+              ${f.pastor && !RAW.pastores.find(p=>p.nombre===f.pastor)?`<option value="${escHtml(f.pastor)}" selected>${escHtml(f.pastor)} (manual)</option>`:''}
+            </select></div>
+          ${formField('Carpeta Drive (URL)','modal-carpeta-drive',f.carpetaDrive||'','url','https://drive.google.com/drive/folders/...')}
+          ${camposExtra}
+        </div>
+      </div>
+      <div style="padding:16px 24px;border-top:1px solid #f0f2f7;display:flex;gap:10px;justify-content:flex-end;">
+        <button id="btn-modal-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
+        <button id="btn-modal-save" style="padding:10px 24px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;display:flex;align-items:center;gap:8px;">
+          ${S.saving?`<span style="animation:spin .8s linear infinite;display:inline-block;">${icons.spin.replace('currentColor','white')}</span> Guardando...`:'Guardar'}
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildZonaModal() {
+  const f = S.formZona;
+  return `<div id="zona-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;">
+      <div style="padding:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;"><h2 style="font-size:18px;font-weight:700;color:#1a2340;">${S.zonaModalMode==='add'?'Nueva Zona':'Editar Zona'}</h2><button id="btn-zona-close" style="background:transparent;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#9ca3af;">${icons.x}</button></div>
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          ${formField('Codigo','zona-cod',f.cod,'text','Ej: Z08','monospace')}
+          ${formField('Nombre de la Zona','zona-nombre',f.nombre,'text','Ej: Zona Este','',true)}
+        </div>
+      </div>
+      <div style="padding:16px 24px;border-top:1px solid #f0f2f7;display:flex;gap:10px;justify-content:flex-end;">
+        <button id="btn-zona-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
+        <button id="btn-zona-save" style="padding:10px 24px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;">Guardar</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildDistritoModal() {
+  const f = S.formDistrito;
+  return `<div id="distrito-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;">
+      <div style="padding:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;"><h2 style="font-size:18px;font-weight:700;color:#1a2340;">${S.distritoModalMode==='add'?'Nuevo Distrito':'Editar Distrito'}</h2><button id="btn-distrito-close" style="background:transparent;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#9ca3af;">${icons.x}</button></div>
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          ${formField('Codigo','distrito-cod',f.cod,'text','Ej: DT064','monospace')}
+          ${formField('Nombre del Distrito','distrito-nombre',f.nombre,'text','Ej: Distrito La Romana','',true)}
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Zona</label>
+            <select id="distrito-zona" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
+              <option value="">Seleccionar zona...</option>
+              ${RAW.zonas.map(z=>`<option value="${z.cod}" ${f.codZona===z.cod?'selected':''}>${escHtml(z.nombre)}</option>`).join('')}
+            </select></div>
+        </div>
+      </div>
+      <div style="padding:16px 24px;border-top:1px solid #f0f2f7;display:flex;gap:10px;justify-content:flex-end;">
+        <button id="btn-distrito-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
+        <button id="btn-distrito-save" style="padding:10px 24px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;">Guardar</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildPastorModal() {
+  const f = S.formPastor;
+  const distritoOpts = f.codZona ? RAW.distritos.filter(d=>d.codZona===f.codZona) : RAW.distritos;
+  return `<div id="pastor-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;max-height:92vh;overflow-y:auto;">
+      <div style="padding:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;"><h2 style="font-size:18px;font-weight:700;color:#1a2340;">${S.pastorModalMode==='add'?'Nuevo Pastor':'Editar Pastor'}</h2><button id="btn-pastor-close" style="background:transparent;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#9ca3af;">${icons.x}</button></div>
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          ${formField('Codigo','pastor-cod',f.cod,'text','P001','monospace')}
+          ${formField('Nombre completo','pastor-nombre',f.nombre,'text','Apellido, Nombre','',true)}
+          ${formField('Telefono','pastor-telefono',f.telefono||'','tel','809-000-0000')}
+          ${formField('Correo electronico','pastor-email',f.email||'','email','pastor@iglesia.org')}
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Zona</label>
+            <select id="pastor-zona" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
+              <option value="">Sin zona</option>
+              ${RAW.zonas.map(z=>`<option value="${z.cod}" ${f.codZona===z.cod?'selected':''}>${escHtml(z.nombre)}</option>`).join('')}
+            </select></div>
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Distrito</label>
+            <select id="pastor-distrito" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
+              <option value="">Sin distrito</option>
+              ${distritoOpts.map(d=>`<option value="${d.cod}" ${f.codDistrito===d.cod?'selected':''}>${escHtml(d.nombre)}</option>`).join('')}
+            </select></div>
+        </div>
+      </div>
+      <div style="padding:16px 24px;border-top:1px solid #f0f2f7;display:flex;gap:10px;justify-content:flex-end;">
+        <button id="btn-pastor-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
+        <button id="btn-pastor-save" style="padding:10px 24px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;">Guardar</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildCampoModal() {
+  const f = S.formCampo;
+  return `<div id="campo-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;">
+      <div style="padding:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;"><h2 style="font-size:18px;font-weight:700;color:#1a2340;">${S.campoModalMode==='add'?'Nuevo Campo':'Editar Campo'}</h2><button id="btn-campo-close" style="background:transparent;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#9ca3af;">${icons.x}</button></div>
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          ${formField('Nombre del campo','campo-nombre',f.nombre,'text','Ej: Titulo del terreno')}
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Tipo de campo</label>
+            <select id="campo-tipo" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
+              <option value="text" ${f.tipo==='text'?'selected':''}>Texto</option>
+              <option value="number" ${f.tipo==='number'?'selected':''}>Numero</option>
+              <option value="date" ${f.tipo==='date'?'selected':''}>Fecha</option>
+              <option value="url" ${f.tipo==='url'?'selected':''}>Enlace URL</option>
+              <option value="boolean" ${f.tipo==='boolean'?'selected':''}>Si / No</option>
+            </select></div>
+          ${formField('Placeholder / Ayuda','campo-placeholder',f.placeholder||'','text','Texto de ayuda opcional')}
+        </div>
+      </div>
+      <div style="padding:16px 24px;border-top:1px solid #f0f2f7;display:flex;gap:10px;justify-content:flex-end;">
+        <button id="btn-campo-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
+        <button id="btn-campo-save" style="padding:10px 24px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;">Guardar</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+
+function buildImportModal() {
+  const p = S.importPreview;
+  const res = S.importResult;
+  return `<div id="import-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:560px;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:modalIn .2s ease;max-height:92vh;overflow-y:auto;">
+      <div style="padding:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <h2 style="font-size:18px;font-weight:700;color:#1a2340;">Importar desde Excel</h2>
+          <button id="btn-import-close" style="background:transparent;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#9ca3af;">${icons.x}</button>
+        </div>
+        ${!p && !res ? `
+        <p style="font-size:13px;color:#6b7280;margin-bottom:18px;">Sube un archivo Excel con hojas llamadas <strong>Zonas</strong>, <strong>Distritos</strong>, <strong>Iglesias</strong> y/o <strong>Pastores</strong>. Los registros existentes se actualizaran por codigo.</p>
+        <div id="import-drop-zone" style="border:2px dashed #d4a820;border-radius:12px;padding:40px;text-align:center;cursor:pointer;background:#fffdf0;">
+          <div style="font-size:32px;margin-bottom:10px;">📊</div>
+          <div style="font-weight:600;color:#1a2340;margin-bottom:6px;">Arrastra tu archivo aqui</div>
+          <div style="font-size:13px;color:#9ca3af;">o haz clic para seleccionar</div>
+          <input id="import-file-input" type="file" accept=".xlsx,.xls" style="display:none;" />
+        </div>
+        <div style="margin-top:14px;padding:14px;background:#f0f2f7;border-radius:10px;">
+          <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px;">Columnas esperadas por hoja:</div>
+          <div style="font-size:12px;color:#6b7280;line-height:1.8;">
+            <b>Zonas:</b> cod, nombre<br>
+            <b>Distritos:</b> cod, nombre, codZona (o zona)<br>
+            <b>Iglesias:</b> cod, nombre, pastor, codZona, codDistrito (o zona, distrito)<br>
+            <b>Pastores:</b> cod, nombre, telefono, email, codZona, codDistrito (o zona, distrito)
+          </div>
+        </div>
+        <button onclick="downloadTemplate()" style="margin-top:12px;width:100%;padding:10px;border-radius:8px;border:1.5px solid #d4a820;background:white;color:#d4a820;font-size:13px;font-weight:600;cursor:pointer;">&#11015; Descargar plantilla Excel</button>` : ''}
+        ${p && !res ? `
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          ${p.zonas?.length    ? previewCard('Zonas',    p.zonas,    '#1e3564') : ''}
+          ${p.distritos?.length ? previewCard('Distritos', p.distritos, '#2d5090') : ''}
+          ${p.iglesias?.length  ? previewCard('Iglesias',  p.iglesias,  '#d4a820') : ''}
+          ${p.pastores?.length  ? previewCard('Pastores',  p.pastores,  '#3a6ab0') : ''}
+          ${!p.zonas?.length && !p.distritos?.length && !p.iglesias?.length && !p.pastores?.length ? '<div style="text-align:center;color:#ef4444;padding:20px;">No se encontraron hojas reconocidas en el archivo.</div>' : ''}
+        </div>` : ''}
+        ${res ? `
+        <div style="text-align:center;padding:20px;">
+          <div style="font-size:40px;margin-bottom:12px;">${res.error ? '❌' : '✅'}</div>
+          <div style="font-size:16px;font-weight:600;color:#1a2340;margin-bottom:8px;">${res.error ? 'Error al importar' : 'Importacion completada'}</div>
+          <div style="font-size:13px;color:#6b7280;">${res.msg}</div>
+        </div>` : ''}
+      </div>
+      ${!res ? `<div style="padding:16px 24px;border-top:1px solid #f0f2f7;display:flex;gap:10px;justify-content:flex-end;">
+        <button id="btn-import-cancel-action" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
+        ${p && (p.zonas?.length||p.distritos?.length||p.iglesias?.length||p.pastores?.length) ? `
+        ${p._hasNew && !S.importing ? `
+          <button id="btn-import-only-new" style="padding:10px 16px;border-radius:8px;border:1.5px solid #15803d;background:white;color:#15803d;font-size:13px;cursor:pointer;font-weight:600;">Solo nuevos</button>
+          <button id="btn-import-only-update" style="padding:10px 16px;border-radius:8px;border:1.5px solid #854d0e;background:white;color:#854d0e;font-size:13px;cursor:pointer;font-weight:600;">Solo actualizar</button>
+        ` : ''}
+        <button id="btn-import-confirm" style="padding:10px 20px;border-radius:8px;border:none;background:#d4a820;color:white;font-size:14px;cursor:pointer;font-weight:500;display:flex;align-items:center;gap:8px;">${S.importing?`<span style="animation:spin .8s linear infinite;display:inline-block;">${icons.spin.replace('currentColor','white')}</span> Importando...`:'Importar todo'}</button>
+      ` : ''}
+      </div>` : `<div style="padding:16px 24px;border-top:1px solid #f0f2f7;display:flex;justify-content:flex-end;"><button id="btn-import-done" style="padding:10px 24px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;">Listo</button></div>`}
+    </div>
+  </div>`;
+}
+function previewCard(label, rows, color) {
+  const newCount = rows.filter(r=>r._isNew).length;
+  const updCount = rows.length - newCount;
+  return `<div style="padding:14px 18px;background:#f8f9fc;border-radius:10px;border-left:4px solid ${color};">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:${(newCount&&updCount)?'10px':'0'};">
+      <div style="flex:1;font-weight:600;font-size:14px;color:#1a2340;">${label}</div>
+      <span style="background:${color};color:white;border-radius:20px;padding:3px 12px;font-size:13px;font-weight:700;">${rows.length} filas</span>
+    </div>
+    ${newCount&&updCount ? `<div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:500;">+${newCount} nuevos</span>
+      <span style="background:#fef9c3;color:#854d0e;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:500;">&#9998; ${updCount} actualizaciones</span>
+    </div>` : newCount ? `<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:500;">+${newCount} nuevos</span>`
+    : `<span style="background:#fef9c3;color:#854d0e;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:500;">&#9998; ${updCount} actualizaciones</span>`}
+  </div>`;
+}
+
+function buildSbModal() {
+  return `<div id="sb-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;">
+      <div style="padding:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;"><h2 style="font-size:18px;font-weight:700;color:#1a2340;">Configuracion Supabase</h2><button id="btn-sb-close" style="background:transparent;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#9ca3af;">${icons.x}</button></div>
+        <p style="font-size:13px;color:#9ca3af;margin-bottom:18px;">Conecta tu proyecto Supabase para sincronizar datos en la nube.</p>
+        <div style="display:flex;flex-direction:column;gap:13px;">
+          ${formField('Supabase URL','sb-url',S.sbUrl,'text','https://xxxx.supabase.co','monospace')}
+          ${formField('Anon Key','sb-key',S.sbKey,'password','eyJhbGciOiJIUzI1NiIs...','monospace')}
+          ${formField('Tabla principal','sb-table',S.sbTable,'text','iglesias')}
+        </div>
+        ${S.sbErr?`<div style="margin-top:12px;padding:10px 14px;background:#fee2e2;border-radius:8px;font-size:13px;color:#b91c1c;">${escHtml(S.sbErr)}</div>`:''}
+        ${S.sbOk?`<div style="margin-top:12px;padding:10px 14px;background:#dcfce7;border-radius:8px;font-size:13px;color:#15803d;">${escHtml(S.sbOk)}</div>`:''}
+      </div>
+      <div style="padding:16px 24px;border-top:1px solid #f0f2f7;display:flex;gap:10px;">
+        <button id="btn-sb-test" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#374151;font-size:14px;cursor:pointer;font-weight:500;">Probar</button>
+        <button id="btn-sb-save" style="flex:1;padding:10px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;">Guardar</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function confirmModal(title, body, cancelId, confirmId) {
+  return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;padding:28px;">
+      <h3 style="font-size:17px;font-weight:700;color:#1a2340;margin-bottom:8px;">${title}</h3>
+      <p style="font-size:14px;color:#6b7280;margin-bottom:22px;">${body}</p>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button id="${cancelId}" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
+        <button id="${confirmId}" style="padding:10px 20px;border-radius:8px;border:none;background:#ef4444;color:white;font-size:14px;cursor:pointer;font-weight:500;">Eliminar</button>
+      </div>
+    </div>
+  </div>`;
+}
+function buildDeleteIglesiaConfirm() { const ig=S.deleteTarget!==null?RAW.iglesias[S.deleteTarget]:null; return ig?confirmModal('Eliminar iglesia',`Se eliminara <strong>${escHtml(ig.nombre)}</strong> permanentemente.`,'btn-del-cancel','btn-del-confirm'):''; }
+function buildDeleteZonaConfirm()    { const z=RAW.zonas.find(z=>z.cod===S.deleteZonaCod); return z?confirmModal('Eliminar zona',`Se eliminara la zona <strong>${escHtml(z.nombre)}</strong>.`,'btn-del-zona-cancel','btn-del-zona-confirm'):''; }
+function buildDeleteDistritoConfirm(){ const d=RAW.distritos.find(d=>d.cod===S.deleteDistritoCod); return d?confirmModal('Eliminar distrito',`Se eliminara el distrito <strong>${escHtml(d.nombre)}</strong>.`,'btn-del-distrito-cancel','btn-del-distrito-confirm'):''; }
+function buildDeletePastorConfirm() {
+  const p = RAW.pastores.find(p=>p.cod===S.deletePastorCod);
+  if (!p) return '';
+  const igCount = RAW.iglesias.filter(i=>i.pastor===p.nombre).length;
+  const warning = igCount > 0 ? `<div style="margin-top:12px;padding:10px 14px;background:#fff8e6;border-radius:8px;font-size:13px;color:#854d0e;"><strong>${igCount} iglesia${igCount!==1?'s':''}</strong> tiene${igCount!==1?'n':''} a <strong>${escHtml(p.nombre)}</strong> como pastor. Se desvincularan automaticamente al eliminar.</div>` : '';
+  return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;padding:28px;">
+      <h3 style="font-size:17px;font-weight:700;color:#1a2340;margin-bottom:8px;">Eliminar pastor</h3>
+      <p style="font-size:14px;color:#6b7280;margin-bottom:4px;">Se eliminara a <strong>${escHtml(p.nombre)}</strong> permanentemente.</p>
+      ${warning}
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+        <button id="btn-del-pastor-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
+        <button id="btn-del-pastor-confirm" style="padding:10px 20px;border-radius:8px;border:none;background:#ef4444;color:white;font-size:14px;cursor:pointer;font-weight:500;">Eliminar</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildToast() {
+  const t = S.toast;
+  return `<div style="position:fixed;bottom:24px;right:24px;z-index:400;background:#1a2340;color:white;padding:12px 20px;border-radius:10px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.2);display:flex;align-items:center;gap:10px;animation:toastIn .2s ease;"><div style="width:8px;height:8px;border-radius:50%;background:${t.type==='success'?'#22c55e':'#ef4444'};flex-shrink:0;"></div>${escHtml(t.msg)}</div>`;
+}
+
+/* ---- HELPERS ---- */
+function thSort(label, col) {
+  const active = S.sortCol === col;
+  const arrow = active ? (S.sortDir==='asc' ? ' &#8593;' : ' &#8595;') : '';
+  return `<th data-sort="${col}" style="padding:13px 20px;text-align:left;font-weight:600;font-size:11px;color:${active?'#1e3564':'#6b7280'};text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e8eaf2;white-space:nowrap;cursor:pointer;user-select:none;">${label}${arrow}</th>`;
+}
+function thCell(label, align='left') { return `<th style="padding:13px 20px;text-align:${align};font-weight:600;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e8eaf2;white-space:nowrap;">${label}</th>`; }
+function emptyRow(cols, msg) { return `<tr><td colspan="${cols}" style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">${msg}</td></tr>`; }
+function escHtml(str) { return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function formField(label, id, value, type='text', placeholder='', fontFamily='', required=false) {
+  return `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">${label}${required?'<span style="color:#ef4444;margin-left:2px;">*</span>':''}</label><input id="${id}" type="${type}" value="${escHtml(value)}" placeholder="${placeholder}" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;${fontFamily?'font-family:'+fontFamily+';':''}" /></div>`;
+}
+
+/* =====================================================================
+   EVENTS
+   ===================================================================== */
+function bindEvents() {
+  q('#btn-sidebar-toggle', el => el.addEventListener('click', () => { S.sidebarOpen=!S.sidebarOpen; render(); }));
+  document.querySelectorAll('[data-nav]').forEach(el => el.addEventListener('click', () => { S.view=el.dataset.nav; S.search=''; S.fZona='all'; S.fDistrito='all'; S.fPastor='all'; S.page=1; if(el.dataset.nav==='historial')S._historialData=null; render(); }));
+  document.querySelectorAll('[data-nav-zona]').forEach(el => el.addEventListener('click', () => { S.view='distritos'; S.fZona=el.dataset.navZona; S.search=''; S.page=1; render(); }));
+  document.querySelectorAll('[data-nav-zona-ig]').forEach(el => el.addEventListener('click', () => { S.view='iglesias'; S.fZona=el.dataset.navZonaIg; S.fDistrito='all'; S.search=''; S.page=1; render(); }));
+  document.querySelectorAll('[data-filter-zona]').forEach(el => el.addEventListener('click', () => { S.fZona=el.dataset.filterZona; S.page=1; render(); }));
+  document.querySelectorAll('[data-ver-distrito]').forEach(el => el.addEventListener('click', () => { S.view='iglesias'; S.fZona=el.dataset.verZona; S.fDistrito=el.dataset.verDistrito; S.search=''; S.page=1; render(); }));
+  q('#main-search', el => el.addEventListener('input', e => { S.search=e.target.value; S.page=1; debouncedRender(); }));
+  q('#sel-zona', el => el.addEventListener('change', e => { S.fZona=e.target.value; S.fDistrito='all'; S.page=1; render(); }));
+  q('#sel-distrito', el => el.addEventListener('change', e => { S.fDistrito=e.target.value; S.page=1; render(); }));
+  q('#btn-prev', el => el.addEventListener('click', () => { if(S.page>1){S.page--;render();} }));
+  q('#btn-next', el => el.addEventListener('click', () => { S.page++; render(); }));
+
+
+  /* IMPORT EXCEL */
+  q('#btn-import-excel', el => el.addEventListener('click', () => { S.showImportModal=true; S.importPreview=null; S.importResult=null; render(); }));
+  q('#btn-import-close',  el => el.addEventListener('click', () => { S.showImportModal=false; render(); }));
+  q('#btn-import-cancel-action', el => el.addEventListener('click', () => { if(S.importPreview){S.importPreview=null;render();}else{S.showImportModal=false;render();} }));
+  q('#btn-import-done',   el => el.addEventListener('click', () => { S.showImportModal=false; S.importResult=null; render(); }));
+  q('#import-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el&&!S.importing){S.showImportModal=false;render();} }));
+  q('#import-drop-zone', el => {
+    el.addEventListener('click', () => document.getElementById('import-file-input')?.click());
+    el.addEventListener('dragover', e => { e.preventDefault(); el.style.background='#fff8e6'; });
+    el.addEventListener('dragleave', () => { el.style.background='#fffdf0'; });
+    el.addEventListener('drop', async e => { e.preventDefault(); el.style.background='#fffdf0'; const file=e.dataTransfer.files[0]; if(file){S.importPreview=await parseExcel(file);render();} });
+  });
+  q('#import-file-input', el => el.addEventListener('change', async e => { const file=e.target.files[0]; if(file){S.importPreview=await parseExcel(file);render();} }));
+  q('#btn-import-confirm',     el => el.addEventListener('click', () => { if(S.importPreview)executeImport(S.importPreview, 'all'); }));
+  q('#btn-import-only-new',    el => el.addEventListener('click', () => { if(S.importPreview)executeImport(S.importPreview, 'new'); }));
+  q('#btn-import-only-update', el => el.addEventListener('click', () => { if(S.importPreview)executeImport(S.importPreview, 'update'); }));
+
+  /* ZONAS */
+  q('#btn-add-zona', el => el.addEventListener('click', () => { S.showZonaModal=true; S.zonaModalMode='add'; S.editZonaCod=null; S.formZona={cod:nextZonaCod(),nombre:''}; render(); }));
+  document.querySelectorAll('[data-edit-zona]').forEach(el => el.addEventListener('click', () => { const z=RAW.zonas.find(z=>z.cod===el.dataset.editZona); if(!z) return; S.showZonaModal=true; S.zonaModalMode='edit'; S.editZonaCod=z.cod; S.formZona={cod:z.cod,nombre:z.nombre}; render(); }));
+  document.querySelectorAll('[data-del-zona]').forEach(el => el.addEventListener('click', () => { S.showDeleteZonaConfirm=true; S.deleteZonaCod=el.dataset.delZona; render(); }));
+  q('#btn-zona-close',  el => el.addEventListener('click', () => { S.showZonaModal=false; render(); }));
+  q('#btn-zona-cancel', el => el.addEventListener('click', () => { S.showZonaModal=false; render(); }));
+  q('#zona-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el){S.showZonaModal=false;render();} }));
+  q('#btn-zona-save', el => el.addEventListener('click', async () => {
+    const nombre=document.getElementById('zona-nombre')?.value.trim()||''; const cod=document.getElementById('zona-cod')?.value.trim().toUpperCase()||'';
+    if(!nombre){showToast('El nombre es requerido','error');return;} if(!cod){showToast('El codigo es requerido','error');return;}
+    if(S.zonaModalMode==='add'&&RAW.zonas.find(z=>z.cod===cod)){showToast('El codigo ya existe','error');return;}
+    if(S.sbClient){const{error}=S.zonaModalMode==='add'?await S.sbClient.from('zonas').insert([{cod,nombre}]):await S.sbClient.from('zonas').update({nombre}).eq('cod',cod);if(error){showToast('Error: '+error.message,'error');return;}}
+    if(S.zonaModalMode==='add')RAW.zonas.push({cod,nombre,distritos:0,_igCount:0});
+    else{const i=RAW.zonas.findIndex(z=>z.cod===cod);if(i>=0)RAW.zonas[i]={...RAW.zonas[i],nombre};}
+    registrarHistorial(S.zonaModalMode==='add'?'Creo':'Edito','Zona',cod,nombre);recomputeCounts();S.showZonaModal=false;showToast(S.zonaModalMode==='add'?'Zona creada':'Zona actualizada','success');render();
+  }));
+  q('#btn-del-zona-cancel',  el => el.addEventListener('click', () => { S.showDeleteZonaConfirm=false;S.deleteZonaCod=null;render(); }));
+  q('#btn-del-zona-confirm', el => el.addEventListener('click', async () => {
+    const cod=S.deleteZonaCod;
+    if(RAW.distritos.some(d=>d.codZona===cod)){showToast('No se puede eliminar: tiene distritos asociados','error');S.showDeleteZonaConfirm=false;S.deleteZonaCod=null;render();return;}
+    if(S.sbClient){const{error}=await S.sbClient.from('zonas').delete().eq('cod',cod);if(error){showToast('Error: '+error.message,'error');return;}}
+    const zNom=RAW.zonas.find(z=>z.cod===cod)?.nombre||cod;RAW.zonas=RAW.zonas.filter(z=>z.cod!==cod);registrarHistorial('Elimino','Zona',cod,zNom);recomputeCounts();S.showDeleteZonaConfirm=false;S.deleteZonaCod=null;showToast('Zona eliminada','success');render();
+  }));
+
+  /* DISTRITOS */
+  q('#btn-add-distrito', el => el.addEventListener('click', () => { S.showDistritoModal=true; S.distritoModalMode='add'; S.editDistritoCod=null; S.formDistrito={cod:nextDistritoCod(),nombre:'',codZona:'',zona:''}; render(); }));
+  document.querySelectorAll('[data-edit-distrito]').forEach(el => el.addEventListener('click', () => { const d=RAW.distritos.find(d=>d.cod===el.dataset.editDistrito); if(!d) return; S.showDistritoModal=true; S.distritoModalMode='edit'; S.editDistritoCod=d.cod; S.formDistrito={cod:d.cod,nombre:d.nombre,codZona:d.codZona||'',zona:d.zona||''}; render(); }));
+  document.querySelectorAll('[data-del-distrito]').forEach(el => el.addEventListener('click', () => { S.showDeleteDistritoConfirm=true; S.deleteDistritoCod=el.dataset.delDistrito; render(); }));
+  q('#btn-distrito-close',  el => el.addEventListener('click', () => { S.showDistritoModal=false; render(); }));
+  q('#btn-distrito-cancel', el => el.addEventListener('click', () => { S.showDistritoModal=false; render(); }));
+  q('#distrito-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el){S.showDistritoModal=false;render();} }));
+  q('#btn-distrito-save', el => el.addEventListener('click', async () => {
+    const nombre=document.getElementById('distrito-nombre')?.value.trim()||''; const cod=document.getElementById('distrito-cod')?.value.trim().toUpperCase()||''; const codZona=document.getElementById('distrito-zona')?.value||''; const zona=RAW.zonas.find(z=>z.cod===codZona)?.nombre||'';
+    if(!nombre){showToast('El nombre es requerido','error');return;} if(!cod){showToast('El codigo es requerido','error');return;}
+    if(S.distritoModalMode==='add'&&RAW.distritos.find(d=>d.cod===cod)){showToast('El codigo ya existe','error');return;}
+    const row={cod,nombre,codZona,zona};
+    if(S.sbClient){const{error}=S.distritoModalMode==='add'?await S.sbClient.from('distritos').insert([row]):await S.sbClient.from('distritos').update({nombre,codZona,zona}).eq('cod',cod);if(error){showToast('Error: '+error.message,'error');return;}}
+    if(S.distritoModalMode==='add')RAW.distritos.push({...row,iglesias:0});
+    else{const i=RAW.distritos.findIndex(d=>d.cod===cod);if(i>=0)RAW.distritos[i]={...RAW.distritos[i],...row};}
+    registrarHistorial(S.distritoModalMode==='add'?'Creo':'Edito','Distrito',cod,nombre);recomputeCounts();S.showDistritoModal=false;showToast(S.distritoModalMode==='add'?'Distrito creado':'Distrito actualizado','success');render();
+  }));
+  q('#btn-del-distrito-cancel',  el => el.addEventListener('click', () => { S.showDeleteDistritoConfirm=false;S.deleteDistritoCod=null;render(); }));
+  q('#btn-del-distrito-confirm', el => el.addEventListener('click', async () => {
+    const cod=S.deleteDistritoCod;
+    if(RAW.iglesias.some(i=>i.codDistrito===cod)){showToast('No se puede eliminar: tiene iglesias asociadas','error');S.showDeleteDistritoConfirm=false;S.deleteDistritoCod=null;render();return;}
+    if(S.sbClient){const{error}=await S.sbClient.from('distritos').delete().eq('cod',cod);if(error){showToast('Error: '+error.message,'error');return;}}
+    const dNom=RAW.distritos.find(d=>d.cod===cod)?.nombre||cod;RAW.distritos=RAW.distritos.filter(d=>d.cod!==cod);registrarHistorial('Elimino','Distrito',cod,dNom);recomputeCounts();S.showDeleteDistritoConfirm=false;S.deleteDistritoCod=null;showToast('Distrito eliminado','success');render();
+  }));
+
+  /* IGLESIAS */
+  q('#btn-add-iglesia', el => el.addEventListener('click', () => { S.showModal=true;S.modalMode='add';S.editId=null;S.form={nombre:'',cod:'',codZona:'',codDistrito:'',distrito:'',zona:'',pastor:'',carpetaDrive:'',datosExtra:{}};render(); }));
+  document.querySelectorAll('[data-edit-iglesia]').forEach(el => el.addEventListener('click', () => { const idx=parseInt(el.dataset.editIglesia);const ig=RAW.iglesias[idx];S.showModal=true;S.modalMode='edit';S.editId=idx;S.form={nombre:ig.nombre,cod:ig.cod,codZona:ig.codZona||'',codDistrito:ig.codDistrito||'',distrito:ig.distrito||'',zona:ig.zona||'',pastor:ig.pastor||'',carpetaDrive:ig.carpeta_drive||'',datosExtra:ig.datos_extra||{}};render(); }));
+  document.querySelectorAll('[data-del-iglesia]').forEach(el => el.addEventListener('click', () => { S.deleteTarget=parseInt(el.dataset.delIglesia);S.showDeleteConfirm=true;render(); }));
+  q('#btn-modal-close',  el => el.addEventListener('click', () => { S.showModal=false;render(); }));
+  q('#btn-modal-cancel', el => el.addEventListener('click', () => { S.showModal=false;render(); }));
+  q('#modal-bg', el => el.addEventListener('click', e => { if(e.target===el){S.showModal=false;render();} }));
+  q('#modal-zona', el => el.addEventListener('change', e => { const cod=e.target.value;const z=RAW.zonas.find(z=>z.cod===cod);S.form={...S.form,codZona:cod,zona:z?z.nombre:'',codDistrito:'',distrito:''};render(); }));
+  q('#modal-distrito', el => el.addEventListener('change', e => { const cod=e.target.value;const d=RAW.distritos.find(d=>d.cod===cod);S.form={...S.form,codDistrito:cod,distrito:d?d.nombre:''}; }));
+  q('#btn-modal-save', el => el.addEventListener('click', async () => {
+    const nombre=document.getElementById('modal-nombre')?.value.trim()||''; const cod=document.getElementById('modal-cod')?.value.trim().toUpperCase()||''; const pastor=document.getElementById('modal-pastor')?.value||''; const carpeta_drive=document.getElementById('modal-carpeta-drive')?.value.trim()||'';
+    if(!nombre){showToast('El nombre es requerido','error');return;} if(!cod){showToast('El codigo es requerido','error');return;}
+    const datosExtra={};for(const c of S.camposCustom){const el=document.getElementById(`campo-${c.id}`);if(el)datosExtra[c.id]=el.value.trim();}
+    const ig={cod,nombre,pastor,codZona:S.form.codZona,zona:S.form.zona,codDistrito:S.form.codDistrito,distrito:S.form.distrito,datos_extra:datosExtra,carpeta_drive};
+    S.saving=true;render();
+    if(S.sbClient){const{error}=S.modalMode==='add'?await S.sbClient.from(S.sbTable).insert([ig]):await S.sbClient.from(S.sbTable).update(ig).eq('cod',ig.cod);if(error){S.saving=false;showToast('Error: '+error.message,'error');render();return;}}
+    if(S.modalMode==='add')RAW.iglesias.push(ig);else RAW.iglesias[S.editId]={...RAW.iglesias[S.editId],...ig};
+    registrarHistorial(S.modalMode==='add'?'Creo':'Edito','Iglesia',ig.cod,ig.nombre);recomputeCounts();S.saving=false;S.showModal=false;showToast(S.modalMode==='add'?'Iglesia agregada':'Iglesia actualizada','success');render();
+  }));
+  q('#btn-del-cancel',  el => el.addEventListener('click', () => { S.showDeleteConfirm=false;S.deleteTarget=null;render(); }));
+  q('#btn-del-confirm', el => el.addEventListener('click', async () => { const ig=RAW.iglesias[S.deleteTarget];if(S.sbClient)await S.sbClient.from(S.sbTable).delete().eq('cod',ig.cod);registrarHistorial('Elimino','Iglesia',ig.cod,ig.nombre);RAW.iglesias.splice(S.deleteTarget,1);recomputeCounts();S.showDeleteConfirm=false;S.deleteTarget=null;showToast('Iglesia eliminada','success');render(); }));
+
+  /* PASTORES */
+  q('#btn-add-pastor', el => el.addEventListener('click', () => { S.showPastorModal=true;S.pastorModalMode='add';S.editPastorCod=null;S.formPastor={cod:nextPastorCod(),nombre:'',telefono:'',email:'',codZona:'',zona:'',codDistrito:'',distrito:''};render(); }));
+  document.querySelectorAll('[data-edit-pastor]').forEach(el => el.addEventListener('click', () => { const p=RAW.pastores.find(p=>p.cod===el.dataset.editPastor);if(!p)return;S.showPastorModal=true;S.pastorModalMode='edit';S.editPastorCod=p.cod;S.formPastor={cod:p.cod,nombre:p.nombre,telefono:p.telefono||'',email:p.email||'',codZona:p.codZona||'',zona:p.zona||'',codDistrito:p.codDistrito||'',distrito:p.distrito||''};render(); }));
+  document.querySelectorAll('[data-del-pastor]').forEach(el => el.addEventListener('click', () => { S.showDeletePastorConfirm=true;S.deletePastorCod=el.dataset.delPastor;render(); }));
+  q('#btn-pastor-close',  el => el.addEventListener('click', () => { S.showPastorModal=false;render(); }));
+  q('#btn-pastor-cancel', el => el.addEventListener('click', () => { S.showPastorModal=false;render(); }));
+  q('#pastor-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el){S.showPastorModal=false;render();} }));
+  q('#pastor-zona', el => el.addEventListener('change', e => { const cod=e.target.value;const z=RAW.zonas.find(z=>z.cod===cod);S.formPastor={...S.formPastor,codZona:cod,zona:z?z.nombre:'',codDistrito:'',distrito:''};render(); }));
+  q('#pastor-distrito', el => el.addEventListener('change', e => { const cod=e.target.value;const d=RAW.distritos.find(d=>d.cod===cod);S.formPastor={...S.formPastor,codDistrito:cod,distrito:d?d.nombre:''}; }));
+  q('#btn-pastor-save', el => el.addEventListener('click', async () => {
+    const nombre=document.getElementById('pastor-nombre')?.value.trim()||''; const cod=document.getElementById('pastor-cod')?.value.trim().toUpperCase()||''; const telefono=document.getElementById('pastor-telefono')?.value.trim()||''; const email=document.getElementById('pastor-email')?.value.trim()||''; const codZona=document.getElementById('pastor-zona')?.value||''; const zona=RAW.zonas.find(z=>z.cod===codZona)?.nombre||''; const codDistrito=document.getElementById('pastor-distrito')?.value||''; const distrito=RAW.distritos.find(d=>d.cod===codDistrito)?.nombre||'';
+    if(!nombre){showToast('El nombre es requerido','error');return;} if(!cod){showToast('El codigo es requerido','error');return;}
+    if(S.pastorModalMode==='add'&&RAW.pastores.find(p=>p.cod===cod)){showToast('El codigo ya existe','error');return;}
+    const row={cod,nombre,telefono,email,codZona,zona,codDistrito,distrito};
+    if(S.sbClient){const{error}=S.pastorModalMode==='add'?await S.sbClient.from('pastores').insert([row]):await S.sbClient.from('pastores').update(row).eq('cod',cod);if(error){showToast('Error: '+error.message,'error');return;}}
+    if(S.pastorModalMode==='add')RAW.pastores.push(row);else{const i=RAW.pastores.findIndex(p=>p.cod===cod);if(i>=0)RAW.pastores[i]=row;}
+    registrarHistorial(S.pastorModalMode==='add'?'Creo':'Edito','Pastor',row.cod,row.nombre);S.showPastorModal=false;showToast(S.pastorModalMode==='add'?'Pastor agregado':'Pastor actualizado','success');render();
+  }));
+  q('#btn-del-pastor-cancel',  el => el.addEventListener('click', () => { S.showDeletePastorConfirm=false;S.deletePastorCod=null;render(); }));
+  q('#btn-del-pastor-confirm', el => el.addEventListener('click', async () => { const cod=S.deletePastorCod;if(S.sbClient){const{error}=await S.sbClient.from('pastores').delete().eq('cod',cod);if(error){showToast('Error: '+error.message,'error');return;}}const pElim=RAW.pastores.find(p=>p.cod===cod);const pNom=pElim?.nombre||cod;
+    const iglesiasAfectadas=RAW.iglesias.filter(i=>i.pastor===pNom);
+    if(iglesiasAfectadas.length&&S.sbClient){
+      await S.sbClient.from(S.sbTable).update({pastor:''}).eq('pastor',pNom);
+      iglesiasAfectadas.forEach(i=>{i.pastor='';});
+    }
+    RAW.pastores=RAW.pastores.filter(p=>p.cod!==cod);registrarHistorial('Elimino','Pastor',cod,pNom);S.showDeletePastorConfirm=false;S.deletePastorCod=null;showToast('Pastor eliminado'+(iglesiasAfectadas.length?' ('+iglesiasAfectadas.length+' iglesias desvinculadas)':''),'success');render(); }));
+
+  /* HISTORIAL */
+  q('#btn-clear-historial', el => el.addEventListener('click', async () => { localStorage.removeItem('padron_historial'); if(S.sbClient) await S.sbClient.from('historial').delete().neq('id','00000000-0000-0000-0000-000000000000'); S._historialData=null; showToast('Historial borrado','success'); render(); }));
+  document.querySelectorAll('[data-alerta]').forEach(el => el.addEventListener('click', () => { const a=el.dataset.alerta; if(a==='iglesias-sin-pastor'){S.view='iglesias';S.fZona='all';S.fDistrito='all';S.fPastor='__sin_pastor__';}else{S.view=a;S.fZona='all';S.fDistrito='all';S.fPastor='all';}S.search='';S.page=1;render(); }));
+
+  /* BUSQUEDA GLOBAL */
+  q('#btn-global-search', el => el.addEventListener('click', () => { S.showSearch=true; S.searchQuery=''; render(); setTimeout(()=>document.getElementById('search-input')?.focus(),50); }));
+  q('#btn-search-close', el => el.addEventListener('click', () => { S.showSearch=false; render(); }));
+  q('#search-bg', el => el.addEventListener('click', e => { if(e.target===el){S.showSearch=false;render();} }));
+  q('#search-input', el => el.addEventListener('input', e => { S.searchQuery=e.target.value; render(); setTimeout(()=>{const inp=document.getElementById('search-input');if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}},0); }));
+  document.querySelectorAll('[data-search-nav]').forEach(el => el.addEventListener('click', () => { S.view=el.dataset.searchNav; S.search=el.dataset.searchVal||''; S.showSearch=false; S.fZona='all'; S.fDistrito='all'; S.fPastor='all'; S.page=1; render(); }));
+
+  /* EXPORTAR EXCEL */
+  q('#btn-export-excel', el => el.addEventListener('click', () => exportarExcel()));
+
+  /* FILTRAR POR PASTOR */
+  q('#sel-pastor', el => el.addEventListener('change', e => { S.fPastor=e.target.value; S.page=1; render(); }));
+  document.querySelectorAll('[data-sort]').forEach(el => el.addEventListener('click', () => { const col=el.dataset.sort; if(S.sortCol===col){S.sortDir=S.sortDir==='asc'?'desc':'asc';}else{S.sortCol=col;S.sortDir='asc';} S.page=1; render(); }));
+
+  /* CTRL+K */
+
+  /* CAMPOS (Configuracion) */
+  q('#btn-add-campo', el => el.addEventListener('click', () => { S.showCampoModal=true;S.campoModalMode='add';S.editCampoIdx=null;S.formCampo={id:'',nombre:'',tipo:'text',placeholder:''};render(); }));
+  document.querySelectorAll('[data-edit-campo]').forEach(el => el.addEventListener('click', () => { const i=parseInt(el.dataset.editCampo);const c=S.camposCustom[i];if(!c)return;S.showCampoModal=true;S.campoModalMode='edit';S.editCampoIdx=i;S.formCampo={...c};render(); }));
+  document.querySelectorAll('[data-del-campo]').forEach(el => el.addEventListener('click', async () => { S.camposCustom.splice(parseInt(el.dataset.delCampo),1);await saveCamposCustom();showToast('Campo eliminado','success');render(); }));
+  q('#btn-campo-close',  el => el.addEventListener('click', () => { S.showCampoModal=false;render(); }));
+  q('#btn-campo-cancel', el => el.addEventListener('click', () => { S.showCampoModal=false;render(); }));
+  q('#campo-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el){S.showCampoModal=false;render();} }));
+  q('#btn-campo-save', el => el.addEventListener('click', async () => {
+    const nombre=document.getElementById('campo-nombre')?.value.trim()||''; const tipo=document.getElementById('campo-tipo')?.value||'text'; const placeholder=document.getElementById('campo-placeholder')?.value.trim()||'';
+    if(!nombre){showToast('El nombre es requerido','error');return;}
+    if(S.campoModalMode==='add'){const id='c_'+nombre.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')+'_'+Date.now();S.camposCustom.push({id,nombre,tipo,placeholder});}
+    else S.camposCustom[S.editCampoIdx]={...S.camposCustom[S.editCampoIdx],nombre,tipo,placeholder};
+    await saveCamposCustom();S.showCampoModal=false;showToast(S.campoModalMode==='add'?'Campo creado':'Campo actualizado','success');render();
+  }));
+
+  /* SUPABASE */
+  q('#btn-sb-cfg',   el => el.addEventListener('click', () => { S.showSb=true;S.sbErr='';S.sbOk='';render(); }));
+  q('#btn-sb-close', el => el.addEventListener('click', () => { S.showSb=false;render(); }));
+  q('#sb-modal-bg',  el => el.addEventListener('click', e => { if(e.target===el){S.showSb=false;render();} }));
+  q('#btn-sb-test', el => el.addEventListener('click', async () => {
+    const url=document.getElementById('sb-url')?.value.trim()||''; const key=document.getElementById('sb-key')?.value.trim()||''; const table=document.getElementById('sb-table')?.value.trim()||'iglesias';
+    if(!url||!key){S.sbErr='Ingresa URL y API Key';S.sbOk='';render();return;}
+    try{const c=window.supabase.createClient(url,key);const{error}=await c.from(table).select('cod').limit(1);S.sbErr=error?'Error: '+error.message:'';S.sbOk=error?'':'Conexion exitosa';}
+    catch(e){S.sbErr='Error: '+e.message;S.sbOk='';}render();
+  }));
+  q('#btn-sb-save', el => el.addEventListener('click', async () => {
+    const url=document.getElementById('sb-url')?.value.trim()||''; const key=document.getElementById('sb-key')?.value.trim()||''; const table=document.getElementById('sb-table')?.value.trim()||'iglesias';
+    if(!url||!key){S.sbErr='Ingresa URL y API Key';render();return;}
+    try{const c=window.supabase.createClient(url,key);localStorage.setItem('sb_url',url);localStorage.setItem('sb_key',key);localStorage.setItem('sb_table',table);S.sbUrl=url;S.sbKey=key;S.sbTable=table;S.sbClient=c;S.sbConnected=true;S.showSb=false;
+      const[zR,dR,iR,pR]=await Promise.all([c.from('zonas').select('*'),c.from('distritos').select('*'),c.from(table).select('*').order('nombre'),c.from('pastores').select('*').order('nombre')]);
+      if(!zR.error&&zR.data?.length)RAW.zonas=zR.data;if(!dR.error&&dR.data?.length)RAW.distritos=dR.data;if(!iR.error&&iR.data?.length)RAW.iglesias=iR.data;if(!pR.error&&pR.data?.length)RAW.pastores=pR.data;
+      recomputeCounts();showToast('Supabase conectado','success');render();}
+    catch(e){S.sbErr='Error: '+e.message;render();}
+  }));
+}
+
+function q(sel, fn) { const el=document.querySelector(sel); if(el) fn(el); }
+
+/* =====================================================================
+   CRUD HELPERS
+   ===================================================================== */
+function recomputeCounts() {
+  for (const d of RAW.distritos) d.iglesias = RAW.iglesias.filter(i=>i.codDistrito===d.cod).length;
+  for (const z of RAW.zonas) { z.distritos=RAW.distritos.filter(d=>d.codZona===z.cod).length; z._igCount=RAW.iglesias.filter(i=>i.codZona===z.cod).length; }
+}
+async function saveCamposCustom() {
+  if(S.sbClient) await S.sbClient.from('configuracion').upsert({id:'campos_iglesias',valor:S.camposCustom,updated_at:new Date().toISOString()});
+}
+function showToast(msg, type='success') {
+  if(S.toastTimer) clearTimeout(S.toastTimer);
+  S.toast={msg,type}; S.toastTimer=setTimeout(()=>{S.toast=null;render();},3000);
+}
+
+
+/* =====================================================================
+   EXCEL IMPORT
+   ===================================================================== */
+function normalizeKey(k) { return String(k).toLowerCase().replace(/[^a-z0-9]/g,''); }
+function findCol(row, ...candidates) {
+  const keys = Object.keys(row); for (const c of candidates) { const n=normalizeKey(c); const k=keys.find(k=>normalizeKey(k)===n); if(k!==undefined)return row[k]; } return '';
+}
+function parseExcel(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type:'array' });
+        const preview = {};
+        const sheetMap = {};
+        for (const name of wb.SheetNames) { sheetMap[name.toLowerCase().trim()] = name; }
+        const getSheet = (...names) => { for (const n of names) { const key=n.toLowerCase(); if(sheetMap[key]) return XLSX.utils.sheet_to_json(wb.Sheets[sheetMap[key]], {defval:''}); } return null; };
+
+        // Intentar hojas con nombre estandar primero
+        const zonasSheet    = getSheet('zonas','zona');
+        const distritosSheet = getSheet('distritos','distrito');
+        const iglesiasSheet  = getSheet('iglesias','iglesia','churches');
+        const pastoresSheet  = getSheet('pastores','pastor','pastors');
+
+        if (zonasSheet)     preview.zonas    = zonasSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre','name')||'').trim() })).filter(r=>r.cod&&r.nombre);
+        if (distritosSheet) preview.distritos = distritosSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre')||'').trim(), codZona: String(findCol(r,'codZona','cod_zona','codzona')||'').trim().toUpperCase(), zona: String(findCol(r,'zona')||'').trim() })).filter(r=>r.cod&&r.nombre);
+        if (iglesiasSheet)  preview.iglesias  = iglesiasSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre')||'').trim(), pastor: String(findCol(r,'pastor')||'').trim(), codZona: String(findCol(r,'codZona','cod_zona','codzona')||'').trim().toUpperCase(), zona: String(findCol(r,'zona')||'').trim(), codDistrito: String(findCol(r,'codDistrito','cod_distrito','coddistrito')||'').trim().toUpperCase(), distrito: String(findCol(r,'distrito')||'').trim() })).filter(r=>r.cod&&r.nombre);
+        if (pastoresSheet)  preview.pastores  = pastoresSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre')||'').trim(), telefono: String(findCol(r,'telefono','tel','phone')||'').trim(), email: String(findCol(r,'email','correo')||'').trim(), codZona: String(findCol(r,'codZona','cod_zona','codzona')||'').trim().toUpperCase(), zona: String(findCol(r,'zona')||'').trim(), codDistrito: String(findCol(r,'codDistrito','cod_distrito','coddistrito')||'').trim().toUpperCase(), distrito: String(findCol(r,'distrito')||'').trim() })).filter(r=>r.cod&&r.nombre);
+
+        // Si no habia hojas estandar, buscar formato plano tipo PADRON (una sola hoja con todo)
+        if (!zonasSheet && !distritosSheet && !iglesiasSheet && !pastoresSheet) {
+          // Buscar la hoja que tenga columnas de iglesia
+          for (const sheetName of wb.SheetNames) {
+            const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {defval:''});
+            if (!rows.length) continue;
+            const headers = Object.keys(rows[0]).map(k=>k.toLowerCase());
+            const hasCodIglesia = headers.some(h=>h.includes('iglesia')||h.includes('cod_ig'));
+            if (!hasCodIglesia) continue;
+            // Es formato plano — extraer entidades unicas
+            const zonasMap = {}; const distritosMap = {}; const pastoresMap = {};
+            const iglesias = [];
+            for (const r of rows) {
+              const codZona    = String(findCol(r,'COD_ZONA','codZona','cod_zona')||'').trim().toUpperCase();
+              const zona       = String(findCol(r,'ZONA','zona')||'').trim();
+              const codDist    = String(findCol(r,'COD_DISTRITO','codDistrito','cod_distrito')||'').trim().toUpperCase();
+              const distrito   = String(findCol(r,'Distrito','DISTRITO','distrito')||'').trim();
+              const codIglesia = String(findCol(r,'COD_IGLESIA','cod_iglesia','codIglesia')||'').trim().toUpperCase();
+              const iglesia    = String(findCol(r,'Iglesia','IGLESIA','iglesia','nombre')||'').trim();
+              const pastor     = String(findCol(r,'Pastor','PASTOR','pastor')||'').trim();
+              if (codZona&&zona&&!zonasMap[codZona])    zonasMap[codZona]    = {cod:codZona,nombre:zona};
+              if (codDist&&distrito&&!distritosMap[codDist]) distritosMap[codDist] = {cod:codDist,nombre:distrito,codZona,zona};
+              if (pastor&&!pastoresMap[pastor]) {
+                // Buscar cod en RAW.pastores por nombre, o generar uno
+                const existing = RAW.pastores.find(p=>p.nombre.toLowerCase()===pastor.toLowerCase());
+                const cod = existing ? existing.cod : ('P'+String(Object.keys(pastoresMap).length+RAW.pastores.length+1).padStart(3,'0'));
+                pastoresMap[pastor] = {cod,nombre:pastor,telefono:'',email:'',codZona,zona,codDistrito:codDist,distrito};
+              }
+              if (codIglesia&&iglesia) iglesias.push({cod:codIglesia,nombre:iglesia,pastor,codZona,zona,codDistrito:codDist,distrito});
+            }
+            preview.zonas     = Object.values(zonasMap);
+            preview.distritos = Object.values(distritosMap);
+            preview.iglesias  = iglesias;
+            preview.pastores  = Object.values(pastoresMap);
+            break;
+          }
+        }
+        // Anotar cuales son nuevos vs actualizaciones
+        if (preview.zonas)     preview.zonas.forEach(r=>{ r._isNew = !RAW.zonas.find(x=>x.cod===r.cod); });
+        if (preview.distritos) preview.distritos.forEach(r=>{ r._isNew = !RAW.distritos.find(x=>x.cod===r.cod); });
+        if (preview.iglesias)  preview.iglesias.forEach(r=>{ r._isNew = !RAW.iglesias.find(x=>x.cod===r.cod); });
+        if (preview.pastores)  preview.pastores.forEach(r=>{ r._isNew = !RAW.pastores.find(x=>x.cod===r.cod); });
+        // Si hay nuevos, pedir confirmacion
+        const hasNew = (preview.zonas||[]).some(r=>r._isNew)||(preview.distritos||[]).some(r=>r._isNew)||(preview.iglesias||[]).some(r=>r._isNew)||(preview.pastores||[]).some(r=>r._isNew);
+        preview._hasNew = hasNew;
+        resolve(preview);
+      } catch(err) { reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function downloadTemplate() {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ['cod','nombre'],
+    ['Z01','ZONA I'],['Z02','ZONA II'],
+  ]), 'Zonas');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ['cod','nombre','codZona','zona'],
+    ['DT001','Distrito Ejemplo','Z01','ZONA I'],
+  ]), 'Distritos');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ['cod','nombre','pastor','codZona','zona','codDistrito','distrito'],
+    ['TIGLES01','Iglesia Ejemplo','Apellido, Nombre','Z01','ZONA I','DT001','Distrito Ejemplo'],
+  ]), 'Iglesias');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ['cod','nombre','telefono','email','codZona','zona','codDistrito','distrito'],
+    ['P001','Apellido, Nombre','809-000-0000','pastor@correo.com','Z01','ZONA I','DT001','Distrito Ejemplo'],
+  ]), 'Pastores');
+  XLSX.writeFile(wb, 'Plantilla_Importacion.xlsx');
+}
+
+async function executeImport(preview, mode='all') {
+  const filter = rows => mode==='all' ? rows : mode==='new' ? rows.filter(r=>r._isNew) : rows.filter(r=>!r._isNew);
+  S.importing = true; render();
+  const sb = S.sbClient; let total = 0; let errorMsg = '';
   try {
-    const res = await fetch('/api/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre, email, cargo, sistema, motivo }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Error desconocido');
-
-    msg.className = 'msg success';
-    msg.innerHTML = '✅ <strong>Solicitud enviada.</strong> Los 4 aprobadores han sido notificados por correo y WhatsApp.';
-    btn.textContent = 'Enviado';
-
-    const url = `${location.origin}/estado.html?id=${data.id}`;
-    document.getElementById('enlace-estado').href = url;
-    document.getElementById('enlace-estado').textContent = url;
-    document.getElementById('estado-link').style.display = 'block';
-  } catch (e) {
-    msg.className = 'msg error'; msg.textContent = 'Error: ' + e.message;
-    btn.disabled = false; btn.textContent = 'Enviar solicitud →';
+    if (preview.zonas?.length) {
+      const rows_z = filter(preview.zonas); if(!rows_z.length) {}
+      else { const { error } = await sb.from('zonas').upsert(rows_z, { onConflict: 'cod' });
+      if (error) throw error;
+      for (const z of rows_z) { const i=RAW.zonas.findIndex(x=>x.cod===z.cod); if(i>=0)RAW.zonas[i]={...RAW.zonas[i],...z}; else RAW.zonas.push(z); }
+      total += rows_z.length;
+      } }
+    if (preview.distritos?.length) {
+      const rows_d_all = filter(preview.distritos);
+      if (rows_d_all.length) { const rows = rows_d_all.map(d => { if (!d.codZona) { const z=RAW.zonas.find(z=>z.nombre.toLowerCase()===d.zona.toLowerCase()); if(z)d.codZona=z.cod; } return d; });
+      const { error } = await sb.from('distritos').upsert(rows, { onConflict: 'cod' });
+      if (error) throw error;
+      for (const d of rows) { const i=RAW.distritos.findIndex(x=>x.cod===d.cod); if(i>=0)RAW.distritos[i]={...RAW.distritos[i],...d}; else RAW.distritos.push(d); }
+      total += rows.length;
+      } }
+    if (preview.iglesias?.length) {
+      const rows_i_all = filter(preview.iglesias);
+      if (rows_i_all.length) { const rows = rows_i_all.map(ig => { if(!ig.codZona&&ig.zona){const z=RAW.zonas.find(z=>z.nombre.toLowerCase()===ig.zona.toLowerCase());if(z)ig.codZona=z.cod;} if(!ig.codDistrito&&ig.distrito){const d=RAW.distritos.find(d=>d.nombre.toLowerCase()===ig.distrito.toLowerCase());if(d)ig.codDistrito=d.cod;} return ig; });
+      const chunks = []; for(let i=0;i<rows.length;i+=200)chunks.push(rows.slice(i,i+200));
+      for (const chunk of chunks) { const{error}=await sb.from(S.sbTable).upsert(chunk,{onConflict:'cod'}); if(error)throw error; }
+      for (const ig of rows) { const i=RAW.iglesias.findIndex(x=>x.cod===ig.cod); if(i>=0)RAW.iglesias[i]={...RAW.iglesias[i],...ig}; else RAW.iglesias.push(ig); }
+      total += rows.length;
+      } }
+    if (preview.pastores?.length) {
+      const rows_p_all = filter(preview.pastores);
+      if (rows_p_all.length) { const rows = rows_p_all.map(p => { if(!p.codZona&&p.zona){const z=RAW.zonas.find(z=>z.nombre.toLowerCase()===p.zona.toLowerCase());if(z)p.codZona=z.cod;} if(!p.codDistrito&&p.distrito){const d=RAW.distritos.find(d=>d.nombre.toLowerCase()===p.distrito.toLowerCase());if(d)p.codDistrito=d.cod;} return p; });
+      const { error } = await sb.from('pastores').upsert(rows, { onConflict: 'cod' });
+      if (error) throw error;
+      for (const p of rows) { const i=RAW.pastores.findIndex(x=>x.cod===p.cod); if(i>=0)RAW.pastores[i]={...RAW.pastores[i],...p}; else RAW.pastores.push(p); }
+      total += rows.length;
+      } }
+    recomputeCounts();
+    S.importResult = { error: false, msg: `Se importaron o actualizaron ${total} registros exitosamente.` };
+  } catch(e) {
+    S.importResult = { error: true, msg: e.message || String(e) };
   }
-});
+  S.importing = false; render();
+}
+
+/* =====================================================================
+   HISTORIAL (localStorage)
+   ===================================================================== */
+function registrarHistorial(accion, entidad, cod, nombre) {
+  const entry = { ts: new Date().toISOString(), accion, entidad, cod: cod||'', nombre: nombre||'' };
+  // Supabase (fire-and-forget)
+  if (S.sbClient) S.sbClient.from('historial').insert([entry]).then(()=>{}).catch(()=>{});
+  // localStorage fallback
+  try {
+    const h = JSON.parse(localStorage.getItem('padron_historial')||'[]');
+    h.unshift(entry); if(h.length>300) h.splice(300);
+    localStorage.setItem('padron_historial', JSON.stringify(h));
+  } catch(e) {}
+}
+function getHistorial() {
+  try { return JSON.parse(localStorage.getItem('padron_historial') || '[]'); } catch(e) { return []; }
+}
+async function getHistorialFromDB() {
+  if (!S.sbClient) return getHistorial();
+  const { data, error } = await S.sbClient.from('historial').select('*').order('ts',{ascending:false}).limit(300);
+  if (error || !data) return getHistorial();
+  return data;
+}
+function buildHistorialView() {
+  const h = S._historialData || getHistorial();
+  if (!S._historialLoading && !S._historialData) {
+    S._historialLoading = true;
+    getHistorialFromDB().then(data => { S._historialData = data; S._historialLoading = false; render(); });
+  }
+  const accionColor = { 'Creo':'#15803d', 'Edito':'#854d0e', 'Elimino':'#b91c1c' };
+  const entColor = { 'Zona':'#1e3564', 'Distrito':'#2d5090', 'Iglesia':'#d4a820', 'Pastor':'#3a6ab0', 'Campo':'#6b7280' };
+  const rows = h.map(e => {
+    const fecha = new Date(e.ts);
+    const label = fecha.toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'}) + ' ' + fecha.toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'});
+    const ac = e.accion||'';
+    return `<tr style="border-bottom:1px solid #f0f2f7;" onmouseover="this.style.background='#f8f9fc'" onmouseout="this.style.background=''">
+      <td style="padding:12px 20px;font-size:12px;color:#9ca3af;white-space:nowrap;">${label}</td>
+      <td style="padding:12px 16px;"><span style="background:${(entColor[e.entidad]||'#6b7280')}20;color:${entColor[e.entidad]||'#6b7280'};border-radius:20px;padding:2px 10px;font-size:12px;font-weight:500;">${e.entidad||''}</span></td>
+      <td style="padding:12px 16px;"><span style="color:${accionColor[ac]||'#374151'};font-size:13px;font-weight:500;">${ac}</span></td>
+      <td style="padding:12px 20px;font-size:13px;color:#1a2340;">${escHtml(e.nombre)}</td>
+      <td style="padding:12px 20px;font-family:monospace;font-size:11px;color:#9ca3af;">${escHtml(e.cod)}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5" style="padding:40px;text-align:center;color:#9ca3af;">No hay registros de cambios aun.</td></tr>';
+  return `
+  <div style="display:flex;flex-direction:column;gap:16px;max-width:900px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <p style="font-size:13px;color:#9ca3af;">Registro local de acciones realizadas en esta sesion y anteriores.</p>
+      <button id="btn-clear-historial" style="padding:7px 14px;border-radius:8px;border:1.5px solid #fee2e2;background:white;color:#ef4444;font-size:12px;cursor:pointer;font-weight:500;">Limpiar historial</button>
+    </div>
+    <div style="background:white;border-radius:14px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;overflow:hidden;">
+      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:600px;">
+        <thead><tr style="background:#f8f9fc;">${thCell('Fecha')}${thCell('Entidad')}${thCell('Accion')}${thCell('Nombre')}${thCell('Codigo')}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </div>
+  </div>`;
+}
+
+/* =====================================================================
+   BUSQUEDA GLOBAL
+   ===================================================================== */
+function buildSearchModal() {
+  const q = S.searchQuery.toLowerCase().trim();
+  let results = [];
+  if (q.length >= 2) {
+    const ig = RAW.iglesias.filter(i=>i.nombre.toLowerCase().includes(q)||(i.cod||'').toLowerCase().includes(q)||(i.pastor||'').toLowerCase().includes(q)).slice(0,6).map(i=>({tipo:'Iglesia',cod:i.cod,nombre:i.nombre,sub:i.distrito||'',nav:'iglesias'}));
+    const pa = RAW.pastores.filter(p=>p.nombre.toLowerCase().includes(q)||(p.distrito||'').toLowerCase().includes(q)).slice(0,4).map(p=>({tipo:'Pastor',cod:p.cod,nombre:p.nombre,sub:p.distrito||'',nav:'pastores'}));
+    const di = RAW.distritos.filter(d=>d.nombre.toLowerCase().includes(q)||(d.cod||'').toLowerCase().includes(q)).slice(0,3).map(d=>({tipo:'Distrito',cod:d.cod,nombre:d.nombre,sub:d.zona||'',nav:'distritos'}));
+    const zo = RAW.zonas.filter(z=>z.nombre.toLowerCase().includes(q)||(z.cod||'').toLowerCase().includes(q)).slice(0,2).map(z=>({tipo:'Zona',cod:z.cod,nombre:z.nombre,sub:'',nav:'zonas'}));
+    results = [...ig,...pa,...di,...zo];
+  }
+  const entColor = { Iglesia:'#d4a820', Pastor:'#3a6ab0', Distrito:'#2d5090', Zona:'#1e3564' };
+  const items = results.map((r,i)=>`<button data-search-nav="${r.nav}" data-search-val="${escHtml(r.cod)}" style="display:flex;align-items:center;gap:12px;width:100%;padding:11px 16px;border:none;background:transparent;cursor:pointer;border-radius:8px;text-align:left;" onmouseover="this.style.background='#f0f2f7'" onmouseout="this.style.background='transparent'">
+    <span style="background:${entColor[r.tipo]||'#6b7280'}20;color:${entColor[r.tipo]||'#6b7280'};border-radius:20px;padding:2px 8px;font-size:11px;font-weight:600;flex-shrink:0;">${r.tipo}</span>
+    <span style="flex:1;font-size:13px;font-weight:500;color:#1a2340;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(r.nombre)}</span>
+    ${r.sub?`<span style="font-size:12px;color:#9ca3af;white-space:nowrap;">${escHtml(r.sub)}</span>`:''}
+  </button>`).join('');
+  return `<div id="search-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:80px 20px 20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:540px;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:modalIn .15s ease;overflow:hidden;">
+      <div style="padding:16px 20px;border-bottom:1px solid #f0f2f7;display:flex;align-items:center;gap:10px;">
+        <span style="color:#9ca3af;">${icons.search}</span>
+        <input id="search-input" value="${escHtml(S.searchQuery)}" placeholder="Buscar iglesia, pastor, distrito..." autofocus style="flex:1;border:none;outline:none;font-size:15px;color:#1a2340;background:transparent;" />
+        <button id="btn-search-close" style="background:transparent;border:none;cursor:pointer;color:#9ca3af;padding:4px;">${icons.x}</button>
+      </div>
+      <div style="max-height:380px;overflow-y:auto;padding:8px;">
+        ${q.length<2 ? '<div style="padding:24px;text-align:center;color:#9ca3af;font-size:13px;">Escribe al menos 2 caracteres...</div>' : results.length ? items : '<div style="padding:24px;text-align:center;color:#9ca3af;font-size:13px;">Sin resultados para "'+escHtml(S.searchQuery)+'"</div>'}
+      </div>
+      <div style="padding:10px 20px;border-top:1px solid #f0f2f7;font-size:11px;color:#c5cbe0;">Ctrl+K para abrir &bull; Esc para cerrar</div>
+    </div>
+  </div>`;
+}
+
+/* =====================================================================
+   EXPORTAR EXCEL
+   ===================================================================== */
+function exportarExcel() {
+  if (S.view !== 'iglesias' && S.view !== 'pastores') { showToast('Exportacion no disponible en esta vista','error'); return; }
+  const wb = XLSX.utils.book_new();
+  if (S.view === 'iglesias') {
+    const data = getFilteredIglesias().map(i=>({Codigo:i.cod,Nombre:i.nombre,Pastor:i.pastor||'',Zona:i.zona||'',Distrito:i.distrito||'',Drive:i.carpeta_drive||''}));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Iglesias');
+  } else if (S.view === 'pastores') {
+    const data = getFilteredPastores().map(p=>({Codigo:p.cod,Nombre:p.nombre,Telefono:p.telefono||'',Email:p.email||'',Zona:p.zona||'',Distrito:p.distrito||''}));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Pastores');
+  }
+  const ts = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `Padron_${S.view}_${ts}.xlsx`);
+}
+
+
+/* =====================================================================
+   BOOT
+   ===================================================================== */
+async function init() {
+  const url=S.sbUrl||SB_URL_DEFAULT; const key=S.sbKey||SB_KEY_DEFAULT;
+  if(window.supabase&&url&&key){try{S.sbClient=window.supabase.createClient(url,key);S.sbUrl=url;S.sbKey=key;S.sbConnected=true;}catch(e){console.warn('Error Supabase',e);}}
+  if(S.sbClient){
+    try{
+      const[zR,dR,iR,pR,cfgR]=await Promise.all([
+        S.sbClient.from('zonas').select('*'),
+        S.sbClient.from('distritos').select('*'),
+        S.sbClient.from(S.sbTable).select('*').order('nombre'),
+        S.sbClient.from('pastores').select('*').order('nombre'),
+        S.sbClient.from('configuracion').select('valor').eq('id','campos_iglesias').maybeSingle(),
+      ]);
+      if(!zR.error&&zR.data?.length)RAW.zonas=zR.data;
+      if(!dR.error&&dR.data?.length)RAW.distritos=dR.data;
+      if(!iR.error&&iR.data?.length)RAW.iglesias=iR.data;
+      if(!pR.error&&pR.data?.length)RAW.pastores=pR.data;
+      if(!cfgR.error&&cfgR.data?.valor)S.camposCustom=cfgR.data.valor||[];
+      recomputeCounts();
+    }catch(e){console.warn('Error cargando datos',e);S.loadError='No se pudieron cargar los datos. Verifica la conexión a Supabase.';}
+  }else{
+    try{const res=await fetch('./data/iglesias.json');RAW=await res.json();recomputeCounts();}
+    catch(e){console.warn('Sin datos locales',e);}
+  }
+  S.loaded=true;
+  document.addEventListener('keydown', e => { if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();S.showSearch=true;S.searchQuery='';render();setTimeout(()=>document.getElementById('search-input')?.focus(),50);} if(e.key==='Escape'&&S.showSearch){S.showSearch=false;render();} });
+  window.addEventListener('resize',()=>{const open=window.innerWidth>=768;if(open!==S.sidebarOpen){S.sidebarOpen=open;render();}});
+  render();
+}
+init();
 </script>
 </body>
 </html>

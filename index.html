@@ -940,7 +940,7 @@ function buildUsuariosSection() {
       <td style="padding:12px 12px;">
         <div style="display:flex;gap:6px;justify-content:flex-end;">
           <button data-edit-profile="${escHtml(pr.id)}" style="background:transparent;border:1px solid #e8eaf2;border-radius:6px;padding:5px 8px;cursor:pointer;color:#6b7280;display:flex;align-items:center;">${icons.edit}</button>
-          ${!isMe ? `<button data-toggle-profile="${escHtml(pr.id)}" data-activo="${pr.activo!==false?'1':'0'}" style="background:transparent;border:1px solid ${pr.activo!==false?'#fee2e2':'#d1fae5'};border-radius:6px;padding:5px 10px;cursor:pointer;color:${pr.activo!==false?'#ef4444':'#16a34a'};font-size:12px;">${pr.activo!==false?'Desactivar':'Activar'}</button>` : ''}
+          ${!isMe ? `<button data-toggle-profile="${escHtml(pr.id)}" data-activo="${pr.activo!==false?'1':'0'}" style="background:transparent;border:1px solid ${pr.activo!==false?'#fee2e2':'#d1fae5'};border-radius:6px;padding:5px 10px;cursor:pointer;color:${pr.activo!==false?'#ef4444':'#16a34a'};font-size:12px;">${pr.activo!==false?'Desactivar':'Activar'}</button><button data-delete-profile="${escHtml(pr.id)}" data-email="${escHtml(pr.email)}" style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:5px 8px;cursor:pointer;color:#dc2626;display:flex;align-items:center;" title="Eliminar usuario">${icons.trash||'🗑'}</button>` : ''}
         </div>
       </td>
     </tr>`;
@@ -1539,6 +1539,19 @@ function bindEvents() {
     const uid=el.dataset.toggleProfile; const activo=el.dataset.activo!=='1';
     await S.sbClient.from('profiles').update({activo}).eq('id',uid);
     S._allProfiles=null; showToast(activo?'Usuario activado':'Usuario desactivado','success'); loadAllProfiles();
+  }));
+  document.querySelectorAll('[data-delete-profile]').forEach(el => el.addEventListener('click', async () => {
+    const uid=el.dataset.deleteProfile; const email=el.dataset.email;
+    if(!confirm(`¿Eliminar el usuario ${email}? Esta acción no se puede deshacer.`)) return;
+    try {
+      const res = await fetch('/api/eliminar-usuario', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({uid})
+      });
+      const result = await res.json();
+      if(!res.ok){showToast('Error: '+(result.error||'No se pudo eliminar'),'error');return;}
+      S._allProfiles=null; showToast('Usuario eliminado','success'); loadAllProfiles();
+    } catch(e){showToast('Error: '+e.message,'error');}
   }));
 
   /* SOLICITUDES */

@@ -313,6 +313,8 @@ function bindLoginEvents() {
     const { error } = await S.sbClient.auth.updateUser({ password: pass });
     S.loginLoading=false;
     if(error){ S.loginError=error.message; render(); return; }
+    // Limpiar flag de cambio obligatorio
+    if(S.currentUser?.id) await S.sbClient.from('profiles').update({debe_cambiar_password:false}).eq('id',S.currentUser.id);
     // Sesión ya activa, cargar app
     const { data: { session } } = await S.sbClient.auth.getSession();
     if(session?.user){
@@ -334,6 +336,7 @@ function bindLoginEvents() {
       S.currentUser = data.user;
       S.loginLoading = false;
       await loadProfile(data.user.id);
+      if(S.currentProfile?.debe_cambiar_password){S.loginResetMode=true;S.authLoading=false;render();return;}
       await loadAppData();
       render();
     } catch(e) {
@@ -904,7 +907,7 @@ function buildUsuariosSection() {
         </div>
         ${S.editingProfileId ? '' : `
         ${formField('Correo electrónico','nu-email',nuf.email,'email','usuario@correo.com','',true)}
-        ${formField('Contraseña temporal','nu-password','','password','Mínimo 6 caracteres','',true)}
+        ${S.editingProfileId ? '' : '<p style="font-size:12px;color:#6b7280;margin:0 0 12px;">Se generará una contraseña temporal y se enviará por correo al usuario.</p>'}
         `}
         ${formField('Nombre completo','nu-nombre',nuf.nombre,'text','Nombre del usuario')}
         <div style="margin-top:16px;">
@@ -1509,15 +1512,15 @@ function bindEvents() {
     document.querySelectorAll('[data-perm-uid="new"]').forEach(cb=>{permisos[cb.dataset.perm]=cb.checked;});
     if (!S.editingProfileId) {
       if(!email){showToast('El correo es requerido','error');return;}
-      if(!pass||pass.length<6){showToast('La contraseña debe tener al menos 6 caracteres','error');return;}
-      // Crear usuario en Supabase Auth (signUp con confirmación automática)
-      const{data,error}=await S.sbClient.auth.signUp({email,password:pass,options:{data:{nombre}}});
-      if(error){showToast('Error: '+error.message,'error');return;}
-      if(!data.user){showToast('Error creando usuario','error');return;}
-      // Insertar/actualizar perfil con permisos y nombre
-      const uid=data.user.id;
-      await S.sbClient.from('profiles').upsert({id:uid,email,nombre,permisos,activo:true});
-      showToast('Usuario creado. Si requiere confirmación, el usuario recibirá un correo.','success');
+      try {
+        const res = await fetch('/api/crear-usuario', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({email, nombre, permisos})
+        });
+        const result = await res.json();
+        if(!res.ok){showToast('Error: '+(result.error||'Error creando usuario'),'error');return;}
+        showToast('Usuario creado. Se envió la contraseña temporal por correo.','success');
+      } catch(e){showToast('Error: '+e.message,'error');return;}
     } else {
       await S.sbClient.from('profiles').update({nombre,permisos}).eq('id',S.editingProfileId);
     }

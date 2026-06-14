@@ -1893,8 +1893,11 @@ async function init() {
   window.addEventListener('resize',()=>{const open=window.innerWidth>=768;if(open!==S.sidebarOpen){S.sidebarOpen=open;render();}});
   if(S.sbClient){
     try {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const isRecovery = hashParams.get('type') === 'recovery';
+      if(isRecovery){ S.loginResetMode=true; }
       const { data: { session } } = await S.sbClient.auth.getSession();
-      if(session?.user){
+      if(session?.user && !isRecovery){
         S.currentUser = session.user;
         await loadProfile(session.user.id);
         await loadAppData();

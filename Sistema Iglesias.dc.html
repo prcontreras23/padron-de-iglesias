@@ -77,6 +77,7 @@ let S = {
   // Auth
   currentUser: null, currentProfile: null, authLoading: true,
   loginEmail: '', loginPassword: '', loginLoading: false, loginError: '',
+  loginForgotMode: false, loginResetMode: false, loginResetSent: false,
   // Gestión de usuarios
   _allProfiles: null, _allProfilesLoading: false,
   showNewUserModal: false, editingProfileId: null,
@@ -199,6 +200,58 @@ function canDo(perm) {
    LOGIN SCREEN
    ===================================================================== */
 function buildLoginScreen() {
+  if (S.loginResetSent) return `
+  <div style="min-height:100vh;background:linear-gradient(135deg,#1e3564 0%,#2d4f8a 100%);display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:20px;padding:40px;width:100%;max-width:400px;box-shadow:0 24px 80px rgba(0,0,0,.3);text-align:center;">
+      <div style="font-size:48px;margin-bottom:16px;">📧</div>
+      <div style="font-size:18px;font-weight:700;color:#1a2340;margin-bottom:8px;">Revisa tu correo</div>
+      <p style="font-size:14px;color:#6b7280;line-height:1.6;">Te enviamos un enlace para restablecer tu contraseña a <strong>${escHtml(S.loginEmail)}</strong>.<br><br>Haz clic en el enlace del correo para continuar.</p>
+      <button id="btn-back-login" style="margin-top:24px;padding:10px 24px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;">← Volver al login</button>
+    </div>
+  </div>`;
+
+  if (S.loginResetMode) return `
+  <div style="min-height:100vh;background:linear-gradient(135deg,#1e3564 0%,#2d4f8a 100%);display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:20px;padding:40px;width:100%;max-width:400px;box-shadow:0 24px 80px rgba(0,0,0,.3);animation:fadeUp .3s ease;">
+      <div style="text-align:center;margin-bottom:28px;">
+        <div style="font-size:36px;margin-bottom:8px;">🔑</div>
+        <div style="font-size:18px;font-weight:700;color:#1a2340;">Nueva contraseña</div>
+      </div>
+      ${S.loginError ? `<div style="background:#fee2e2;color:#b91c1c;border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px;">${escHtml(S.loginError)}</div>` : ''}
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Nueva contraseña</label>
+          <input id="new-password" type="password" placeholder="Mínimo 6 caracteres" style="width:100%;padding:11px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;" />
+        </div>
+        <button id="btn-set-password" style="width:100%;padding:12px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:15px;font-weight:600;cursor:pointer;">
+          ${S.loginLoading ? 'Guardando...' : 'Guardar contraseña'}
+        </button>
+      </div>
+    </div>
+  </div>`;
+
+  if (S.loginForgotMode) return `
+  <div style="min-height:100vh;background:linear-gradient(135deg,#1e3564 0%,#2d4f8a 100%);display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:20px;padding:40px;width:100%;max-width:400px;box-shadow:0 24px 80px rgba(0,0,0,.3);animation:fadeUp .3s ease;">
+      <div style="text-align:center;margin-bottom:28px;">
+        <div style="font-size:36px;margin-bottom:8px;">🔐</div>
+        <div style="font-size:18px;font-weight:700;color:#1a2340;">Restablecer contraseña</div>
+        <div style="font-size:13px;color:#9ca3af;margin-top:4px;">Te enviaremos un enlace por correo</div>
+      </div>
+      ${S.loginError ? `<div style="background:#fee2e2;color:#b91c1c;border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px;">${escHtml(S.loginError)}</div>` : ''}
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Correo electrónico</label>
+          <input id="reset-email" type="email" value="${escHtml(S.loginEmail)}" placeholder="tu@correo.com" style="width:100%;padding:11px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;" />
+        </div>
+        <button id="btn-send-reset" style="width:100%;padding:12px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:15px;font-weight:600;cursor:pointer;">
+          ${S.loginLoading ? 'Enviando...' : 'Enviar enlace'}
+        </button>
+        <button id="btn-back-login" style="width:100%;padding:10px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;">← Volver</button>
+      </div>
+    </div>
+  </div>`;
+
   return `
   <div style="min-height:100vh;background:linear-gradient(135deg,#1e3564 0%,#2d4f8a 100%);display:flex;align-items:center;justify-content:center;padding:20px;">
     <div style="background:white;border-radius:20px;padding:40px;width:100%;max-width:400px;box-shadow:0 24px 80px rgba(0,0,0,.3);animation:fadeUp .3s ease;">
@@ -220,13 +273,56 @@ function buildLoginScreen() {
         <button id="btn-login" style="width:100%;padding:12px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px;">
           ${S.loginLoading ? `<span style="animation:spin .8s linear infinite;display:inline-block;">${icons.spin.replace('currentColor','white')}</span> Iniciando sesión...` : `${icons.lock.replace('currentColor','white')} Iniciar sesión`}
         </button>
+        <button id="btn-forgot" style="background:none;border:none;color:#6b7280;font-size:13px;cursor:pointer;padding:4px;text-decoration:underline;">¿Olvidaste tu contraseña?</button>
       </div>
-      <div style="margin-top:24px;text-align:center;font-size:12px;color:#9ca3af;">Solo usuarios autorizados. Contacta al administrador para acceso.</div>
     </div>
   </div>`;
 }
 
 function bindLoginEvents() {
+  // Volver al login
+  document.getElementById('btn-back-login')?.addEventListener('click', () => {
+    S.loginForgotMode=false; S.loginResetSent=false; S.loginError=''; render();
+    setTimeout(()=>document.getElementById('login-email')?.focus(),50);
+  });
+
+  // Olvidé contraseña
+  document.getElementById('btn-forgot')?.addEventListener('click', () => {
+    S.loginEmail = document.getElementById('login-email')?.value?.trim()||'';
+    S.loginForgotMode=true; S.loginError=''; render();
+    setTimeout(()=>document.getElementById('reset-email')?.focus(),50);
+  });
+
+  // Enviar enlace de reset
+  document.getElementById('btn-send-reset')?.addEventListener('click', async () => {
+    const email = document.getElementById('reset-email')?.value?.trim()||'';
+    if(!email){ S.loginError='Ingresa tu correo.'; render(); return; }
+    S.loginLoading=true; S.loginError=''; render();
+    const redirectTo = window.location.origin + window.location.pathname;
+    const { error } = await S.sbClient.auth.resetPasswordForEmail(email, { redirectTo });
+    S.loginLoading=false;
+    if(error){ S.loginError=error.message; render(); return; }
+    S.loginEmail=email; S.loginResetSent=true; S.loginForgotMode=false; render();
+  });
+
+  // Nueva contraseña (después de clic en enlace de reset)
+  document.getElementById('btn-set-password')?.addEventListener('click', async () => {
+    const pass = document.getElementById('new-password')?.value||'';
+    if(!pass||pass.length<6){ S.loginError='La contraseña debe tener al menos 6 caracteres.'; render(); return; }
+    S.loginLoading=true; S.loginError=''; render();
+    const { error } = await S.sbClient.auth.updateUser({ password: pass });
+    S.loginLoading=false;
+    if(error){ S.loginError=error.message; render(); return; }
+    // Sesión ya activa, cargar app
+    const { data: { session } } = await S.sbClient.auth.getSession();
+    if(session?.user){
+      S.currentUser=session.user; S.loginResetMode=false;
+      await loadProfile(session.user.id);
+      await loadAppData();
+    }
+    render();
+  });
+
   const doLogin = async () => {
     const email = document.getElementById('login-email')?.value?.trim()||'';
     const pass  = document.getElementById('login-password')?.value||'';
@@ -1797,8 +1893,11 @@ async function init() {
   window.addEventListener('resize',()=>{const open=window.innerWidth>=768;if(open!==S.sidebarOpen){S.sidebarOpen=open;render();}});
   if(S.sbClient){
     try {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const isRecovery = hashParams.get('type') === 'recovery';
+      if(isRecovery){ S.loginResetMode=true; }
       const { data: { session } } = await S.sbClient.auth.getSession();
-      if(session?.user){
+      if(session?.user && !isRecovery){
         S.currentUser = session.user;
         await loadProfile(session.user.id);
         await loadAppData();
@@ -1806,7 +1905,8 @@ async function init() {
       // Escuchar cambios de auth
       S.sbClient.auth.onAuthStateChange(async (event, session) => {
         if(event==='SIGNED_OUT'){S.currentUser=null;S.currentProfile=null;S.loaded=false;render();}
-        if(event==='SIGNED_IN'&&session?.user&&!S.currentUser){S.currentUser=session.user;await loadProfile(session.user.id);await loadAppData();render();}
+        if(event==='PASSWORD_RECOVERY'){S.loginResetMode=true;S.authLoading=false;render();}
+        if(event==='SIGNED_IN'&&session?.user&&!S.currentUser&&!S.loginResetMode){S.currentUser=session.user;await loadProfile(session.user.id);await loadAppData();render();}
       });
     } catch(e) { console.warn('Error verificando sesión',e); }
   }

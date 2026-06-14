@@ -1519,7 +1519,8 @@ function bindEvents() {
         });
         const result = await res.json();
         if(!res.ok){showToast('Error: '+(result.error||'Error creando usuario'),'error');return;}
-        showToast('Usuario creado. Se envió la contraseña temporal por correo.','success');
+        const passMsg = result.password ? `\n\nContraseña temporal: ${result.password}` : '';
+        alert(`✅ Usuario creado exitosamente.${passMsg}\n\nComparte estas credenciales con el usuario.`);
       } catch(e){showToast('Error: '+e.message,'error');return;}
     } else {
       await S.sbClient.from('profiles').update({nombre,permisos}).eq('id',S.editingProfileId);

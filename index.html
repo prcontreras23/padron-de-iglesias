@@ -1513,9 +1513,9 @@ function bindEvents() {
     if (!S.editingProfileId) {
       if(!email){showToast('El correo es requerido','error');return;}
       try {
-        const res = await fetch('/api/crear-usuario', {
+        const res = await fetch('/api/admin-usuarios', {
           method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({email, nombre, permisos})
+          body: JSON.stringify({action:'crear', email, nombre, permisos})
         });
         const result = await res.json();
         if(!res.ok){showToast('Error: '+(result.error||'Error creando usuario'),'error');return;}
@@ -1544,9 +1544,9 @@ function bindEvents() {
     const uid=el.dataset.deleteProfile; const email=el.dataset.email;
     if(!confirm(`¿Eliminar el usuario ${email}? Esta acción no se puede deshacer.`)) return;
     try {
-      const res = await fetch('/api/eliminar-usuario', {
+      const res = await fetch('/api/admin-usuarios', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({uid})
+        body: JSON.stringify({action:'eliminar', uid})
       });
       const result = await res.json();
       if(!res.ok){showToast('Error: '+(result.error||'No se pudo eliminar'),'error');return;}

@@ -907,7 +907,7 @@ function buildUsuariosSection() {
         </div>
         ${S.editingProfileId ? '' : `
         ${formField('Correo electrónico','nu-email',nuf.email,'email','usuario@correo.com','',true)}
-        ${S.editingProfileId ? '' : '<p style="font-size:12px;color:#6b7280;margin:0 0 12px;">Se generará una contraseña temporal y se enviará por correo al usuario.</p>'}
+        ${S.editingProfileId ? '' : '<p style="font-size:12px;color:#6b7280;margin:0 0 12px;">Se enviará una invitación por correo para que el usuario establezca su contraseña.</p>'}
         `}
         ${formField('Nombre completo','nu-nombre',nuf.nombre,'text','Nombre del usuario')}
         <div style="margin-top:16px;">
@@ -1519,8 +1519,7 @@ function bindEvents() {
         });
         const result = await res.json();
         if(!res.ok){showToast('Error: '+(result.error||'Error creando usuario'),'error');return;}
-        const passMsg = result.password ? `\n\nContraseña temporal: ${result.password}` : '';
-        alert(`✅ Usuario creado exitosamente.${passMsg}\n\nComparte estas credenciales con el usuario.`);
+        alert(`✅ Invitación enviada a ${email}.\n\nEl usuario recibirá un correo con un enlace para establecer su contraseña y acceder al sistema.`);
       } catch(e){showToast('Error: '+e.message,'error');return;}
     } else {
       await S.sbClient.from('profiles').update({nombre,permisos}).eq('id',S.editingProfileId);

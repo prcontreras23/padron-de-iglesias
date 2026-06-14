@@ -2,7 +2,8 @@
 export const SB_URL  = process.env.SUPABASE_URL;
 export const SB_KEY  = process.env.SUPABASE_ANON_KEY;
 export const SITE    = (process.env.SITE_URL || '').replace(/\/$/, '');
-export const FROM    = process.env.FROM_EMAIL || 'noreply@adventistassureste.org';
+export const FROM    = process.env.FROM_EMAIL || 'onboarding@resend.dev';
+export const REPLY_TO = 'prcontreras@adventistassureste.org';
 export const RESEND  = process.env.RESEND_API_KEY;
 
 export function cors(res) {
@@ -29,7 +30,7 @@ export async function sbFetch(path, method = 'GET', body = null) {
 
 export async function sendEmail({ to, cc, subject, html }) {
   if (!RESEND) { console.warn('RESEND_API_KEY no configurado'); return { ok: false }; }
-  const body = { from: FROM, to: Array.isArray(to) ? to : [to], subject, html };
+  const body = { from: FROM, to: Array.isArray(to) ? to : [to], subject, html, reply_to: REPLY_TO };
   if (cc?.length) body.cc = Array.isArray(cc) ? cc : [cc];
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',

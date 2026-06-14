@@ -44,6 +44,7 @@ let S = {
   sidebarOpen: window.innerWidth >= 768,
   search: '', fZona: 'all', fDistrito: 'all', fPastor: 'all', sortCol: 'nombre', sortDir: 'asc',
   showSearch: false, searchQuery: '', loadError: '', _historialData: null, _historialLoading: false,
+  _solicitudes: null, _solicitudesLoading: false, _flujoCfg: null,
   page: 1, pageSize: 25,
   // Iglesia modal
   showModal: false, modalMode: 'add', editId: null,
@@ -241,6 +242,7 @@ function buildSidebar() {
       ${navItem('iglesias','Iglesias',icons.home,RAW.iglesias.length)}
       ${navItem('pastores','Pastores',icons.user,RAW.pastores.length)}
       <div style="color:rgba(255,255,255,.3);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:10px 10px 4px;">Sistema</div>
+      ${navItem('solicitudes','Solicitudes',icons.plus)}
       ${navItem('historial','Historial',icons.clock)}
       ${navItem('configuracion','Configuracion',icons.settings)}
     </nav>
@@ -259,7 +261,7 @@ function buildSidebar() {
 
 /* ---- HEADER ---- */
 function buildHeader() {
-  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Pastores', configuracion:'Configuracion' };
+  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Pastores', solicitudes:'Solicitudes de Congregación', configuracion:'Configuracion' };
   const needsSearch = ['iglesias','distritos','pastores'].includes(S.view);
   const addBtn = (id,label) => `<button id="${id}" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;">${icons.plus.replace('currentColor','white')} ${label}</button>`;
   const searchBtn = `<button id="btn-global-search" title="Ctrl+K" style="background:#f0f2f7;border:none;border-radius:8px;padding:8px;cursor:pointer;color:#6b7280;display:flex;align-items:center;">${icons.search}</button>`;
@@ -286,6 +288,7 @@ function buildContent() {
     case 'iglesias':      return buildIglesias();
     case 'pastores':      return buildPastores();
     case 'historial':     return buildHistorialView();
+    case 'solicitudes':   return buildSolicitudes();
     case 'configuracion': return buildConfiguracion();
     default:              return buildDashboard();
   }
@@ -360,7 +363,7 @@ function buildDashboard() {
       ${stat(RAW.pastores.length,'Pastores','#fff8e6','#d4a820',icons.user)}
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;">
-      ${stat(iglesias,'Iglesias (Templos)','#dbeafe','#1e40af',icons.home)}
+      ${stat(iglesias,'Iglesias','#dbeafe','#1e40af',icons.home)}
       ${stat(grupos,'Grupos','#fef3c7','#92400e',icons.users)}
       ${stat(ordenados,'Pastores Ordenados','#dcfce7','#166534',icons.user)}
       ${stat(licenciados,'Pastores Licenciados','#fed7aa','#92400e',icons.user)}
@@ -371,7 +374,7 @@ function buildDashboard() {
         <div style="display:flex;flex-direction:column;gap:14px;">
           <div>
             <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-              <span style="font-size:13px;color:#6b7280;">Templos</span>
+              <span style="font-size:13px;color:#6b7280;">Iglesias</span>
               <span style="font-size:14px;font-weight:600;color:#1e40af;">${iglesias}</span>
             </div>
             <div style="height:12px;background:#f0f2f7;border-radius:6px;overflow:hidden;">
@@ -565,6 +568,77 @@ function buildPastores() {
     : `<div style="padding:60px;text-align:center;color:#9ca3af;font-size:14px;">No se encontraron pastores</div>`;
 }
 
+/* ---- SOLICITUDES ---- */
+function buildSolicitudes() {
+  const estadoInfo = {
+    pendiente_francis:  { label:'Pendiente (Francis)',  bg:'#fef9c3', color:'#854d0e' },
+    rechazado_francis:  { label:'Rechazado',            bg:'#fee2e2', color:'#991b1b' },
+    pendiente_cesar:    { label:'Pendiente (César)',     bg:'#dbeafe', color:'#1e40af' },
+    pendiente_carlos:   { label:'Pendiente (Carlos)',   bg:'#ede9fe', color:'#5b21b6' },
+    pendiente_noemi:    { label:'Pendiente (Noemí)',    bg:'#fce7f3', color:'#9d174d' },
+    completado:         { label:'Completado',           bg:'#dcfce7', color:'#166534' },
+  };
+  const items = S._solicitudes || [];
+  const loading = S._solicitudesLoading;
+
+  let contenido;
+  if (loading) {
+    contenido = `<div style="text-align:center;padding:60px;color:#6b7280;">Cargando solicitudes…</div>`;
+  } else if (!items.length) {
+    contenido = `<div style="text-align:center;padding:60px;">
+      <div style="font-size:40px;margin-bottom:12px;">📋</div>
+      <div style="color:#6b7280;font-size:15px;">No hay solicitudes aún.</div>
+      <div style="margin-top:16px;"><a href="/nueva-congregacion" target="_blank" style="color:#1e3564;font-weight:600;font-size:14px;">Compartir enlace del formulario →</a></div>
+    </div>`;
+  } else {
+    contenido = `<div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <thead><tr style="background:#f8f9fc;">
+          <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Congregación</th>
+          <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Pastor</th>
+          <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Zona</th>
+          <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Código</th>
+          <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Estado</th>
+          <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Fecha</th>
+        </tr></thead>
+        <tbody>
+          ${items.map(s => {
+            const est = estadoInfo[s.estado] || { label: s.estado, bg:'#f3f4f6', color:'#374151' };
+            const fecha = new Date(s.created_at).toLocaleDateString('es-DO', {day:'2-digit',month:'short',year:'numeric'});
+            return `<tr style="border-bottom:1px solid #f0f2f7;">
+              <td style="padding:12px 16px;font-weight:600;color:#1e3564;">${escHtml(s.nombre_congregacion)}</td>
+              <td style="padding:12px 16px;color:#374151;">${escHtml(s.nombre_pastor)}</td>
+              <td style="padding:12px 16px;color:#6b7280;">${escHtml(s.zona||'—')}</td>
+              <td style="padding:12px 16px;"><span style="font-family:monospace;background:#f0f2f7;padding:2px 8px;border-radius:4px;">${escHtml(s.codigo_asignado||'—')}</span></td>
+              <td style="padding:12px 16px;"><span style="background:${est.bg};color:${est.color};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">${est.label}</span></td>
+              <td style="padding:12px 16px;color:#6b7280;font-size:13px;">${fecha}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  }
+
+  return `<div style="padding:24px;display:flex;flex-direction:column;gap:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h2 style="font-size:18px;font-weight:700;color:#1a2340;margin-bottom:4px;">Solicitudes de Nueva Congregación</h2>
+        <p style="font-size:13px;color:#6b7280;">Seguimiento del flujo de aprobación de nuevas congregaciones.</p>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a href="/nueva-congregacion" target="_blank" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;text-decoration:none;">🔗 Compartir enlace al pastor</a>
+        <button id="btn-reload-solicitudes" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">↻ Actualizar</button>
+      </div>
+    </div>
+    <div style="background:white;border-radius:14px;border:1px solid #e8eaf2;overflow:hidden;">
+      ${contenido}
+    </div>
+    <div style="background:#eef2ff;border-radius:12px;padding:16px;font-size:13px;color:#1e3564;">
+      <strong>Flujo:</strong> Pastor llena formulario → Francis aprueba → César confirma SunPlus y asigna código → Carlos crea cuenta en Ecclesia → Noemí confirma Infomac y ACMS → Congregación creada como <strong>Grupo</strong> en el sistema.
+    </div>
+  </div>`;
+}
+
 /* ---- CONFIGURACION ---- */
 function buildConfiguracion() {
   const tipoLabel = { text:'Texto', number:'Numero', date:'Fecha', url:'Enlace URL', boolean:'Si / No' };
@@ -590,6 +664,22 @@ function buildConfiguracion() {
     <div style="background:#fff8e6;border-radius:12px;padding:18px 20px;border:1px solid #f0d880;">
       <div style="font-weight:600;font-size:14px;color:#92650a;margin-bottom:6px;">Integracion con Google Drive</div>
       <p style="font-size:13px;color:#7a5a0a;line-height:1.6;">Para vincular carpetas de Drive a cada iglesia, edita la iglesia y pega la URL de la carpeta en el campo <strong>Carpeta Drive</strong>. El enlace aparecera como icono en la tabla de iglesias.</p>
+    </div>
+    <div style="background:white;border-radius:14px;padding:24px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;">
+      <h2 style="font-size:16px;font-weight:700;color:#1a2340;margin-bottom:4px;">Flujo de Aprobacion de Nuevas Congregaciones</h2>
+      <p style="font-size:13px;color:#9ca3af;margin-top:4px;margin-bottom:20px;">Correos de cada responsable en el proceso de aprobacion. Asegurate de que sean correctos antes de compartir el formulario a los pastores.</p>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        ${(()=>{const fc=S._flujoCfg||{};return`
+        ${formField('Tu correo (Francis)','flujo-francis-email',fc.francis_email||'prcontreras@adventistassureste.org','email','tu@correo.com')}
+        ${formField('Correo de Cesar Cabrera','flujo-cesar-email',fc.cesar_email||'','email','cesar@correo.com')}
+        ${formField('Correo de Carlos Melo','flujo-carlos-email',fc.carlos_email||'','email','carlos@correo.com')}
+        ${formField('Correo de Noemi Vizcaino','flujo-noemi-email',fc.noemi_email||'','email','noemi@correo.com')}
+        ${formField('CC en correo final (separados por coma)','flujo-cc-final',fc.cc_final||'prgabrielpaulino@hotmail.com,J.aquino@adventistassureste.org','text','correo1@ejemplo.com,correo2@ejemplo.com')}
+        `})()}
+      </div>
+      <div style="margin-top:20px;display:flex;justify-content:flex-end;">
+        <button id="btn-save-flujo-cfg" style="padding:10px 24px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;">Guardar configuracion</button>
+      </div>
     </div>
   </div>`;
 }
@@ -1075,6 +1165,27 @@ function bindEvents() {
     await saveCamposCustom();S.showCampoModal=false;showToast(S.campoModalMode==='add'?'Campo creado':'Campo actualizado','success');render();
   }));
 
+  /* SOLICITUDES */
+  q('#btn-reload-solicitudes', el => el.addEventListener('click', () => { S._solicitudes=null; S._solicitudesLoading=true; render(); loadSolicitudes(); }));
+  if (S.view==='solicitudes' && !S._solicitudes && !S._solicitudesLoading) { S._solicitudesLoading=true; loadSolicitudes(); }
+
+  /* FLUJO CONFIG */
+  q('#btn-save-flujo-cfg', el => el.addEventListener('click', async () => {
+    const fc = {
+      francis_email: document.getElementById('flujo-francis-email')?.value.trim()||'',
+      cesar_email:   document.getElementById('flujo-cesar-email')?.value.trim()||'',
+      carlos_email:  document.getElementById('flujo-carlos-email')?.value.trim()||'',
+      noemi_email:   document.getElementById('flujo-noemi-email')?.value.trim()||'',
+      cc_final:      document.getElementById('flujo-cc-final')?.value.trim()||'',
+    };
+    try {
+      const res = await fetch('/api/save-flujo-cfg', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(fc) });
+      if (!res.ok) throw new Error('Error ' + res.status);
+      S._flujoCfg = fc;
+      showToast('Configuración guardada', 'success');
+    } catch(e) { showToast('Error guardando: '+e.message, 'error'); }
+  }));
+
   /* SUPABASE */
   q('#btn-sb-cfg',   el => el.addEventListener('click', () => { S.showSb=true;S.sbErr='';S.sbOk='';render(); }));
   q('#btn-sb-close', el => el.addEventListener('click', () => { S.showSb=false;render(); }));
@@ -1097,6 +1208,18 @@ function bindEvents() {
 }
 
 function q(sel, fn) { const el=document.querySelector(sel); if(el) fn(el); }
+
+async function loadSolicitudes() {
+  try {
+    const res = await fetch('/api/get-solicitudes');
+    const data = await res.json();
+    S._solicitudes = Array.isArray(data) ? data : (data.solicitudes||[]);
+  } catch(e) {
+    S._solicitudes = [];
+  }
+  S._solicitudesLoading = false;
+  render();
+}
 
 /* =====================================================================
    CRUD HELPERS
@@ -1370,18 +1493,20 @@ async function init() {
   if(window.supabase&&url&&key){try{S.sbClient=window.supabase.createClient(url,key);S.sbUrl=url;S.sbKey=key;S.sbConnected=true;}catch(e){console.warn('Error Supabase',e);}}
   if(S.sbClient){
     try{
-      const[zR,dR,iR,pR,cfgR]=await Promise.all([
+      const[zR,dR,iR,pR,cfgR,flujoR]=await Promise.all([
         S.sbClient.from('zonas').select('*'),
         S.sbClient.from('distritos').select('*'),
         S.sbClient.from(S.sbTable).select('*').order('nombre'),
         S.sbClient.from('pastores').select('*').order('nombre'),
         S.sbClient.from('configuracion').select('valor').eq('id','campos_iglesias').maybeSingle(),
+        S.sbClient.from('configuracion').select('valor').eq('id','flujo_congregacion').maybeSingle(),
       ]);
       if(!zR.error&&zR.data?.length)RAW.zonas=zR.data;
       if(!dR.error&&dR.data?.length)RAW.distritos=dR.data;
       if(!iR.error&&iR.data?.length)RAW.iglesias=iR.data;
       if(!pR.error&&pR.data?.length)RAW.pastores=pR.data;
       if(!cfgR.error&&cfgR.data?.valor)S.camposCustom=cfgR.data.valor||[];
+      if(!flujoR.error&&flujoR.data?.valor)S._flujoCfg=flujoR.data.valor;
       recomputeCounts();
     }catch(e){console.warn('Error cargando datos',e);S.loadError='No se pudieron cargar los datos. Verifica la conexión a Supabase.';}
   }else{

@@ -3,6 +3,8 @@
     { "source": "/api/:path*", "destination": "/api/:path*" },
     { "source": "/solicitud", "destination": "/solicitud/index.html" },
     { "source": "/solicitud/", "destination": "/solicitud/index.html" },
+    { "source": "/nueva-congregacion", "destination": "/nueva-congregacion/index.html" },
+    { "source": "/nueva-congregacion/", "destination": "/nueva-congregacion/index.html" },
     { "source": "/(.*)", "destination": "/$1" }
   ]
 }

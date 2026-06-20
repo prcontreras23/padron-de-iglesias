@@ -40,7 +40,7 @@ let RAW = { zonas: [], distritos: [], iglesias: [], pastores: [] };
    STATE
    ===================================================================== */
 let S = {
-  view: 'dashboard',
+  view: location.hash.replace('#','') || 'dashboard',
   sidebarOpen: window.innerWidth >= 768,
   search: '', fZona: 'all', fDistrito: 'all', fPastor: 'all', sortCol: 'nombre', sortDir: 'asc',
   showSearch: false, searchQuery: '', loadError: '', _historialData: null, _historialLoading: false,
@@ -1342,7 +1342,7 @@ function formField(label, id, value, type='text', placeholder='', fontFamily='',
    ===================================================================== */
 function bindEvents() {
   q('#btn-sidebar-toggle', el => el.addEventListener('click', () => { S.sidebarOpen=!S.sidebarOpen; render(); }));
-  document.querySelectorAll('[data-nav]').forEach(el => el.addEventListener('click', () => { S.view=el.dataset.nav; S.search=''; S.fZona='all'; S.fDistrito='all'; S.fPastor='all'; S.page=1; if(el.dataset.nav==='historial')S._historialData=null; render(); }));
+  document.querySelectorAll('[data-nav]').forEach(el => el.addEventListener('click', () => { S.view=el.dataset.nav; location.hash=S.view; S.search=''; S.fZona='all'; S.fDistrito='all'; S.fPastor='all'; S.page=1; if(el.dataset.nav==='historial')S._historialData=null; render(); }));
   document.querySelectorAll('[data-nav-zona]').forEach(el => el.addEventListener('click', () => { S.view='distritos'; S.fZona=el.dataset.navZona; S.search=''; S.page=1; render(); }));
   document.querySelectorAll('[data-nav-zona-ig]').forEach(el => el.addEventListener('click', () => { S.view='iglesias'; S.fZona=el.dataset.navZonaIg; S.fDistrito='all'; S.search=''; S.page=1; render(); }));
   document.querySelectorAll('[data-filter-zona]').forEach(el => el.addEventListener('click', () => { S.fZona=el.dataset.filterZona; S.page=1; render(); }));
@@ -1480,7 +1480,7 @@ function bindEvents() {
   q('#btn-del-sol-confirm', el => el.addEventListener('click', async () => {
     const id = S.deleteSolicitudId;
     const nom = S.deleteSolicitudNombre;
-    const res = await fetch('/api/eliminar-solicitud', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id }) });
+    const res = await fetch('/api/get-solicitudes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ accion:'eliminar', id }) });
     if (!res.ok) { showToast('Error al eliminar','error'); return; }
     S._solicitudes = (S._solicitudes||[]).filter(s => s.id !== id);
     S.showDeleteSolicitudConfirm = false; S.deleteSolicitudId = null; S.deleteSolicitudNombre = null;

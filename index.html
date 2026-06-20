@@ -1454,6 +1454,7 @@ function bindEvents() {
   q('#pastor-distrito', el => el.addEventListener('change', e => { const cod=e.target.value;const d=RAW.distritos.find(d=>d.cod===cod);S.formPastor={...S.formPastor,codDistrito:cod,distrito:d?d.nombre:''}; }));
   q('#btn-pastor-save', el => el.addEventListener('click', async () => {
     const nombre=document.getElementById('pastor-nombre')?.value.trim()||''; const cod=document.getElementById('pastor-cod')?.value.trim().toUpperCase()||''; const telefono=document.getElementById('pastor-telefono')?.value.trim()||''; const email=document.getElementById('pastor-email')?.value.trim()||''; const codZona=document.getElementById('pastor-zona')?.value||''; const zona=RAW.zonas.find(z=>z.cod===codZona)?.nombre||''; const codDistrito=document.getElementById('pastor-distrito')?.value||''; const distrito=RAW.distritos.find(d=>d.cod===codDistrito)?.nombre||''; const estado=document.getElementById('pastor-estado')?.value||'ordenado';
+    S.formPastor={...S.formPastor,nombre,cod,telefono,email,codZona,codDistrito,estado};
     if(!nombre){showToast('El nombre es requerido','error');return;} if(!cod){showToast('El codigo es requerido','error');return;}
     if(S.pastorModalMode==='add'&&RAW.pastores.find(p=>p.cod===cod)){showToast('El codigo ya existe','error');return;}
     const row={cod,nombre,telefono,email,codZona,zona,codDistrito,distrito,estado};

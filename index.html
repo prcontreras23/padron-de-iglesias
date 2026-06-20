@@ -736,12 +736,13 @@ function buildIglesias() {
   const rows = slice.map(ig => {
     const realIdx = RAW.iglesias.indexOf(ig);
     const driveLink = ig.carpeta_drive ? `<a href="${escHtml(ig.carpeta_drive)}" target="_blank" title="Abrir carpeta Drive" style="color:#1a73e8;display:flex;align-items:center;">${icons.link}</a>` : '';
-    const tipoColor = ig.tipo==='grupo'?'#fef3c7':'#dbeafe';
-    const tipoTextColor = ig.tipo==='grupo'?'#92400e':'#1e40af';
-    return `<tr style="border-bottom:1px solid #f0f2f7;" onmouseover="this.style.background='#f8f9fc'" onmouseout="this.style.background=''">
+    const tipoColor = ig.tipo==='grupo'?'#fef3c7':ig.tipo==='pendiente_revision'?'#fee2e2':'#dbeafe';
+    const tipoTextColor = ig.tipo==='grupo'?'#92400e':ig.tipo==='pendiente_revision'?'#991b1b':'#1e40af';
+    const tipoLabel = ig.tipo==='pendiente_revision'?'⚠ Revisar':ig.tipo||'iglesia';
+return `<tr style="border-bottom:1px solid #f0f2f7;" onmouseover="this.style.background='#f8f9fc'" onmouseout="this.style.background=''">
       <td style="padding:13px 20px;font-weight:500;color:#1a2340;">${escHtml(ig.nombre)}</td>
       <td style="padding:13px 20px;color:#9ca3af;font-family:monospace;font-size:12px;">${ig.cod}</td>
-      <td style="padding:13px 20px;"><span style="background:${tipoColor};color:${tipoTextColor};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;text-transform:capitalize;">${ig.tipo||'iglesia'}</span></td>
+      <td style="padding:13px 20px;"><span style="background:${tipoColor};color:${tipoTextColor};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;text-transform:capitalize;">${tipoLabel}</span></td>
       <td style="padding:13px 20px;color:#6b7280;font-size:13px;">${escHtml(ig.distrito||'')}</td>
       <td style="padding:13px 20px;"><span style="background:#eef2ff;color:#1e3564;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:500;">${escHtml(ig.zona||'')}</span></td>
       <td style="padding:13px 20px;color:#6b7280;font-size:13px;">${escHtml(ig.pastor||'—')}</td>

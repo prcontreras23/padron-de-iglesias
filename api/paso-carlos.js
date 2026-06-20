@@ -29,13 +29,15 @@ export default async function handler(req, res) {
 
   const enlace = `${SITE}/paso-noemi.html?token=${sol.token_noemi}`;
   await sendEmail({
-    to: cfg.noemi_email,
-    subject: `📋 Registrar en Infomac y ACMS — ${sol.nombre_congregacion}`,
+    to: cfg.francis_email || 'prcontreras@adventistassureste.org',
+    subject: `📋 Paso 3 para Noemí — ${sol.nombre_congregacion}`,
     html: emailBase({
       titulo: 'Paso 3: Confirmar en Infomac y ACMS',
-      cuerpo: `<p style="color:#374151;margin:0 0 8px;">Se solicita que registres esta congregación en <strong>Infomac</strong> y <strong>ACMS</strong>:</p>
-               ${tablaSolicitud({ ...sol })}`,
-      boton: { url: enlace, texto: 'Confirmar Infomac y ACMS' },
+      cuerpo: `<p style="color:#374151;margin:0 0 8px;">Carlos completó Ecclesia para <strong>${sol.nombre_congregacion}</strong>. Envía el siguiente enlace a <strong>Noemí Vizcaíno</strong> (${cfg.noemi_email || 'nvizcaino@adventistassureste.org'}):</p>
+               ${tablaSolicitud({ ...sol })}
+               <p style="margin:16px 0 4px;font-size:13px;color:#6b7280;">Enlace para Noemí:</p>
+               <p style="background:#f0f2f7;border-radius:8px;padding:10px 14px;font-size:13px;word-break:break-all;margin:0;"><a href="${enlace}" style="color:#1e3564;">${enlace}</a></p>`,
+      boton: { url: enlace, texto: 'Abrir enlace de Noemí' },
     }),
   });
 

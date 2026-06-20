@@ -30,14 +30,15 @@ export default async function handler(req, res) {
 
   const enlace = `${SITE}/paso-carlos.html?token=${sol.token_carlos}`;
   await sendEmail({
-    to: cfg.carlos_email,
-    subject: `📋 Crear cuenta en Ecclesia — ${sol.nombre_congregacion} (${codigo_asignado})`,
+    to: cfg.francis_email || 'prcontreras@adventistassureste.org',
+    subject: `📋 Paso 2 para Carlos — ${sol.nombre_congregacion} (${codigo_asignado})`,
     html: emailBase({
       titulo: 'Paso 2: Crear en Ecclesia',
-      cuerpo: `<p style="color:#374151;margin:0 0 8px;">Se solicita que crees la cuenta de esta congregación en <strong>Ecclesia</strong>:</p>
+      cuerpo: `<p style="color:#374151;margin:0 0 8px;">César completó SunPlus para <strong>${sol.nombre_congregacion}</strong>. Envía el siguiente enlace a <strong>Carlos Melo</strong> (${cfg.carlos_email || 'franciscontreras@unad.edu.do'}):</p>
                ${tablaSolicitud({ ...sol, codigo_asignado })}
-               <p style="color:#6b7280;font-size:13px;margin-top:8px;"><strong>Nota:</strong> Este paso depende de un proceso externo. Completa el formulario cuando tengas confirmación.</p>`,
-      boton: { url: enlace, texto: 'Confirmar Ecclesia' },
+               <p style="margin:16px 0 4px;font-size:13px;color:#6b7280;">Enlace para Carlos:</p>
+               <p style="background:#f0f2f7;border-radius:8px;padding:10px 14px;font-size:13px;word-break:break-all;margin:0;"><a href="${enlace}" style="color:#1e3564;">${enlace}</a></p>`,
+      boton: { url: enlace, texto: 'Abrir enlace de Carlos' },
     }),
   });
 

@@ -50,6 +50,7 @@ let S = {
   showModal: false, modalMode: 'add', editId: null,
   form: { nombre:'', cod:'', codZona:'', codDistrito:'', distrito:'', zona:'', pastor:'', carpetaDrive:'', datosExtra:{} },
   saving: false, showDeleteConfirm: false, deleteTarget: null,
+  showDeleteSolicitudConfirm: false, deleteSolicitudId: null, deleteSolicitudNombre: null,
   // Zona modal
   showZonaModal: false, zonaModalMode: 'add', editZonaCod: null,
   formZona: { cod:'', nombre:'' },
@@ -406,6 +407,7 @@ function buildHTML() {
   ${S.showDeleteZonaConfirm     ? buildDeleteZonaConfirm()     : ''}
   ${S.showDeleteDistritoConfirm ? buildDeleteDistritoConfirm() : ''}
   ${S.showDeletePastorConfirm   ? buildDeletePastorConfirm()   : ''}
+  ${S.showDeleteSolicitudConfirm ? buildDeleteSolicitudConfirm() : ''}
   ${S.showSearch                  ? buildSearchModal()           : ''}
   ${S.showImportModal            ? buildImportModal()           : ''}
   ${S.toast                     ? buildToast()                 : ''}
@@ -842,6 +844,7 @@ function buildSolicitudes() {
             const btnCopiar = enlace
               ? `<button onclick="navigator.clipboard.writeText(location.origin+'${enlace}').then(()=>{ this.textContent='✓ Copiado'; setTimeout(()=>this.textContent='🔗 Copiar enlace',2000) })" style="background:#eef2ff;color:#1e3564;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;">🔗 Copiar enlace</button>`
               : '';
+            const btnEliminar = `<button data-del-sol="${escHtml(s.id)}" data-del-sol-nombre="${escHtml(s.nombre_congregacion)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-left:4px;">✕</button>`;
             return `<tr style="border-bottom:1px solid #f0f2f7;">
               <td style="padding:12px 16px;font-weight:600;color:#1e3564;">${escHtml(s.nombre_congregacion)}</td>
               <td style="padding:12px 16px;color:#374151;">${escHtml(s.nombre_pastor)}</td>
@@ -849,7 +852,7 @@ function buildSolicitudes() {
               <td style="padding:12px 16px;"><span style="font-family:monospace;background:#f0f2f7;padding:2px 8px;border-radius:4px;">${escHtml(s.codigo_asignado||'—')}</span></td>
               <td style="padding:12px 16px;"><span style="background:${est.bg};color:${est.color};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">${est.label}</span></td>
               <td style="padding:12px 16px;color:#6b7280;font-size:13px;">${fecha}</td>
-              <td style="padding:12px 16px;">${btnCopiar}</td>
+              <td style="padding:12px 16px;">${btnCopiar}${btnEliminar}</td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -1291,6 +1294,10 @@ function confirmModal(title, body, cancelId, confirmId) {
     </div>
   </div>`;
 }
+function buildDeleteSolicitudConfirm() {
+  const nom = S.deleteSolicitudNombre || '';
+  return confirmModal('Eliminar solicitud', `Se eliminará la solicitud de <strong>${escHtml(nom)}</strong> permanentemente.`, 'btn-del-sol-cancel', 'btn-del-sol-confirm');
+}
 function buildDeleteIglesiaConfirm() { const ig=S.deleteTarget!==null?RAW.iglesias[S.deleteTarget]:null; return ig?confirmModal('Eliminar iglesia',`Se eliminara <strong>${escHtml(ig.nombre)}</strong> permanentemente.`,'btn-del-cancel','btn-del-confirm'):''; }
 function buildDeleteZonaConfirm()    { const z=RAW.zonas.find(z=>z.cod===S.deleteZonaCod); return z?confirmModal('Eliminar zona',`Se eliminara la zona <strong>${escHtml(z.nombre)}</strong>.`,'btn-del-zona-cancel','btn-del-zona-confirm'):''; }
 function buildDeleteDistritoConfirm(){ const d=RAW.distritos.find(d=>d.cod===S.deleteDistritoCod); return d?confirmModal('Eliminar distrito',`Se eliminara el distrito <strong>${escHtml(d.nombre)}</strong>.`,'btn-del-distrito-cancel','btn-del-distrito-confirm'):''; }
@@ -1461,6 +1468,25 @@ function bindEvents() {
       iglesiasAfectadas.forEach(i=>{i.pastor='';});
     }
     RAW.pastores=RAW.pastores.filter(p=>p.cod!==cod);registrarHistorial('Elimino','Pastor',cod,pNom);S.showDeletePastorConfirm=false;S.deletePastorCod=null;showToast('Pastor eliminado'+(iglesiasAfectadas.length?' ('+iglesiasAfectadas.length+' iglesias desvinculadas)':''),'success');render(); }));
+
+  /* SOLICITUDES — eliminar */
+  document.querySelectorAll('[data-del-sol]').forEach(el => el.addEventListener('click', () => {
+    S.showDeleteSolicitudConfirm = true;
+    S.deleteSolicitudId = el.dataset.delSol;
+    S.deleteSolicitudNombre = el.dataset.delSolNombre;
+    render();
+  }));
+  q('#btn-del-sol-cancel',  el => el.addEventListener('click', () => { S.showDeleteSolicitudConfirm=false; S.deleteSolicitudId=null; S.deleteSolicitudNombre=null; render(); }));
+  q('#btn-del-sol-confirm', el => el.addEventListener('click', async () => {
+    const id = S.deleteSolicitudId;
+    const nom = S.deleteSolicitudNombre;
+    const res = await fetch('/api/eliminar-solicitud', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id }) });
+    if (!res.ok) { showToast('Error al eliminar','error'); return; }
+    S._solicitudes = (S._solicitudes||[]).filter(s => s.id !== id);
+    S.showDeleteSolicitudConfirm = false; S.deleteSolicitudId = null; S.deleteSolicitudNombre = null;
+    showToast(`Solicitud de ${nom} eliminada`, 'success');
+    render();
+  }));
 
   /* HISTORIAL */
   q('#btn-clear-historial', el => el.addEventListener('click', async () => { localStorage.removeItem('padron_historial'); if(S.sbClient) await S.sbClient.from('historial').delete().neq('id','00000000-0000-0000-0000-000000000000'); S._historialData=null; showToast('Historial borrado','success'); render(); }));

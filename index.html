@@ -827,11 +827,21 @@ function buildSolicitudes() {
           <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Código</th>
           <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Estado</th>
           <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Fecha</th>
+          <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Acción</th>
         </tr></thead>
         <tbody>
           ${items.map(s => {
             const est = estadoInfo[s.estado] || { label: s.estado, bg:'#f3f4f6', color:'#374151' };
             const fecha = new Date(s.created_at).toLocaleDateString('es-DO', {day:'2-digit',month:'short',year:'numeric'});
+            const enlaceMap = {
+              pendiente_cesar:  s.token_cesar  ? `/paso-cesar.html?token=${s.token_cesar}`  : null,
+              pendiente_carlos: s.token_carlos ? `/paso-carlos.html?token=${s.token_carlos}` : null,
+              pendiente_noemi:  s.token_noemi  ? `/paso-noemi.html?token=${s.token_noemi}`  : null,
+            };
+            const enlace = enlaceMap[s.estado];
+            const btnCopiar = enlace
+              ? `<button onclick="navigator.clipboard.writeText(location.origin+'${enlace}').then(()=>{ this.textContent='✓ Copiado'; setTimeout(()=>this.textContent='🔗 Copiar enlace',2000) })" style="background:#eef2ff;color:#1e3564;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;">🔗 Copiar enlace</button>`
+              : '';
             return `<tr style="border-bottom:1px solid #f0f2f7;">
               <td style="padding:12px 16px;font-weight:600;color:#1e3564;">${escHtml(s.nombre_congregacion)}</td>
               <td style="padding:12px 16px;color:#374151;">${escHtml(s.nombre_pastor)}</td>
@@ -839,6 +849,7 @@ function buildSolicitudes() {
               <td style="padding:12px 16px;"><span style="font-family:monospace;background:#f0f2f7;padding:2px 8px;border-radius:4px;">${escHtml(s.codigo_asignado||'—')}</span></td>
               <td style="padding:12px 16px;"><span style="background:${est.bg};color:${est.color};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">${est.label}</span></td>
               <td style="padding:12px 16px;color:#6b7280;font-size:13px;">${fecha}</td>
+              <td style="padding:12px 16px;">${btnCopiar}</td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -907,7 +918,7 @@ function buildUsuariosSection() {
         </div>
         ${S.editingProfileId ? '' : `
         ${formField('Correo electrónico','nu-email',nuf.email,'email','usuario@correo.com','',true)}
-        ${S.editingProfileId ? '' : '<p style="font-size:12px;color:#6b7280;margin:0 0 12px;">Se enviará una invitación por correo para que el usuario establezca su contraseña.</p>'}
+        ${S.editingProfileId ? '' : '<p style="font-size:12px;color:#6b7280;margin:0 0 12px;">Se generará una contraseña temporal y se enviará por correo al usuario.</p>'}
         `}
         ${formField('Nombre completo','nu-nombre',nuf.nombre,'text','Nombre del usuario')}
         <div style="margin-top:16px;">
@@ -1519,7 +1530,8 @@ function bindEvents() {
         });
         const result = await res.json();
         if(!res.ok){showToast('Error: '+(result.error||'Error creando usuario'),'error');return;}
-        alert(`✅ Invitación enviada a ${email}.\n\nEl usuario recibirá un correo con un enlace para establecer su contraseña y acceder al sistema.`);
+        const passMsg = result.password ? `\n\nContraseña temporal: ${result.password}` : '';
+        alert(`✅ Usuario creado exitosamente.${passMsg}\n\nComparte estas credenciales con el usuario.`);
       } catch(e){showToast('Error: '+e.message,'error');return;}
     } else {
       await S.sbClient.from('profiles').update({nombre,permisos}).eq('id',S.editingProfileId);

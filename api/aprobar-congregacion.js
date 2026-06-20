@@ -49,13 +49,15 @@ export default async function handler(req, res) {
 
   const enlace = `${SITE}/paso-cesar.html?token=${sol.token_cesar}`;
   await sendEmail({
-    to: cfg.cesar_email,
-    subject: `📋 Registro en SunPlus — ${sol.nombre_congregacion}`,
+    to: cfg.francis_email || 'prcontreras@adventistassureste.org',
+    subject: `📋 Paso 1 para César — ${sol.nombre_congregacion}`,
     html: emailBase({
       titulo: 'Paso 1: Confirmar en SunPlus',
-      cuerpo: `<p style="color:#374151;margin:0 0 8px;">Se solicita que registres esta nueva congregación en <strong>SunPlus</strong> y asignes el código correspondiente:</p>
-               ${tablaSolicitud(sol)}`,
-      boton: { url: enlace, texto: 'Completar este paso' },
+      cuerpo: `<p style="color:#374151;margin:0 0 8px;">Aprobaste la solicitud de <strong>${sol.nombre_congregacion}</strong>. Envía el siguiente enlace a <strong>César Cabrera</strong> (${cfg.cesar_email || 'secretariosureste23@gmail.com'}) para que complete el registro en SunPlus:</p>
+               ${tablaSolicitud(sol)}
+               <p style="margin:16px 0 4px;font-size:13px;color:#6b7280;">Enlace para César:</p>
+               <p style="background:#f0f2f7;border-radius:8px;padding:10px 14px;font-size:13px;word-break:break-all;margin:0;"><a href="${enlace}" style="color:#1e3564;">${enlace}</a></p>`,
+      boton: { url: enlace, texto: 'Abrir enlace de César' },
     }),
   });
 

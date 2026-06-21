@@ -570,7 +570,7 @@ function buildDashboard() {
   const sinPastor = igSinPastor.length;
   const igPendientes = RAW.iglesias.filter(i=>i.tipo==='pendiente_revision');
   const sinRevision = igPendientes.length;
-  const pastSinDistrito = RAW.pastores.filter(p=>!p.codDistrito&&p.rol!=='departamental'&&p.rol!=='administrador');
+  const pastSinDistrito = RAW.pastores.filter(p=>!p.codDistrito&&p.rol!=='departamental'&&p.rol!=='administrador'&&p.rol!=='asociado'&&p.rol!=='plantador');
   const sinDistrito = pastSinDistrito.length;
   const distsSinIg = RAW.distritos.filter(d=>!d.iglesias||d.iglesias===0);
   const distSinIg = distsSinIg.length;

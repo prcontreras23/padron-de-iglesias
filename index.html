@@ -373,10 +373,10 @@ async function loadAllProfiles() {
    RENDER
    ===================================================================== */
 function renderKeepScroll() {
-  const main = document.getElementById('main-content') || document.getElementById('app');
-  const sy = main ? main.scrollTop : window.scrollY;
+  const sy = (document.getElementById('main-content') || document.getElementById('app'))?.scrollTop ?? window.scrollY;
   render();
-  if (main) main.scrollTop = sy; else window.scrollTo(0, sy);
+  const newMain = document.getElementById('main-content');
+  if (newMain) newMain.scrollTop = sy; else window.scrollTo(0, sy);
 }
 function render() {
   const app = document.getElementById('app');

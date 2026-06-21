@@ -42,7 +42,7 @@ let RAW = { zonas: [], distritos: [], iglesias: [], pastores: [] };
 let S = {
   view: location.hash.replace('#','') || 'dashboard',
   sidebarOpen: window.innerWidth >= 768,
-  search: '', fZona: 'all', fDistrito: 'all', fPastor: 'all', sortCol: 'nombre', sortDir: 'asc',
+  search: '', fZona: 'all', fDistrito: 'all', fPastor: 'all', fEstado: 'all', fRol: 'all', fTipoIg: 'all', sortCol: 'nombre', sortDir: 'asc',
   showSearch: false, searchQuery: '', loadError: '', _historialData: null, _historialLoading: false,
   _solicitudes: null, _solicitudesLoading: false, _flujoCfg: null,
   selectedPastores: new Set(), selectedIglesias: new Set(),
@@ -140,6 +140,7 @@ function getFilteredIglesias() {
   if (S.fZona !== 'all') list = list.filter(i => i.codZona === S.fZona);
   if (S.fDistrito !== 'all') list = list.filter(i => i.codDistrito === S.fDistrito);
   if (S.fPastor !== 'all') list = list.filter(i => (S.fPastor === '__sin_pastor__' ? (!i.pastor||!i.pastor.trim()) : (i.pastor||'') === S.fPastor));
+  if (S.fTipoIg && S.fTipoIg !== 'all') list = list.filter(i => (i.tipo||'iglesia') === S.fTipoIg);
   if (S.search.trim()) {
     const q = S.search.toLowerCase();
     list = list.filter(i =>
@@ -176,6 +177,8 @@ function getFilteredPastores() {
       (p.email||'').toLowerCase().includes(q)
     );
   }
+  if (S.fEstado && S.fEstado !== 'all') list = list.filter(p => (p.estado||'ordenado') === S.fEstado);
+  if (S.fRol    && S.fRol    !== 'all') list = list.filter(p => (p.rol||'pastor') === S.fRol);
   return [...list].sort((a,b) => a.nombre.localeCompare(b.nombre));
 }
 
@@ -532,10 +535,11 @@ function buildContent() {
 
 /* ---- DASHBOARD ---- */
 function buildDashboard() {
-  const stat = (num, label, bg, color, iconHtml) => `
-  <div style="background:white;border-radius:14px;padding:22px;box-shadow:0 1px 4px rgba(30,53,100,.07);display:flex;align-items:center;gap:16px;border:1px solid #e8eaf2;">
+  const stat = (num, label, bg, color, iconHtml, nav='') => `
+  <div data-nav-dash="${nav}" style="background:white;border-radius:14px;padding:22px;box-shadow:0 1px 4px rgba(30,53,100,.07);display:flex;align-items:center;gap:16px;border:1px solid #e8eaf2;${nav?'cursor:pointer;':''}transition:box-shadow .15s;" onmouseover="${nav?"this.style.boxShadow='0 4px 12px rgba(30,53,100,.15)'":''}" onmouseout="${nav?"this.style.boxShadow='0 1px 4px rgba(30,53,100,.07)'":""}">
     <div style="width:52px;height:52px;background:${bg};border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconHtml.replace('currentColor',color)}</div>
-    <div><div style="font-size:32px;font-weight:700;color:#1e3564;line-height:1;">${num}</div><div style="font-size:13px;color:#6b7280;margin-top:2px;">${label}</div></div>
+    <div style="flex:1;"><div style="font-size:32px;font-weight:700;color:#1e3564;line-height:1;">${num}</div><div style="font-size:13px;color:#6b7280;margin-top:2px;">${label}</div></div>
+    ${nav?`<span style="font-size:18px;color:#c5cbe0;">›</span>`:''}
   </div>`;
 
   // Estadísticas de iglesias vs grupos y pastores ordenados vs licenciados
@@ -557,7 +561,7 @@ function buildDashboard() {
   }).join('');
   const topD = [...RAW.distritos].sort((a,b)=>b.iglesias-a.iglesias).slice(0,8);
   const topRows = topD.map((d,i) => `
-  <div style="display:flex;align-items:center;gap:12px;padding:10px 0;${i<topD.length-1?'border-bottom:1px solid #f0f2f7;':''}">
+  <div data-nav-dash="iglesias|distrito=${d.cod}" style="display:flex;align-items:center;gap:12px;padding:10px 0;${i<topD.length-1?'border-bottom:1px solid #f0f2f7;':''}cursor:pointer;" onmouseover="this.style.background='#f8f9fc'" onmouseout="this.style.background=''">
     <div style="width:24px;height:24px;border-radius:50%;background:${i<3?'#d4a820':'#e8eaf2'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${i<3?'white':'#9ca3af'};flex-shrink:0;">${i+1}</div>
     <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:500;color:#1a2340;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(d.nombre)}</div><div style="font-size:12px;color:#9ca3af;">${escHtml(d.zona)}</div></div>
     <span style="background:#fff8e6;color:#d4a820;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600;">${d.iglesias||0}</span>
@@ -598,9 +602,9 @@ function buildDashboard() {
   const totalPastoresCampo = pastoresCampo.length;
 
   function secTitle(t) { return `<div style="font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;">${t}</div>`; }
-  function miniBar(label,val,total,color) {
+  function miniBar(label,val,total,color,nav='') {
     const pct = total>0?Math.max((val/total)*100,0):0;
-    return `<div style="display:flex;align-items:center;gap:10px;">
+    return `<div data-nav-dash="${nav}" style="display:flex;align-items:center;gap:10px;${nav?'cursor:pointer;border-radius:6px;padding:3px 4px;':'padding:3px 4px;'}transition:background .12s;" onmouseover="${nav?"this.style.background='#f0f2f7'":''}" onmouseout="${nav?"this.style.background=''":""}">
       <span style="font-size:12px;color:#6b7280;width:80px;flex-shrink:0;">${label}</span>
       <div style="flex:1;height:10px;background:#f0f2f7;border-radius:5px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};border-radius:5px;"></div></div>
       <span style="font-size:13px;font-weight:600;color:#1a2340;width:28px;text-align:right;">${val}</span>
@@ -625,10 +629,10 @@ function buildDashboard() {
     <div>
       ${secTitle('Resumen general')}
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;">
-        ${stat(RAW.zonas.length,'Zonas','#eef2ff','#1e3564',icons.globe)}
-        ${stat(RAW.distritos.length,'Distritos','#fff8e6','#d4a820',icons.users)}
-        ${stat(iglesias,'Iglesias','#dbeafe','#1e40af',icons.home)}
-        ${stat(grupos,'Grupos','#fef3c7','#92400e',icons.users)}
+        ${stat(RAW.zonas.length,'Zonas','#eef2ff','#1e3564',icons.globe,'zonas')}
+        ${stat(RAW.distritos.length,'Distritos','#fff8e6','#d4a820',icons.users,'distritos')}
+        ${stat(iglesias,'Iglesias','#dbeafe','#1e40af',icons.home,'iglesias')}
+        ${stat(grupos,'Grupos','#fef3c7','#92400e',icons.users,'iglesias|tipo=grupo')}
       </div>
     </div>
 
@@ -637,27 +641,27 @@ function buildDashboard() {
       <div>
         ${secTitle('Pastores de campo')}
         <div style="background:white;border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;">
-          <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:16px;">
+          <div data-nav-dash="pastores" style="display:flex;align-items:baseline;gap:6px;margin-bottom:16px;cursor:pointer;" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
             <span style="font-size:36px;font-weight:800;color:#1e3564;line-height:1;">${totalPastoresCampo}</span>
-            <span style="font-size:13px;color:#9ca3af;">en total</span>
+            <span style="font-size:13px;color:#9ca3af;">en total ›</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:10px;">
-            ${miniBar('Ordenados', ordenados, totalPastoresCampo, '#166534')}
-            ${miniBar('Licenciados', licenciados, totalPastoresCampo, '#b45309')}
-            ${miniBar('Asociados', asociados, totalPastoresCampo, '#0369a1')}
+            ${miniBar('Ordenados', ordenados, totalPastoresCampo, '#166534', 'pastores|estado=ordenado')}
+            ${miniBar('Licenciados', licenciados, totalPastoresCampo, '#b45309', 'pastores|estado=licenciado')}
+            ${miniBar('Asociados', asociados, totalPastoresCampo, '#0369a1', 'pastores|rol=asociado')}
           </div>
         </div>
       </div>
       <div>
         ${secTitle('Personal de oficina')}
         <div style="background:white;border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;">
-          <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:16px;">
+          <div data-nav-dash="pastores|rol=departamental" style="display:flex;align-items:baseline;gap:6px;margin-bottom:16px;cursor:pointer;" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
             <span style="font-size:36px;font-weight:800;color:#5b21b6;line-height:1;">${oficina}</span>
-            <span style="font-size:13px;color:#9ca3af;">en total</span>
+            <span style="font-size:13px;color:#9ca3af;">en total ›</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:10px;">
-            ${miniBar('Departamental', RAW.pastores.filter(p=>p.rol==='departamental').length, oficina||1, '#7c3aed')}
-            ${miniBar('Administrador', RAW.pastores.filter(p=>p.rol==='administrador').length, oficina||1, '#a855f7')}
+            ${miniBar('Departamental', RAW.pastores.filter(p=>p.rol==='departamental').length, oficina||1, '#7c3aed', 'pastores|rol=departamental')}
+            ${miniBar('Administrador', RAW.pastores.filter(p=>p.rol==='administrador').length, oficina||1, '#a855f7', 'pastores|rol=administrador')}
           </div>
         </div>
       </div>
@@ -1453,6 +1457,19 @@ function bindEvents() {
   document.querySelectorAll('[data-nav]').forEach(el => el.addEventListener('click', () => { S.view=el.dataset.nav; location.hash=S.view; S.search=''; S.fZona='all'; S.fDistrito='all'; S.fPastor='all'; S.page=1; if(el.dataset.nav==='historial')S._historialData=null; render(); }));
   document.querySelectorAll('[data-nav-zona]').forEach(el => el.addEventListener('click', () => { S.view='distritos'; S.fZona=el.dataset.navZona; S.search=''; S.page=1; render(); }));
   document.querySelectorAll('[data-nav-zona-ig]').forEach(el => el.addEventListener('click', () => { S.view='iglesias'; S.fZona=el.dataset.navZonaIg; S.fDistrito='all'; S.search=''; S.page=1; render(); }));
+  document.querySelectorAll('[data-nav-dash]').forEach(el => el.addEventListener('click', () => {
+    const val = el.dataset.navDash; if (!val) return;
+    const [vista, param] = val.split('|');
+    S.view=vista; S.search=''; S.page=1; S.fZona='all'; S.fDistrito='all'; S.fPastor='all'; S.fEstado='all'; S.fRol='all'; S.fTipoIg='all';
+    if (param) {
+      const [key,v] = param.split('=');
+      if (key==='estado') S.fEstado=v;
+      else if (key==='rol') S.fRol=v;
+      else if (key==='distrito') S.fDistrito=v;
+      else if (key==='tipo' && v==='grupo') S.fTipoIg='grupo';
+    }
+    render();
+  }));
   document.querySelectorAll('[data-filter-zona]').forEach(el => el.addEventListener('click', () => { S.fZona=el.dataset.filterZona; S.page=1; render(); }));
   document.querySelectorAll('[data-ver-distrito]').forEach(el => el.addEventListener('click', () => { S.view='iglesias'; S.fZona=el.dataset.verZona; S.fDistrito=el.dataset.verDistrito; S.search=''; S.page=1; render(); }));
   q('#main-search', el => el.addEventListener('input', e => { S.search=e.target.value; S.page=1; debouncedRender(); }));

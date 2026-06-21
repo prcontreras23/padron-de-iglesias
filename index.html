@@ -45,6 +45,7 @@ let S = {
   search: '', fZona: 'all', fDistrito: 'all', fPastor: 'all', sortCol: 'nombre', sortDir: 'asc',
   showSearch: false, searchQuery: '', loadError: '', _historialData: null, _historialLoading: false,
   _solicitudes: null, _solicitudesLoading: false, _flujoCfg: null,
+  selectedPastores: new Set(), selectedIglesias: new Set(),
   page: 1, pageSize: 25,
   // Iglesia modal
   showModal: false, modalMode: 'add', editId: null,
@@ -737,13 +738,28 @@ function buildIglesias() {
   const pages = Math.max(1, Math.ceil(total / S.pageSize));
   const page  = Math.min(S.page, pages);
   const slice = filtered.slice((page-1)*S.pageSize, page*S.pageSize);
+  const selIg = S.selectedIglesias;
+  const allIgChecked = slice.length > 0 && slice.every(ig => selIg.has(ig.cod));
+  const selIgCount = filtered.filter(ig => selIg.has(ig.cod)).length;
+  const bulkIgBar = selIgCount > 0 ? `
+    <div style="background:#1e3564;color:white;border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span style="font-size:13px;font-weight:600;">${selIgCount} iglesia${selIgCount!==1?'s':''} seleccionada${selIgCount!==1?'s':''}</span>
+      <span style="flex:1;"></span>
+      <span style="font-size:12px;opacity:.7;">Cambiar tipo a:</span>
+      <button id="btn-bulk-ig-iglesia" style="background:#1e40af;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Iglesia</button>
+      <button id="btn-bulk-ig-grupo" style="background:#92400e;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Grupo</button>
+      <button id="btn-bulk-ig-clear" style="background:rgba(255,255,255,.15);color:white;border:none;border-radius:7px;padding:7px 12px;font-size:13px;cursor:pointer;">✕ Cancelar</button>
+    </div>` : '';
+
   const rows = slice.map(ig => {
     const realIdx = RAW.iglesias.indexOf(ig);
     const driveLink = ig.carpeta_drive ? `<a href="${escHtml(ig.carpeta_drive)}" target="_blank" title="Abrir carpeta Drive" style="color:#1a73e8;display:flex;align-items:center;">${icons.link}</a>` : '';
     const tipoColor = ig.tipo==='grupo'?'#fef3c7':ig.tipo==='pendiente_revision'?'#fee2e2':'#dbeafe';
     const tipoTextColor = ig.tipo==='grupo'?'#92400e':ig.tipo==='pendiente_revision'?'#991b1b':'#1e40af';
     const tipoLabel = ig.tipo==='pendiente_revision'?'⚠ Revisar':ig.tipo||'iglesia';
-return `<tr style="border-bottom:1px solid #f0f2f7;" onmouseover="this.style.background='#f8f9fc'" onmouseout="this.style.background=''">
+    const igChecked = selIg.has(ig.cod);
+return `<tr style="border-bottom:1px solid #f0f2f7;background:${igChecked?'#eef2ff':''}" onmouseover="this.style.background='${igChecked?'#e0e7ff':'#f8f9fc'}'" onmouseout="this.style.background='${igChecked?'#eef2ff':''}'">
+      <td style="padding:8px 8px 8px 16px;"><input type="checkbox" data-chk-iglesia="${escHtml(ig.cod)}" ${igChecked?'checked':''} style="width:15px;height:15px;cursor:pointer;accent-color:#1e3564;" /></td>
       <td style="padding:13px 20px;font-weight:500;color:#1a2340;">${escHtml(ig.nombre)}</td>
       <td style="padding:13px 20px;color:#9ca3af;font-family:monospace;font-size:12px;">${ig.cod}</td>
       <td style="padding:13px 20px;"><span style="background:${tipoColor};color:${tipoTextColor};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;text-transform:capitalize;">${tipoLabel}</span></td>
@@ -759,11 +775,12 @@ return `<tr style="border-bottom:1px solid #f0f2f7;" onmouseover="this.style.bac
   }).join('');
   return `
   <div style="display:flex;flex-direction:column;gap:16px;">
+    ${bulkIgBar}
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">${selectZona}${selectDistrito}${selectPastor}<span style="margin-left:auto;font-size:13px;color:#9ca3af;">${total} iglesia${total!==1?'s':''}</span></div>
     <div style="background:white;border-radius:14px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;overflow:hidden;">
-      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:820px;">
-        <thead><tr style="background:#f8f9fc;">${thSort('Iglesia','nombre')}${thSort('Codigo','cod')}${thSort('Tipo','tipo')}${thSort('Distrito','distrito')}${thSort('Zona','zona')}${thSort('Pastor','pastor')}${thCell('Drive','center')}${thCell('')}</tr></thead>
-        <tbody>${rows||emptyRow(7,'No se encontraron iglesias')}</tbody>
+      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:860px;">
+        <thead><tr style="background:#f8f9fc;"><th style="padding:8px 8px 8px 16px;"><input id="chk-ig-all" type="checkbox" ${allIgChecked?'checked':''} style="accent-color:#1e3564;width:15px;height:15px;cursor:pointer;" title="Seleccionar todos" /></th>${thSort('Iglesia','nombre')}${thSort('Codigo','cod')}${thSort('Tipo','tipo')}${thSort('Distrito','distrito')}${thSort('Zona','zona')}${thSort('Pastor','pastor')}${thCell('Drive','center')}${thCell('')}</tr></thead>
+        <tbody>${rows||emptyRow(8,'No se encontraron iglesias')}</tbody>
       </table></div>
       <div style="padding:14px 20px;border-top:1px solid #f0f2f7;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
         <span style="font-size:13px;color:#9ca3af;">Pagina ${page} de ${pages}</span>
@@ -780,14 +797,30 @@ return `<tr style="border-bottom:1px solid #f0f2f7;" onmouseover="this.style.bac
 function buildPastores() {
   const igByPastor = {}; RAW.iglesias.forEach(i => { if(i.pastor) igByPastor[i.pastor] = (igByPastor[i.pastor]||0)+1; });
   const list = getFilteredPastores();
+  const sel = S.selectedPastores;
+  const allChecked = list.length > 0 && list.every(p => sel.has(p.cod));
+  const selCount = list.filter(p => sel.has(p.cod)).length;
+
+  const bulkBar = selCount > 0 ? `
+    <div style="position:sticky;top:0;z-index:10;background:#1e3564;color:white;border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span style="font-size:13px;font-weight:600;">${selCount} pastor${selCount!==1?'es':''} seleccionado${selCount!==1?'s':''}</span>
+      <span style="flex:1;"></span>
+      <span style="font-size:12px;opacity:.7;">Cambiar estado a:</span>
+      <button id="btn-bulk-pastor-ordenado" style="background:#166534;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Ordenado</button>
+      <button id="btn-bulk-pastor-licenciado" style="background:#991b1b;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Licenciado</button>
+      <button id="btn-bulk-pastor-clear" style="background:rgba(255,255,255,.15);color:white;border:none;border-radius:7px;padding:7px 12px;font-size:13px;cursor:pointer;">✕ Cancelar</button>
+    </div>` : '';
+
   const cards = list.map(p => {
     const parts = p.nombre.split(/[\s,]+/).filter(Boolean);
     const initials = parts.slice(0,2).map(w=>w[0].toUpperCase()).join('');
-    return `<div style="background:white;border-radius:12px;padding:16px 18px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;display:flex;align-items:flex-start;gap:14px;animation:fadeUp .15s ease;">
+    const checked = sel.has(p.cod);
+    return `<div style="background:white;border-radius:12px;padding:16px 18px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:${checked?'2px solid #1e3564':'1px solid #e8eaf2'};display:flex;align-items:flex-start;gap:14px;animation:fadeUp .15s ease;">
+      <input type="checkbox" data-chk-pastor="${escHtml(p.cod)}" ${checked?'checked':''} style="width:16px;height:16px;margin-top:14px;cursor:pointer;accent-color:#1e3564;flex-shrink:0;" />
       <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#1e3564,#2d5090);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:white;flex-shrink:0;">${initials||'?'}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-weight:600;font-size:14px;color:#1a2340;">${escHtml(p.nombre)}</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">${p.distrito?`<span style="font-size:12px;color:#6b7280;">${escHtml(p.distrito)}</span>`:''}<span style="background:#eef2ff;color:#1e3564;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:600;">${igByPastor[p.nombre]||0} iglesia${(igByPastor[p.nombre]||0)!==1?'s':''}</span><span style="background:${(p.estado||'ordenado')==='licenciado'?'#fecaca':'#dbeafe'};color:${(p.estado||'ordenado')==='licenciado'?'#991b1b':'#1e40af'};border-radius:20px;padding:1px 8px;font-size:11px;font-weight:600;text-transform:capitalize;">${p.estado||'ordenado'}</span></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:2px;flex-wrap:wrap;">${p.distrito?`<span style="font-size:12px;color:#6b7280;">${escHtml(p.distrito)}</span>`:''}<span style="background:#eef2ff;color:#1e3564;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:600;">${igByPastor[p.nombre]||0} iglesia${(igByPastor[p.nombre]||0)!==1?'s':''}</span><span style="background:${(p.estado||'ordenado')==='licenciado'?'#fecaca':'#dbeafe'};color:${(p.estado||'ordenado')==='licenciado'?'#991b1b':'#1e40af'};border-radius:20px;padding:1px 8px;font-size:11px;font-weight:600;text-transform:capitalize;">${p.estado||'ordenado'}</span></div>
         ${p.telefono?`<div style="font-size:12px;color:#9ca3af;margin-top:2px;display:flex;align-items:center;gap:4px;">${icons.phone} ${escHtml(p.telefono)}</div>`:''}
         ${p.email?`<div style="font-size:12px;color:#9ca3af;margin-top:1px;display:flex;align-items:center;gap:4px;">${icons.mail} ${escHtml(p.email)}</div>`:''}
       </div>
@@ -797,8 +830,11 @@ function buildPastores() {
       </div>
     </div>`;
   }).join('');
+
+  const selectAll = list.length ? `<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#6b7280;cursor:pointer;"><input id="chk-pastor-all" type="checkbox" ${allChecked?'checked':''} style="accent-color:#1e3564;width:15px;height:15px;" /> Seleccionar todos</label>` : '';
+
   return list.length
-    ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;">${cards}</div>`
+    ? `<div style="display:flex;flex-direction:column;gap:14px;">${bulkBar}<div style="display:flex;justify-content:flex-end;">${selectAll}</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;">${cards}</div></div>`
     : `<div style="padding:60px;text-align:center;color:#9ca3af;font-size:14px;">No se encontraron pastores</div>`;
 }
 
@@ -1474,6 +1510,65 @@ function bindEvents() {
       iglesiasAfectadas.forEach(i=>{i.pastor='';});
     }
     RAW.pastores=RAW.pastores.filter(p=>p.cod!==cod);registrarHistorial('Elimino','Pastor',cod,pNom);S.showDeletePastorConfirm=false;S.deletePastorCod=null;showToast('Pastor eliminado'+(iglesiasAfectadas.length?' ('+iglesiasAfectadas.length+' iglesias desvinculadas)':''),'success');render(); }));
+
+  /* IGLESIAS — selección masiva */
+  q('#chk-ig-all', el => el.addEventListener('change', () => {
+    const list = getFilteredIglesias();
+    if (el.checked) list.forEach(ig => S.selectedIglesias.add(ig.cod));
+    else S.selectedIglesias.clear();
+    render();
+  }));
+  document.querySelectorAll('[data-chk-iglesia]').forEach(el => el.addEventListener('change', () => {
+    if (el.checked) S.selectedIglesias.add(el.dataset.chkIglesia);
+    else S.selectedIglesias.delete(el.dataset.chkIglesia);
+    render();
+  }));
+  q('#btn-bulk-ig-clear', el => el.addEventListener('click', () => { S.selectedIglesias.clear(); render(); }));
+  async function bulkUpdateIglesias(nuevoTipo) {
+    const cods = [...S.selectedIglesias];
+    if (!cods.length) return;
+    if (S.sbClient) {
+      const { error } = await S.sbClient.from(S.sbTable).update({ tipo: nuevoTipo }).in('cod', cods);
+      if (error) { showToast('Error: ' + error.message, 'error'); return; }
+    }
+    cods.forEach(cod => { const ig = RAW.iglesias.find(i => i.cod === cod); if (ig) ig.tipo = nuevoTipo; });
+    recomputeCounts();
+    registrarHistorial('Cambio tipo masivo', 'Iglesia', cods.join(','), nuevoTipo);
+    S.selectedIglesias.clear();
+    showToast(`${cods.length} iglesia${cods.length!==1?'s':''} actualizadas a "${nuevoTipo}"`, 'success');
+    render();
+  }
+  q('#btn-bulk-ig-iglesia', el => el.addEventListener('click', () => bulkUpdateIglesias('iglesia')));
+  q('#btn-bulk-ig-grupo',   el => el.addEventListener('click', () => bulkUpdateIglesias('grupo')));
+
+  /* PASTORES — selección masiva */
+  q('#chk-pastor-all', el => el.addEventListener('change', () => {
+    const list = getFilteredPastores();
+    if (el.checked) list.forEach(p => S.selectedPastores.add(p.cod));
+    else S.selectedPastores.clear();
+    render();
+  }));
+  document.querySelectorAll('[data-chk-pastor]').forEach(el => el.addEventListener('change', () => {
+    if (el.checked) S.selectedPastores.add(el.dataset.chkPastor);
+    else S.selectedPastores.delete(el.dataset.chkPastor);
+    render();
+  }));
+  q('#btn-bulk-pastor-clear', el => el.addEventListener('click', () => { S.selectedPastores.clear(); render(); }));
+  async function bulkUpdatePastores(nuevoEstado) {
+    const cods = [...S.selectedPastores];
+    if (!cods.length) return;
+    if (S.sbClient) {
+      const { error } = await S.sbClient.from('pastores').update({ estado: nuevoEstado }).in('cod', cods);
+      if (error) { showToast('Error: ' + error.message, 'error'); return; }
+    }
+    cods.forEach(cod => { const p = RAW.pastores.find(p => p.cod === cod); if (p) p.estado = nuevoEstado; });
+    registrarHistorial('Cambio estado masivo', 'Pastor', cods.join(','), nuevoEstado);
+    S.selectedPastores.clear();
+    showToast(`${cods.length} pastor${cods.length!==1?'es':''} actualizados a "${nuevoEstado}"`, 'success');
+    render();
+  }
+  q('#btn-bulk-pastor-ordenado',   el => el.addEventListener('click', () => bulkUpdatePastores('ordenado')));
+  q('#btn-bulk-pastor-licenciado', el => el.addEventListener('click', () => bulkUpdatePastores('licenciado')));
 
   /* SOLICITUDES — eliminar */
   document.querySelectorAll('[data-del-sol]').forEach(el => el.addEventListener('click', () => {

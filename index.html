@@ -1498,7 +1498,24 @@ function bindEvents() {
   q('#btn-global-search', el => el.addEventListener('click', () => { S.showSearch=true; S.searchQuery=''; render(); setTimeout(()=>document.getElementById('search-input')?.focus(),50); }));
   q('#btn-search-close', el => el.addEventListener('click', () => { S.showSearch=false; render(); }));
   q('#search-bg', el => el.addEventListener('click', e => { if(e.target===el){S.showSearch=false;render();} }));
-  q('#search-input', el => el.addEventListener('input', e => { S.searchQuery=e.target.value; render(); setTimeout(()=>{const inp=document.getElementById('search-input');if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}},0); }));
+  q('#search-input', el => el.addEventListener('input', e => {
+    S.searchQuery=e.target.value;
+    const container=document.querySelector('#search-bg div div:nth-child(2)');
+    if(!container){render();return;}
+    const q2=S.searchQuery.toLowerCase().trim();
+    let results2=[];
+    if(q2.length>=2){
+      const ig=RAW.iglesias.filter(i=>i.nombre.toLowerCase().includes(q2)||(i.cod||'').toLowerCase().includes(q2)||(i.pastor||'').toLowerCase().includes(q2)).slice(0,6).map(i=>({tipo:'Iglesia',cod:i.cod,nombre:i.nombre,sub:i.distrito||'',nav:'iglesias'}));
+      const pa=RAW.pastores.filter(p=>p.nombre.toLowerCase().includes(q2)||(p.distrito||'').toLowerCase().includes(q2)).slice(0,4).map(p=>({tipo:'Pastor',cod:p.cod,nombre:p.nombre,sub:p.distrito||'',nav:'pastores'}));
+      const di=RAW.distritos.filter(d=>d.nombre.toLowerCase().includes(q2)||(d.cod||'').toLowerCase().includes(q2)).slice(0,3).map(d=>({tipo:'Distrito',cod:d.cod,nombre:d.nombre,sub:d.zona||'',nav:'distritos'}));
+      const zo=RAW.zonas.filter(z=>z.nombre.toLowerCase().includes(q2)||(z.cod||'').toLowerCase().includes(q2)).slice(0,2).map(z=>({tipo:'Zona',cod:z.cod,nombre:z.nombre,sub:'',nav:'zonas'}));
+      results2=[...ig,...pa,...di,...zo];
+    }
+    const entColor={'Iglesia':'#d4a820','Pastor':'#3a6ab0','Distrito':'#2d5090','Zona':'#1e3564'};
+    const items2=results2.map(r=>`<button data-search-nav="${r.nav}" data-search-val="${escHtml(r.cod)}" style="display:flex;align-items:center;gap:12px;width:100%;padding:11px 16px;border:none;background:transparent;cursor:pointer;border-radius:8px;text-align:left;" onmouseover="this.style.background='#f0f2f7'" onmouseout="this.style.background='transparent'"><span style="background:${entColor[r.tipo]||'#6b7280'}20;color:${entColor[r.tipo]||'#6b7280'};border-radius:20px;padding:2px 8px;font-size:11px;font-weight:600;flex-shrink:0;">${r.tipo}</span><span style="flex:1;font-size:13px;font-weight:500;color:#1a2340;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(r.nombre)}</span>${r.sub?`<span style="font-size:12px;color:#9ca3af;white-space:nowrap;">${escHtml(r.sub)}</span>`:''}</button>`).join('');
+    container.innerHTML=q2.length<2?'<div style="padding:24px;text-align:center;color:#9ca3af;font-size:13px;">Escribe al menos 2 caracteres...</div>':results2.length?items2:'<div style="padding:24px;text-align:center;color:#9ca3af;font-size:13px;">Sin resultados para "'+escHtml(S.searchQuery)+'"</div>';
+    container.querySelectorAll('[data-search-nav]').forEach(btn=>btn.addEventListener('click',()=>{S.view=btn.dataset.searchNav;S.search=btn.dataset.searchVal||'';S.showSearch=false;S.fZona='all';S.fDistrito='all';S.fPastor='all';S.page=1;render();}));
+  }));
   document.querySelectorAll('[data-search-nav]').forEach(el => el.addEventListener('click', () => { S.view=el.dataset.searchNav; S.search=el.dataset.searchVal||''; S.showSearch=false; S.fZona='all'; S.fDistrito='all'; S.fPastor='all'; S.page=1; render(); }));
 
   /* EXPORTAR EXCEL */

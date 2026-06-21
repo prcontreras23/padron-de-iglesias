@@ -820,6 +820,16 @@ function buildPastores() {
   const allChecked = list.length > 0 && list.every(p => sel.has(p.cod));
   const selCount = list.filter(p => sel.has(p.cod)).length;
 
+  const filtrosActivos = [];
+  if (S.fEstado && S.fEstado !== 'all') filtrosActivos.push({label: `Estado: ${S.fEstado}`, clear: 'fEstado'});
+  if (S.fRol    && S.fRol    !== 'all') filtrosActivos.push({label: `Rol: ${S.fRol}`,       clear: 'fRol'});
+  const filtroBar = filtrosActivos.length ? `
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:12px;color:#6b7280;">Filtros activos:</span>
+      ${filtrosActivos.map(f=>`<span style="background:#eef2ff;color:#1e3564;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;">${f.label} <button data-clear-filter="${f.clear}" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:14px;line-height:1;padding:0;">×</button></span>`).join('')}
+      <button id="btn-clear-all-filters" style="font-size:12px;color:#ef4444;background:none;border:none;cursor:pointer;text-decoration:underline;">Limpiar todo</button>
+    </div>` : '';
+
   const bulkBar = selCount > 0 ? `
     <div style="position:sticky;top:0;z-index:10;background:#1e3564;color:white;border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
       <span style="font-size:13px;font-weight:600;">${selCount} pastor${selCount!==1?'es':''} seleccionado${selCount!==1?'s':''}</span>
@@ -880,8 +890,8 @@ function buildPastores() {
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;">${items.map(pastorCard).join('')}</div>
     </div>` : '';
 
-  return list.length
-    ? `<div style="display:flex;flex-direction:column;gap:20px;">${bulkBar}<div style="display:flex;justify-content:flex-end;">${selectAll}</div>${seccion('Campo',campo)}${seccion('Oficina',oficina)}</div>`
+  return list.length || filtrosActivos.length
+    ? `<div style="display:flex;flex-direction:column;gap:20px;">${bulkBar}${filtroBar}<div style="display:flex;justify-content:flex-end;">${selectAll}</div>${seccion('Campo',campo)}${seccion('Oficina',oficina)}${!list.length?`<div style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">Sin resultados para los filtros activos</div>`:''}</div>`
     : `<div style="padding:60px;text-align:center;color:#9ca3af;font-size:14px;">No se encontraron pastores</div>`;
 }
 
@@ -1454,7 +1464,7 @@ function formField(label, id, value, type='text', placeholder='', fontFamily='',
    ===================================================================== */
 function bindEvents() {
   q('#btn-sidebar-toggle', el => el.addEventListener('click', () => { S.sidebarOpen=!S.sidebarOpen; render(); }));
-  document.querySelectorAll('[data-nav]').forEach(el => el.addEventListener('click', () => { S.view=el.dataset.nav; location.hash=S.view; S.search=''; S.fZona='all'; S.fDistrito='all'; S.fPastor='all'; S.page=1; if(el.dataset.nav==='historial')S._historialData=null; render(); }));
+  document.querySelectorAll('[data-nav]').forEach(el => el.addEventListener('click', () => { S.view=el.dataset.nav; location.hash=S.view; S.search=''; S.fZona='all'; S.fDistrito='all'; S.fPastor='all'; S.fEstado='all'; S.fRol='all'; S.fTipoIg='all'; S.page=1; if(el.dataset.nav==='historial')S._historialData=null; render(); }));
   document.querySelectorAll('[data-nav-zona]').forEach(el => el.addEventListener('click', () => { S.view='distritos'; S.fZona=el.dataset.navZona; S.search=''; S.page=1; render(); }));
   document.querySelectorAll('[data-nav-zona-ig]').forEach(el => el.addEventListener('click', () => { S.view='iglesias'; S.fZona=el.dataset.navZonaIg; S.fDistrito='all'; S.search=''; S.page=1; render(); }));
   document.querySelectorAll('[data-nav-dash]').forEach(el => el.addEventListener('click', () => {
@@ -1568,7 +1578,7 @@ function bindEvents() {
   q('#btn-del-confirm', el => el.addEventListener('click', async () => { const ig=RAW.iglesias[S.deleteTarget];if(S.sbClient)await S.sbClient.from(S.sbTable).delete().eq('cod',ig.cod);registrarHistorial('Elimino','Iglesia',ig.cod,ig.nombre);RAW.iglesias.splice(S.deleteTarget,1);recomputeCounts();S.showDeleteConfirm=false;S.deleteTarget=null;showToast('Iglesia eliminada','success');render(); }));
 
   /* PASTORES */
-  q('#btn-add-pastor', el => el.addEventListener('click', () => { S.showPastorModal=true;S.pastorModalMode='add';S.editPastorCod=null;S.formPastor={cod:nextPastorCod(),nombre:'',telefono:'',email:'',codZona:'',zona:'',codDistrito:'',distrito:'',estado:'ordenado',rol:'pastor',pastor_principal_cod:''};render(); }));
+  q('#btn-add-pastor', el => el.addEventListener('click', () => { S.showPastorModal=true;S.pastorModalMode='add';S.editPastorCod=null;S.formPastor={cod:nextPastorCod(),nombre:'',telefono:'',email:'',codZona:'',zona:'',codDistrito:'',distrito:'',estado:'ordenado',rol:'pastor',pastor_principal_cod:'',iglesia_asignada_cod:''};render(); }));
   document.querySelectorAll('[data-edit-pastor]').forEach(el => el.addEventListener('click', () => { const p=RAW.pastores.find(p=>p.cod===el.dataset.editPastor);if(!p)return;S.showPastorModal=true;S.pastorModalMode='edit';S.editPastorCod=p.cod;S.formPastor={cod:p.cod,nombre:p.nombre,telefono:p.telefono||'',email:p.email||'',codZona:p.codZona||'',zona:p.zona||'',codDistrito:p.codDistrito||'',distrito:p.distrito||'',estado:p.estado||'ordenado',rol:p.rol||'pastor',pastor_principal_cod:p.pastor_principal_cod||'',iglesia_asignada_cod:p.iglesia_asignada_cod||''};render(); }));
   document.querySelectorAll('[data-del-pastor]').forEach(el => el.addEventListener('click', () => { S.showDeletePastorConfirm=true;S.deletePastorCod=el.dataset.delPastor;render(); }));
   q('#btn-pastor-close',  el => el.addEventListener('click', () => { S.showPastorModal=false;render(); }));
@@ -1595,6 +1605,10 @@ function bindEvents() {
       iglesiasAfectadas.forEach(i=>{i.pastor='';});
     }
     RAW.pastores=RAW.pastores.filter(p=>p.cod!==cod);registrarHistorial('Elimino','Pastor',cod,pNom);S.showDeletePastorConfirm=false;S.deletePastorCod=null;showToast('Pastor eliminado'+(iglesiasAfectadas.length?' ('+iglesiasAfectadas.length+' iglesias desvinculadas)':''),'success');render(); }));
+
+  /* PASTORES — filtros activos */
+  document.querySelectorAll('[data-clear-filter]').forEach(el => el.addEventListener('click', () => { S[el.dataset.clearFilter]='all'; renderKeepScroll(); }));
+  q('#btn-clear-all-filters', el => el.addEventListener('click', () => { S.fEstado='all'; S.fRol='all'; renderKeepScroll(); }));
 
   /* IGLESIAS — selección masiva */
   q('#chk-ig-all', el => el.addEventListener('change', () => {
@@ -2106,7 +2120,7 @@ function exportarExcel() {
     const data = getFilteredIglesias().map(i=>({Codigo:i.cod,Nombre:i.nombre,Pastor:i.pastor||'',Zona:i.zona||'',Distrito:i.distrito||'',Drive:i.carpeta_drive||''}));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Iglesias');
   } else if (S.view === 'pastores') {
-    const data = getFilteredPastores().map(p=>({Codigo:p.cod,Nombre:p.nombre,Telefono:p.telefono||'',Email:p.email||'',Zona:p.zona||'',Distrito:p.distrito||''}));
+    const data = getFilteredPastores().map(p=>({Codigo:p.cod,Nombre:p.nombre,Rol:p.rol||'pastor',Estado:p.estado||'ordenado',Telefono:p.telefono||'',Email:p.email||'',Zona:p.zona||'',Distrito:p.distrito||'',PastorPrincipal:p.pastor_principal_cod?RAW.pastores.find(x=>x.cod===p.pastor_principal_cod)?.nombre||'':'',IglesiaPlantando:p.iglesia_asignada_cod?RAW.iglesias.find(x=>x.cod===p.iglesia_asignada_cod)?.nombre||'':''}));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Pastores');
   }
   const ts = new Date().toISOString().slice(0,10);

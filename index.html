@@ -372,6 +372,12 @@ async function loadAllProfiles() {
 /* =====================================================================
    RENDER
    ===================================================================== */
+function renderKeepScroll() {
+  const main = document.getElementById('main-content') || document.getElementById('app');
+  const sy = main ? main.scrollTop : window.scrollY;
+  render();
+  if (main) main.scrollTop = sy; else window.scrollTo(0, sy);
+}
 function render() {
   const app = document.getElementById('app');
   if (!app) return;
@@ -395,7 +401,7 @@ function buildHTML() {
     ${buildSidebar()}
     <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;">
       ${buildHeader()}
-      <main style="flex:1;overflow-y:auto;padding:24px;">${buildContent()}</main>
+      <main id="main-content" style="flex:1;overflow-y:auto;padding:24px;">${buildContent()}</main>
     </div>
   </div>
   ${S.showModal                 ? buildChurchModal()           : ''}
@@ -1516,12 +1522,12 @@ function bindEvents() {
     const list = getFilteredIglesias();
     if (el.checked) list.forEach(ig => S.selectedIglesias.add(ig.cod));
     else S.selectedIglesias.clear();
-    render();
+    renderKeepScroll();
   }));
   document.querySelectorAll('[data-chk-iglesia]').forEach(el => el.addEventListener('change', () => {
     if (el.checked) S.selectedIglesias.add(el.dataset.chkIglesia);
     else S.selectedIglesias.delete(el.dataset.chkIglesia);
-    render();
+    renderKeepScroll();
   }));
   q('#btn-bulk-ig-clear', el => el.addEventListener('click', () => { S.selectedIglesias.clear(); render(); }));
   async function bulkUpdateIglesias(nuevoTipo) {
@@ -1546,12 +1552,12 @@ function bindEvents() {
     const list = getFilteredPastores();
     if (el.checked) list.forEach(p => S.selectedPastores.add(p.cod));
     else S.selectedPastores.clear();
-    render();
+    renderKeepScroll();
   }));
   document.querySelectorAll('[data-chk-pastor]').forEach(el => el.addEventListener('change', () => {
     if (el.checked) S.selectedPastores.add(el.dataset.chkPastor);
     else S.selectedPastores.delete(el.dataset.chkPastor);
-    render();
+    renderKeepScroll();
   }));
   q('#btn-bulk-pastor-clear', el => el.addEventListener('click', () => { S.selectedPastores.clear(); render(); }));
   async function bulkUpdatePastores(nuevoEstado) {

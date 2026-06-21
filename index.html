@@ -1242,12 +1242,12 @@ function buildPastorModal() {
               <option value="">Sin asignar</option>
               ${pastoresPrincipales.map(p=>`<option value="${escHtml(p.cod)}" ${f.pastor_principal_cod===p.cod?'selected':''}>${escHtml(p.nombre)}</option>`).join('')}
             </select></div>` : ''}
-          ${esPlantador ? `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Iglesia asignada</label>
+          ${esPlantador ? `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Iglesia donde está plantando</label>
             <select id="pastor-iglesia-cod" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
               <option value="">Sin asignar</option>
               ${iglesiasSorted.map(i=>`<option value="${escHtml(i.cod)}" ${f.pastor_principal_cod===i.cod?'selected':''}>${escHtml(i.nombre)}</option>`).join('')}
             </select></div>` : ''}
-          ${!esOficina ? `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Zona</label>
+          ${(!esOficina && !esPlantador) ? `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Zona</label>
             <select id="pastor-zona" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
               <option value="">Sin zona</option>
               ${RAW.zonas.map(z=>`<option value="${z.cod}" ${f.codZona===z.cod?'selected':''}>${escHtml(z.nombre)}</option>`).join('')}

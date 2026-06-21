@@ -840,8 +840,8 @@ function buildPastores() {
     const checked = sel.has(p.cod);
     const rc = rolCfg[p.rol||'pastor'] || rolCfg.pastor;
     const esOficina = p.rol==='departamental'||p.rol==='administrador';
-    const esAsistente = p.rol==='asociado'||p.rol==='plantador';
-    const ppNombre = esAsistente && p.pastor_principal_cod ? RAW.pastores.find(x=>x.cod===p.pastor_principal_cod)?.nombre : null;
+    const ppNombre = p.rol==='asociado' && p.pastor_principal_cod ? RAW.pastores.find(x=>x.cod===p.pastor_principal_cod)?.nombre : null;
+    const igNombre = p.rol==='plantador' && p.pastor_principal_cod ? RAW.iglesias.find(x=>x.cod===p.pastor_principal_cod)?.nombre : null;
     return `<div style="background:white;border-radius:12px;padding:16px 18px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:${checked?'2px solid #1e3564':'1px solid #e8eaf2'};display:flex;align-items:flex-start;gap:14px;">
       <input type="checkbox" data-chk-pastor="${escHtml(p.cod)}" ${checked?'checked':''} style="width:16px;height:16px;margin-top:14px;cursor:pointer;accent-color:#1e3564;flex-shrink:0;" />
       <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,${esOficina?'#92400e,#d4a820':'#1e3564,#2d5090'});display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:white;flex-shrink:0;">${initials||'?'}</div>
@@ -853,6 +853,7 @@ function buildPastores() {
           ${!esOficina&&p.distrito?`<span style="font-size:11px;color:#9ca3af;">${escHtml(p.distrito)}</span>`:''}
           ${!esOficina?`<span style="background:#eef2ff;color:#1e3564;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:600;">${igByPastor[p.nombre]||0} igl.</span>`:''}
           ${ppNombre?`<span style="font-size:11px;color:#6b7280;">→ ${escHtml(ppNombre)}</span>`:''}
+          ${igNombre?`<span style="font-size:11px;color:#6b7280;">⛪ ${escHtml(igNombre)}</span>`:''}
         </div>
         ${p.telefono?`<div style="font-size:12px;color:#9ca3af;margin-top:3px;display:flex;align-items:center;gap:4px;">${icons.phone} ${escHtml(p.telefono)}</div>`:''}
         ${p.email?`<div style="font-size:12px;color:#9ca3af;margin-top:1px;display:flex;align-items:center;gap:4px;">${icons.mail} ${escHtml(p.email)}</div>`:''}
@@ -1210,9 +1211,11 @@ function buildPastorModal() {
   const f = S.formPastor;
   const rol = f.rol || 'pastor';
   const esOficina = rol === 'departamental' || rol === 'administrador';
-  const esAsistente = rol === 'asociado' || rol === 'plantador';
+  const esAsociado = rol === 'asociado';
+  const esPlantador = rol === 'plantador';
   const distritoOpts = f.codZona ? RAW.distritos.filter(d=>d.codZona===f.codZona) : RAW.distritos;
   const pastoresPrincipales = RAW.pastores.filter(p => p.cod !== f.cod && (p.rol==='pastor'||!p.rol));
+  const iglesiasSorted = [...RAW.iglesias].filter(i=>i.tipo!=='pendiente_revision').sort((a,b)=>a.nombre.localeCompare(b.nombre));
   return `<div id="pastor-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;">
     <div style="background:white;border-radius:16px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;max-height:92vh;overflow-y:auto;">
       <div style="padding:24px;">
@@ -1230,10 +1233,15 @@ function buildPastorModal() {
           ${formField('Nombre completo','pastor-nombre',f.nombre,'text','Apellido, Nombre','',true)}
           ${formField('Telefono','pastor-telefono',f.telefono||'','tel','809-000-0000')}
           ${formField('Correo electronico','pastor-email',f.email||'','email','pastor@iglesia.org')}
-          ${esAsistente ? `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Pastor principal</label>
+          ${esAsociado ? `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Pastor principal</label>
             <select id="pastor-principal-cod" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
               <option value="">Sin asignar</option>
               ${pastoresPrincipales.map(p=>`<option value="${escHtml(p.cod)}" ${f.pastor_principal_cod===p.cod?'selected':''}>${escHtml(p.nombre)}</option>`).join('')}
+            </select></div>` : ''}
+          ${esPlantador ? `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Iglesia asignada</label>
+            <select id="pastor-iglesia-cod" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
+              <option value="">Sin asignar</option>
+              ${iglesiasSorted.map(i=>`<option value="${escHtml(i.cod)}" ${f.pastor_principal_cod===i.cod?'selected':''}>${escHtml(i.nombre)}</option>`).join('')}
             </select></div>` : ''}
           ${!esOficina ? `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Zona</label>
             <select id="pastor-zona" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
@@ -1553,7 +1561,7 @@ function bindEvents() {
   q('#pastor-zona', el => el.addEventListener('change', e => { const cod=e.target.value;const z=RAW.zonas.find(z=>z.cod===cod);S.formPastor={...S.formPastor,codZona:cod,zona:z?z.nombre:'',codDistrito:'',distrito:''};render(); }));
   q('#pastor-distrito', el => el.addEventListener('change', e => { const cod=e.target.value;const d=RAW.distritos.find(d=>d.cod===cod);S.formPastor={...S.formPastor,codDistrito:cod,distrito:d?d.nombre:''}; }));
   q('#btn-pastor-save', el => el.addEventListener('click', async () => {
-    const nombre=document.getElementById('pastor-nombre')?.value.trim()||''; const cod=document.getElementById('pastor-cod')?.value.trim().toUpperCase()||''; const telefono=document.getElementById('pastor-telefono')?.value.trim()||''; const email=document.getElementById('pastor-email')?.value.trim()||''; const rol=document.getElementById('pastor-rol')?.value||'pastor'; const pastor_principal_cod=document.getElementById('pastor-principal-cod')?.value||null; const esOficina=rol==='departamental'||rol==='administrador'; const codZona=esOficina?'':document.getElementById('pastor-zona')?.value||''; const zona=RAW.zonas.find(z=>z.cod===codZona)?.nombre||''; const codDistrito=esOficina?'':document.getElementById('pastor-distrito')?.value||''; const distrito=RAW.distritos.find(d=>d.cod===codDistrito)?.nombre||''; const estado=document.getElementById('pastor-estado')?.value||'ordenado';
+    const nombre=document.getElementById('pastor-nombre')?.value.trim()||''; const cod=document.getElementById('pastor-cod')?.value.trim().toUpperCase()||''; const telefono=document.getElementById('pastor-telefono')?.value.trim()||''; const email=document.getElementById('pastor-email')?.value.trim()||''; const rol=document.getElementById('pastor-rol')?.value||'pastor'; const esOficina=rol==='departamental'||rol==='administrador'; const esPlantador=rol==='plantador'; const pastor_principal_cod=(esPlantador?document.getElementById('pastor-iglesia-cod')?.value:document.getElementById('pastor-principal-cod')?.value)||null; const codZona=esOficina||esPlantador?'':document.getElementById('pastor-zona')?.value||''; const zona=RAW.zonas.find(z=>z.cod===codZona)?.nombre||''; const codDistrito=esOficina||esPlantador?'':document.getElementById('pastor-distrito')?.value||''; const distrito=RAW.distritos.find(d=>d.cod===codDistrito)?.nombre||''; const estado=document.getElementById('pastor-estado')?.value||'ordenado';
     S.formPastor={...S.formPastor,nombre,cod,telefono,email,codZona,codDistrito,estado,rol,pastor_principal_cod};
     if(!nombre){showToast('El nombre es requerido','error');return;} if(!cod){showToast('El codigo es requerido','error');return;}
     if(S.pastorModalMode==='add'&&RAW.pastores.find(p=>p.cod===cod)){showToast('El codigo ya existe','error');return;}

@@ -1210,10 +1210,6 @@ function buildPastorModal() {
       <div style="padding:24px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;"><h2 style="font-size:18px;font-weight:700;color:#1a2340;">${S.pastorModalMode==='add'?'Nuevo Pastor':'Editar Pastor'}</h2><button id="btn-pastor-close" style="background:transparent;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#9ca3af;">${icons.x}</button></div>
         <div style="display:flex;flex-direction:column;gap:14px;">
-          ${formField('Codigo','pastor-cod',f.cod,'text','P001','monospace')}
-          ${formField('Nombre completo','pastor-nombre',f.nombre,'text','Apellido, Nombre','',true)}
-          ${formField('Telefono','pastor-telefono',f.telefono||'','tel','809-000-0000')}
-          ${formField('Correo electronico','pastor-email',f.email||'','email','pastor@iglesia.org')}
           <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Rol</label>
             <select id="pastor-rol" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
               <option value="pastor" ${rol==='pastor'?'selected':''}>Pastor</option>
@@ -1222,6 +1218,10 @@ function buildPastorModal() {
               <option value="departamental" ${rol==='departamental'?'selected':''}>Departamental (Oficina)</option>
               <option value="administrador" ${rol==='administrador'?'selected':''}>Administrador (Oficina)</option>
             </select></div>
+          ${formField('Codigo','pastor-cod',f.cod,'text','P001','monospace')}
+          ${formField('Nombre completo','pastor-nombre',f.nombre,'text','Apellido, Nombre','',true)}
+          ${formField('Telefono','pastor-telefono',f.telefono||'','tel','809-000-0000')}
+          ${formField('Correo electronico','pastor-email',f.email||'','email','pastor@iglesia.org')}
           ${esAsistente ? `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Pastor principal</label>
             <select id="pastor-principal-cod" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
               <option value="">Sin asignar</option>

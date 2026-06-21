@@ -554,8 +554,10 @@ function buildDashboard() {
     <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:500;color:#1a2340;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(d.nombre)}</div><div style="font-size:12px;color:#9ca3af;">${escHtml(d.zona)}</div></div>
     <span style="background:#fff8e6;color:#d4a820;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600;">${d.iglesias||0}</span>
   </div>`).join('');
-  const igSinPastor = RAW.iglesias.filter(i=>!i.pastor||!i.pastor.trim());
+  const igSinPastor = RAW.iglesias.filter(i=>i.tipo!=='pendiente_revision'&&(!i.pastor||!i.pastor.trim()));
   const sinPastor = igSinPastor.length;
+  const igPendientes = RAW.iglesias.filter(i=>i.tipo==='pendiente_revision');
+  const sinRevision = igPendientes.length;
   const pastSinDistrito = RAW.pastores.filter(p=>!p.codDistrito);
   const sinDistrito = pastSinDistrito.length;
   const distsSinIg = RAW.distritos.filter(d=>!d.iglesias||d.iglesias===0);
@@ -579,6 +581,7 @@ function buildDashboard() {
   }
 
   const alertItems = [];
+  if (sinRevision>0) alertItems.push(buildAlertCard('⚠',sinRevision+' iglesia'+(sinRevision!==1?'s':'')+' pendiente'+(sinRevision!==1?'s':'')+' de revisión','#991b1b','#fee2e2','iglesias',igPendientes.map(i=>i.nombre)));
   if (sinPastor>0) alertItems.push(buildAlertCard('!',sinPastor+' iglesia'+(sinPastor!==1?'s':'')+' sin pastor asignado','#854d0e','#fef9c3','iglesias-sin-pastor',igSinPastor.map(i=>i.nombre)));
   if (sinDistrito>0) alertItems.push(buildAlertCard('!',sinDistrito+' pastor'+(sinDistrito!==1?'es':'')+' sin distrito asignado','#9a3412','#ffedd5','pastores',pastSinDistrito.map(p=>p.nombre)));
   if (distSinIg>0) alertItems.push(buildAlertCard('i',distSinIg+' distrito'+(distSinIg!==1?'s':'')+' sin iglesias registradas','#1e40af','#dbeafe','distritos',distsSinIg.map(d=>d.nombre)));
@@ -1671,8 +1674,8 @@ async function loadSolicitudes() {
    CRUD HELPERS
    ===================================================================== */
 function recomputeCounts() {
-  for (const d of RAW.distritos) d.iglesias = RAW.iglesias.filter(i=>i.codDistrito===d.cod).length;
-  for (const z of RAW.zonas) { z.distritos=RAW.distritos.filter(d=>d.codZona===z.cod).length; z._igCount=RAW.iglesias.filter(i=>i.codZona===z.cod).length; }
+  for (const d of RAW.distritos) d.iglesias = RAW.iglesias.filter(i=>i.codDistrito===d.cod&&i.tipo!=='pendiente_revision'&&i.pastor&&i.pastor.trim()).length;
+  for (const z of RAW.zonas) { z.distritos=RAW.distritos.filter(d=>d.codZona===z.cod).length; z._igCount=RAW.iglesias.filter(i=>i.codZona===z.cod&&i.tipo!=='pendiente_revision'&&i.pastor&&i.pastor.trim()).length; }
 }
 async function saveCamposCustom() {
   if(S.sbClient) await S.sbClient.from('configuracion').upsert({id:'campos_iglesias',valor:S.camposCustom,updated_at:new Date().toISOString()});

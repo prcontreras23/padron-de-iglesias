@@ -444,7 +444,7 @@ function buildSidebar() {
       <div style="color:rgba(255,255,255,.3);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:10px 10px 4px;">Estructura</div>
       ${canDo('ver_zonas')     ? navItem('zonas','Zonas',icons.globe,RAW.zonas.length) : ''}
       ${canDo('ver_distritos') ? navItem('distritos','Distritos',icons.users,RAW.distritos.length) : ''}
-      ${canDo('ver_iglesias')  ? navItem('iglesias','Iglesias',icons.home,RAW.iglesias.length) : ''}
+      ${canDo('ver_iglesias')  ? navItem('iglesias','Iglesias',icons.home,RAW.iglesias.filter(i=>i.tipo!=='pendiente_revision'&&i.pastor&&i.pastor.trim()).length) : ''}
       ${canDo('ver_pastores')  ? navItem('pastores','Pastores',icons.user,RAW.pastores.length) : ''}
       <div style="color:rgba(255,255,255,.3);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:10px 10px 4px;">Sistema</div>
       ${canDo('ver_solicitudes')   ? navItem('solicitudes','Solicitudes',icons.plus) : ''}
@@ -532,8 +532,9 @@ function buildDashboard() {
   </div>`;
 
   // Estadísticas de iglesias vs grupos y pastores ordenados vs licenciados
-  const iglesias = RAW.iglesias.filter(i=>i.tipo==='iglesia'||!i.tipo).length;
-  const grupos = RAW.iglesias.filter(i=>i.tipo==='grupo').length;
+  const igActivas = RAW.iglesias.filter(i=>i.tipo!=='pendiente_revision'&&i.pastor&&i.pastor.trim());
+  const iglesias = igActivas.filter(i=>i.tipo==='iglesia'||!i.tipo).length;
+  const grupos = igActivas.filter(i=>i.tipo==='grupo').length;
   const ordenados = RAW.pastores.filter(p=>p.estado==='ordenado'||!p.estado).length;
   const licenciados = RAW.pastores.filter(p=>p.estado==='licenciado').length;
 
@@ -588,7 +589,7 @@ function buildDashboard() {
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;">
       ${stat(RAW.zonas.length,'Zonas','#eef2ff','#1e3564',icons.globe)}
       ${stat(RAW.distritos.length,'Distritos','#fff8e6','#d4a820',icons.users)}
-      ${stat(RAW.iglesias.length,'Iglesias','#eef2ff','#1e3564',icons.home)}
+      ${stat(igActivas.length,'Iglesias','#eef2ff','#1e3564',icons.home)}
       ${stat(RAW.pastores.length,'Pastores','#fff8e6','#d4a820',icons.user)}
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;">

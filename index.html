@@ -47,7 +47,7 @@ let S = {
   _solicitudes: null, _solicitudesLoading: false, _flujoCfg: null,
   _permisos: null, _permisosLoading: false,
   showPermisoModal: false, permisoModalMode: 'add', editPermisoId: null,
-  formPermiso: { nombre:'', fecha_solicitud:'', motivo:'enfermedad', lugar:'', fecha_ausencia:'', observaciones:'' },
+  formPermiso: { nombre:'', email:'', fecha_solicitud:'', motivo:'enfermedad', lugar:'', fecha_ausencia:'', estado:'pendiente', observaciones:'' },
   showDeletePermisoConfirm: false, deletePermisoId: null, deletePermisoNombre: null,
   selectedPastores: new Set(), selectedIglesias: new Set(),
   page: 1, pageSize: 25,
@@ -1012,15 +1012,18 @@ function buildPermisos() {
       <tbody>${items.map(p => {
         const est = estadoInfo[p.estado] || { label:p.estado, bg:'#f3f4f6', color:'#374151' };
         const fechaAus = p.fecha_ausencia ? new Date(p.fecha_ausencia+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'}) : '—';
-        const btnEdit = canDo('gestionar_permisos') ? `<button data-edit-permiso="${escHtml(p.id)}" style="background:#eef2ff;color:#1e3564;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">✎</button>` : '';
-        const btnDel  = canDo('gestionar_permisos') ? `<button data-del-permiso="${escHtml(p.id)}" data-del-permiso-nombre="${escHtml(p.nombre)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;">✕</button>` : '';
+        const canGest = canDo('gestionar_permisos');
+        const btnAprobar  = canGest && p.estado !== 'aprobado'  ? `<button data-aprobar-permiso="${escHtml(p.id)}" style="background:#dcfce7;color:#166534;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">✓ Aprobar</button>` : '';
+        const btnRechazar = canGest && p.estado !== 'rechazado' ? `<button data-rechazar-permiso="${escHtml(p.id)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">✕ Rechazar</button>` : '';
+        const btnEdit = canGest ? `<button data-edit-permiso="${escHtml(p.id)}" style="background:#f3f4f6;color:#374151;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">✎</button>` : '';
+        const btnDel  = canGest ? `<button data-del-permiso="${escHtml(p.id)}" data-del-permiso-nombre="${escHtml(p.nombre)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;">✕</button>` : '';
         return `<tr style="border-bottom:1px solid #f0f2f7;">
           <td style="padding:12px 16px;font-weight:600;color:#1e3564;">${escHtml(p.nombre)}</td>
           <td style="padding:12px 16px;color:#374151;">${motivoLabel[p.motivo]||p.motivo}</td>
           <td style="padding:12px 16px;color:#6b7280;">${escHtml(p.lugar||'—')}</td>
           <td style="padding:12px 16px;color:#6b7280;">${fechaAus}</td>
           <td style="padding:12px 16px;"><span style="background:${est.bg};color:${est.color};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">${est.label}</span></td>
-          <td style="padding:12px 16px;">${btnEdit}${btnDel}</td>
+          <td style="padding:12px 16px;">${btnAprobar}${btnRechazar}${btnEdit}${btnDel}</td>
         </tr>`;
       }).join('')}</tbody>
     </table></div>`;
@@ -1032,7 +1035,8 @@ function buildPermisos() {
         <p style="font-size:13px;color:#6b7280;">Registro de permisos de ausencia del personal.</p>
       </div>
       <div style="display:flex;gap:10px;">
-        ${canDo('gestionar_permisos') ? `<button id="btn-add-permiso" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">${icons.plus} Nuevo Permiso</button>` : ''}
+        <a href="/permiso-ausencia" target="_blank" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;text-decoration:none;">🔗 Compartir enlace al pastor</a>
+        ${canDo('gestionar_permisos') ? `<button id="btn-add-permiso" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">${icons.plus} Registrar manualmente</button>` : ''}
         <button id="btn-reload-permisos" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">↻ Actualizar</button>
       </div>
     </div>
@@ -1062,8 +1066,12 @@ function buildPermisoModal() {
         <button id="btn-permiso-close" style="background:transparent;border:none;cursor:pointer;color:#9ca3af;font-size:20px;line-height:1;">×</button>
       </div>
       <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px;">
-        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Nombre <span style="color:#ef4444;">*</span></label>
-          <input id="permiso-nombre" type="text" value="${escHtml(f.nombre)}" placeholder="Nombre del empleado" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Nombre <span style="color:#ef4444;">*</span></label>
+            <input id="permiso-nombre" type="text" value="${escHtml(f.nombre)}" placeholder="Nombre del empleado" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Correo electrónico</label>
+            <input id="permiso-email" type="email" value="${escHtml(f.email||'')}" placeholder="correo@ejemplo.com" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Fecha Solicitud <span style="color:#ef4444;">*</span></label>
             <input id="permiso-fecha-solicitud" type="date" value="${escHtml(f.fecha_solicitud)}" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
@@ -1944,6 +1952,7 @@ function bindEvents() {
   q('#permiso-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el){S.showPermisoModal=false;render();} }));
   q('#btn-permiso-save', el => el.addEventListener('click', async () => {
     const nombre = document.getElementById('permiso-nombre')?.value.trim()||'';
+    const email           = document.getElementById('permiso-email')?.value.trim()||'';
     const fecha_solicitud = document.getElementById('permiso-fecha-solicitud')?.value||'';
     const fecha_ausencia  = document.getElementById('permiso-fecha-ausencia')?.value||'';
     const motivo          = document.getElementById('permiso-motivo')?.value||'enfermedad';
@@ -1953,7 +1962,7 @@ function bindEvents() {
     if (!nombre) { showToast('El nombre es requerido','error'); return; }
     if (!fecha_solicitud) { showToast('La fecha de solicitud es requerida','error'); return; }
     if (!fecha_ausencia)  { showToast('La fecha de ausencia es requerida','error'); return; }
-    const payload = { nombre, fecha_solicitud, fecha_ausencia, motivo, lugar, estado, observaciones };
+    const payload = { nombre, email: email||null, fecha_solicitud, fecha_ausencia, motivo, lugar: lugar||null, estado, observaciones: observaciones||null };
     if (S.permisoModalMode==='add') {
       const { data, error } = await S.sbClient.from('permisos_ausencia').insert([payload]).select();
       if (error) { showToast('Error: '+error.message,'error'); return; }
@@ -1967,10 +1976,27 @@ function bindEvents() {
     showToast(S.permisoModalMode==='add'?'Permiso registrado':'Permiso actualizado','success');
     render();
   }));
+  async function decidirPermiso(id, nuevoEstado) {
+    const p = (S._permisos||[]).find(p=>p.id===id); if(!p) return;
+    const { error } = await S.sbClient.from('permisos_ausencia').update({ estado: nuevoEstado }).eq('id', id);
+    if (error) { showToast('Error: '+error.message,'error'); return; }
+    S._permisos = (S._permisos||[]).map(x => x.id===id ? {...x, estado: nuevoEstado} : x);
+    showToast(nuevoEstado==='aprobado' ? 'Permiso aprobado' : 'Permiso rechazado', 'success');
+    render();
+    if (p.email) {
+      fetch('/api/notificar-permiso', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ nombre:p.nombre, email:p.email, motivo:p.motivo, fecha_ausencia:p.fecha_ausencia, estado:nuevoEstado, observaciones:p.observaciones })
+      }).catch(()=>{});
+    }
+  }
+  document.querySelectorAll('[data-aprobar-permiso]').forEach(el => el.addEventListener('click', () => decidirPermiso(el.dataset.aprobarPermiso, 'aprobado')));
+  document.querySelectorAll('[data-rechazar-permiso]').forEach(el => el.addEventListener('click', () => decidirPermiso(el.dataset.rechazarPermiso, 'rechazado')));
+
   document.querySelectorAll('[data-edit-permiso]').forEach(el => el.addEventListener('click', () => {
     const p = (S._permisos||[]).find(p=>p.id===el.dataset.editPermiso); if(!p) return;
     S.showPermisoModal=true; S.permisoModalMode='edit'; S.editPermisoId=p.id;
-    S.formPermiso={ nombre:p.nombre, fecha_solicitud:p.fecha_solicitud||'', motivo:p.motivo, lugar:p.lugar||'', fecha_ausencia:p.fecha_ausencia||'', estado:p.estado||'pendiente', observaciones:p.observaciones||'' };
+    S.formPermiso={ nombre:p.nombre, email:p.email||'', fecha_solicitud:p.fecha_solicitud||'', motivo:p.motivo, lugar:p.lugar||'', fecha_ausencia:p.fecha_ausencia||'', estado:p.estado||'pendiente', observaciones:p.observaciones||'' };
     render();
   }));
   document.querySelectorAll('[data-del-permiso]').forEach(el => el.addEventListener('click', () => {

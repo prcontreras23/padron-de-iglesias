@@ -5,6 +5,8 @@
     { "source": "/solicitud/", "destination": "/solicitud/index.html" },
     { "source": "/nueva-congregacion", "destination": "/nueva-congregacion/index.html" },
     { "source": "/nueva-congregacion/", "destination": "/nueva-congregacion/index.html" },
+    { "source": "/permiso-ausencia", "destination": "/permiso-ausencia/index.html" },
+    { "source": "/permiso-ausencia/", "destination": "/permiso-ausencia/index.html" },
     { "source": "/(.*)", "destination": "/$1" }
   ]
 }

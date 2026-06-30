@@ -45,6 +45,10 @@ let S = {
   search: '', fZona: 'all', fDistrito: 'all', fPastor: 'all', fEstado: 'all', fRol: 'all', fTipoIg: 'all', sortCol: 'nombre', sortDir: 'asc',
   showSearch: false, searchQuery: '', loadError: '', _historialData: null, _historialLoading: false,
   _solicitudes: null, _solicitudesLoading: false, _flujoCfg: null,
+  _permisos: null, _permisosLoading: false,
+  showPermisoModal: false, permisoModalMode: 'add', editPermisoId: null,
+  formPermiso: { nombre:'', fecha_solicitud:'', motivo:'enfermedad', lugar:'', fecha_ausencia:'', observaciones:'' },
+  showDeletePermisoConfirm: false, deletePermisoId: null, deletePermisoNombre: null,
   selectedPastores: new Set(), selectedIglesias: new Set(),
   page: 1, pageSize: 25,
   // Iglesia modal
@@ -83,7 +87,7 @@ let S = {
   // Gestión de usuarios
   _allProfiles: null, _allProfilesLoading: false,
   showNewUserModal: false, editingProfileId: null,
-  newUserForm: { email:'', nombre:'', permisos:{ gestionar_usuarios:false, ver_dashboard:true, ver_iglesias:true, ver_pastores:true, ver_distritos:true, ver_zonas:true, ver_solicitudes:false, ver_historial:false, ver_configuracion:false, editar_iglesias:false, editar_pastores:false, editar_distritos:false, editar_zonas:false, eliminar_iglesias:false, eliminar_pastores:false, zonas:[] } },
+  newUserForm: { email:'', nombre:'', permisos:{ gestionar_usuarios:false, ver_dashboard:true, ver_iglesias:true, ver_pastores:true, ver_distritos:true, ver_zonas:true, ver_solicitudes:false, ver_historial:false, ver_configuracion:false, editar_iglesias:false, editar_pastores:false, editar_distritos:false, editar_zonas:false, eliminar_iglesias:false, eliminar_pastores:false, ver_permisos:false, gestionar_permisos:false, zonas:[] } },
 };
 
 /* =====================================================================
@@ -112,6 +116,7 @@ const icons = {
   phone:   ic('<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.7A2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.27 7.91a16 16 0 006.72 6.72l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>',15),
   mail:    ic('<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',15),
   lock:    ic('<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>'),
+  calendar:ic('<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'),
   logout:  ic('<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>'),
   shield:  ic('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
 };
@@ -418,6 +423,8 @@ function buildHTML() {
   ${S.showDeleteDistritoConfirm ? buildDeleteDistritoConfirm() : ''}
   ${S.showDeletePastorConfirm   ? buildDeletePastorConfirm()   : ''}
   ${S.showDeleteSolicitudConfirm ? buildDeleteSolicitudConfirm() : ''}
+  ${S.showPermisoModal ? buildPermisoModal() : ''}
+  ${S.showDeletePermisoConfirm ? buildDeletePermisoConfirm() : ''}
   ${S.showSearch                  ? buildSearchModal()           : ''}
   ${S.showImportModal            ? buildImportModal()           : ''}
   ${S.toast                     ? buildToast()                 : ''}
@@ -458,6 +465,7 @@ function buildSidebar() {
       ${canDo('ver_pastores')  ? navItem('pastores','Pastores',icons.user,RAW.pastores.length) : ''}
       <div style="color:rgba(255,255,255,.3);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:10px 10px 4px;">Sistema</div>
       ${canDo('ver_solicitudes')   ? navItem('solicitudes','Solicitudes',icons.plus) : ''}
+      ${canDo('ver_permisos')      ? navItem('permisos','Permisos de Ausencia',icons.calendar) : ''}
       ${canDo('ver_historial')     ? navItem('historial','Historial',icons.clock) : ''}
       ${canDo('ver_configuracion') ? navItem('configuracion','Configuración',icons.settings) : ''}
     </nav>
@@ -490,7 +498,7 @@ function buildSidebar() {
 
 /* ---- HEADER ---- */
 function buildHeader() {
-  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Pastores', solicitudes:'Solicitudes de Congregación', configuracion:'Configuracion' };
+  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Pastores', solicitudes:'Solicitudes de Congregación', permisos:'Permisos de Ausencia', configuracion:'Configuracion' };
   const needsSearch = ['iglesias','distritos','pastores'].includes(S.view);
   const addBtn = (id,label) => `<button id="${id}" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;">${icons.plus.replace('currentColor','white')} ${label}</button>`;
   const searchBtn = `<button id="btn-global-search" title="Ctrl+K" style="background:#f0f2f7;border:none;border-radius:8px;padding:8px;cursor:pointer;color:#6b7280;display:flex;align-items:center;">${icons.search}</button>`;
@@ -512,7 +520,7 @@ function buildHeader() {
 }
 
 /* ---- CONTENT ROUTER ---- */
-const PERM_MAP = { dashboard:'ver_dashboard', zonas:'ver_zonas', distritos:'ver_distritos', iglesias:'ver_iglesias', pastores:'ver_pastores', historial:'ver_historial', solicitudes:'ver_solicitudes', configuracion:'ver_configuracion' };
+const PERM_MAP = { dashboard:'ver_dashboard', zonas:'ver_zonas', distritos:'ver_distritos', iglesias:'ver_iglesias', pastores:'ver_pastores', historial:'ver_historial', solicitudes:'ver_solicitudes', permisos:'ver_permisos', configuracion:'ver_configuracion' };
 const NO_ACCESO = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;color:#9ca3af;gap:12px;"><span style="font-size:40px;">${icons.lock.replace('currentColor','#cbd5e1')}</span><div style="font-size:15px;font-weight:600;color:#6b7280;">Sin acceso</div><div style="font-size:13px;text-align:center;">No tienes permiso para ver esta sección.<br>Contacta al administrador.</div></div>`;
 
 function buildContent() {
@@ -528,6 +536,7 @@ function buildContent() {
     case 'pastores':      return buildPastores();
     case 'historial':     return buildHistorialView();
     case 'solicitudes':   return buildSolicitudes();
+    case 'permisos':      return buildPermisos();
     case 'configuracion': return buildConfiguracion();
     default:              return buildDashboard();
   }
@@ -978,6 +987,114 @@ function buildSolicitudes() {
   </div>`;
 }
 
+/* ---- PERMISOS DE AUSENCIA ---- */
+function buildPermisos() {
+  if (!canDo('ver_permisos')) return NO_ACCESO;
+  const items = S._permisos || [];
+  const loading = S._permisosLoading;
+  const motivoLabel = { enfermedad:'Enfermedad', cita_medica:'Cita Médica', asuntos_familiares:'Asuntos Familiares', asuntos_oficiales:'Asuntos Oficiales', asuntos_personales:'Asuntos Personales' };
+  const estadoInfo = { pendiente:{ label:'Pendiente', bg:'#fef9c3', color:'#854d0e' }, aprobado:{ label:'Aprobado', bg:'#dcfce7', color:'#166534' }, rechazado:{ label:'Rechazado', bg:'#fee2e2', color:'#991b1b' } };
+  let contenido;
+  if (loading) {
+    contenido = `<div style="text-align:center;padding:60px;color:#6b7280;">Cargando permisos…</div>`;
+  } else if (!items.length) {
+    contenido = `<div style="text-align:center;padding:60px;"><div style="font-size:40px;margin-bottom:12px;">📋</div><div style="color:#6b7280;font-size:15px;">No hay permisos registrados.</div></div>`;
+  } else {
+    contenido = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;">
+      <thead><tr style="background:#f8f9fc;">
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Nombre</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Motivo</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Lugar</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Fecha Ausencia</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Estado</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Acción</th>
+      </tr></thead>
+      <tbody>${items.map(p => {
+        const est = estadoInfo[p.estado] || { label:p.estado, bg:'#f3f4f6', color:'#374151' };
+        const fechaAus = p.fecha_ausencia ? new Date(p.fecha_ausencia+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+        const btnEdit = canDo('gestionar_permisos') ? `<button data-edit-permiso="${escHtml(p.id)}" style="background:#eef2ff;color:#1e3564;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">✎</button>` : '';
+        const btnDel  = canDo('gestionar_permisos') ? `<button data-del-permiso="${escHtml(p.id)}" data-del-permiso-nombre="${escHtml(p.nombre)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;">✕</button>` : '';
+        return `<tr style="border-bottom:1px solid #f0f2f7;">
+          <td style="padding:12px 16px;font-weight:600;color:#1e3564;">${escHtml(p.nombre)}</td>
+          <td style="padding:12px 16px;color:#374151;">${motivoLabel[p.motivo]||p.motivo}</td>
+          <td style="padding:12px 16px;color:#6b7280;">${escHtml(p.lugar||'—')}</td>
+          <td style="padding:12px 16px;color:#6b7280;">${fechaAus}</td>
+          <td style="padding:12px 16px;"><span style="background:${est.bg};color:${est.color};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">${est.label}</span></td>
+          <td style="padding:12px 16px;">${btnEdit}${btnDel}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+  }
+  return `<div style="padding:24px;display:flex;flex-direction:column;gap:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h2 style="font-size:18px;font-weight:700;color:#1a2340;margin-bottom:4px;">Permisos de Ausencia</h2>
+        <p style="font-size:13px;color:#6b7280;">Registro de permisos de ausencia del personal.</p>
+      </div>
+      <div style="display:flex;gap:10px;">
+        ${canDo('gestionar_permisos') ? `<button id="btn-add-permiso" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">${icons.plus} Nuevo Permiso</button>` : ''}
+        <button id="btn-reload-permisos" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">↻ Actualizar</button>
+      </div>
+    </div>
+    <div style="background:white;border-radius:14px;border:1px solid #e8eaf2;overflow:hidden;">${contenido}</div>
+  </div>`;
+}
+
+function buildPermisoModal() {
+  const editing = S.permisoModalMode === 'edit';
+  const f = S.formPermiso;
+  const motivoOpts = [
+    { val:'enfermedad', label:'Enfermedad' },
+    { val:'cita_medica', label:'Cita Médica' },
+    { val:'asuntos_familiares', label:'Asuntos Familiares' },
+    { val:'asuntos_oficiales', label:'Asuntos Oficiales' },
+    { val:'asuntos_personales', label:'Asuntos Personales' },
+  ];
+  const estadoOpts = [
+    { val:'pendiente', label:'Pendiente' },
+    { val:'aprobado', label:'Aprobado' },
+    { val:'rechazado', label:'Rechazado' },
+  ];
+  return `<div id="permiso-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:22px 24px 0;">
+        <h3 style="font-size:17px;font-weight:700;color:#1a2340;">${editing?'Editar Permiso':'Nuevo Permiso de Ausencia'}</h3>
+        <button id="btn-permiso-close" style="background:transparent;border:none;cursor:pointer;color:#9ca3af;font-size:20px;line-height:1;">×</button>
+      </div>
+      <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px;">
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Nombre <span style="color:#ef4444;">*</span></label>
+          <input id="permiso-nombre" type="text" value="${escHtml(f.nombre)}" placeholder="Nombre del empleado" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Fecha Solicitud <span style="color:#ef4444;">*</span></label>
+            <input id="permiso-fecha-solicitud" type="date" value="${escHtml(f.fecha_solicitud)}" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Fecha Ausencia <span style="color:#ef4444;">*</span></label>
+            <input id="permiso-fecha-ausencia" type="date" value="${escHtml(f.fecha_ausencia)}" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+        </div>
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Motivo <span style="color:#ef4444;">*</span></label>
+          <select id="permiso-motivo" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;">
+            ${motivoOpts.map(o=>`<option value="${o.val}" ${f.motivo===o.val?'selected':''}>${o.label}</option>`).join('')}
+          </select></div>
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Lugar donde irá</label>
+          <input id="permiso-lugar" type="text" value="${escHtml(f.lugar)}" placeholder="Lugar de destino" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Estado</label>
+          <select id="permiso-estado" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;">
+            ${estadoOpts.map(o=>`<option value="${o.val}" ${(f.estado||'pendiente')===o.val?'selected':''}>${o.label}</option>`).join('')}
+          </select></div>
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Observaciones</label>
+          <textarea id="permiso-observaciones" placeholder="Observaciones adicionales…" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;resize:vertical;min-height:70px;box-sizing:border-box;">${escHtml(f.observaciones||'')}</textarea></div>
+      </div>
+      <div style="padding:0 24px 24px;display:flex;gap:10px;justify-content:flex-end;">
+        <button id="btn-permiso-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
+        <button id="btn-permiso-save" style="padding:10px 20px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;">${editing?'Guardar cambios':'Registrar'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildDeletePermisoConfirm() {
+  return confirmModal('Eliminar permiso', `Se eliminará el permiso de <strong>${escHtml(S.deletePermisoNombre||'')}</strong> permanentemente.`, 'btn-del-permiso-cancel', 'btn-del-permiso-confirm');
+}
+
 /* ---- CONFIGURACION ---- */
 function buildUsuariosSection() {
   if (!isAdmin()) return '';
@@ -988,6 +1105,8 @@ function buildUsuariosSection() {
     { key:'ver_iglesias',     label:'Ver Iglesias' },
     { key:'ver_pastores',     label:'Ver Pastores' },
     { key:'ver_solicitudes',  label:'Ver Solicitudes' },
+    { key:'ver_permisos',     label:'Ver Permisos de Ausencia' },
+    { key:'gestionar_permisos', label:'Gestionar Permisos de Ausencia' },
     { key:'ver_historial',    label:'Ver Historial' },
     { key:'ver_configuracion',label:'Ver Configuración' },
     { key:'editar_iglesias',  label:'Editar Iglesias' },
@@ -1812,6 +1931,60 @@ function bindEvents() {
   q('#btn-reload-solicitudes', el => el.addEventListener('click', () => { S._solicitudes=null; S._solicitudesLoading=true; render(); loadSolicitudes(); }));
   if (S.view==='solicitudes' && !S._solicitudes && !S._solicitudesLoading) { S._solicitudesLoading=true; loadSolicitudes(); }
 
+  /* PERMISOS DE AUSENCIA */
+  if (S.view==='permisos' && !S._permisos && !S._permisosLoading) { S._permisosLoading=true; loadPermisos(); }
+  q('#btn-reload-permisos', el => el.addEventListener('click', () => { S._permisos=null; S._permisosLoading=true; render(); loadPermisos(); }));
+  q('#btn-add-permiso', el => el.addEventListener('click', () => {
+    S.showPermisoModal=true; S.permisoModalMode='add'; S.editPermisoId=null;
+    S.formPermiso={ nombre:'', fecha_solicitud:new Date().toISOString().slice(0,10), motivo:'enfermedad', lugar:'', fecha_ausencia:'', estado:'pendiente', observaciones:'' };
+    render();
+  }));
+  q('#btn-permiso-close',  el => el.addEventListener('click', () => { S.showPermisoModal=false; render(); }));
+  q('#btn-permiso-cancel', el => el.addEventListener('click', () => { S.showPermisoModal=false; render(); }));
+  q('#permiso-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el){S.showPermisoModal=false;render();} }));
+  q('#btn-permiso-save', el => el.addEventListener('click', async () => {
+    const nombre = document.getElementById('permiso-nombre')?.value.trim()||'';
+    const fecha_solicitud = document.getElementById('permiso-fecha-solicitud')?.value||'';
+    const fecha_ausencia  = document.getElementById('permiso-fecha-ausencia')?.value||'';
+    const motivo          = document.getElementById('permiso-motivo')?.value||'enfermedad';
+    const lugar           = document.getElementById('permiso-lugar')?.value.trim()||'';
+    const estado          = document.getElementById('permiso-estado')?.value||'pendiente';
+    const observaciones   = document.getElementById('permiso-observaciones')?.value.trim()||'';
+    if (!nombre) { showToast('El nombre es requerido','error'); return; }
+    if (!fecha_solicitud) { showToast('La fecha de solicitud es requerida','error'); return; }
+    if (!fecha_ausencia)  { showToast('La fecha de ausencia es requerida','error'); return; }
+    const payload = { nombre, fecha_solicitud, fecha_ausencia, motivo, lugar, estado, observaciones };
+    if (S.permisoModalMode==='add') {
+      const { data, error } = await S.sbClient.from('permisos_ausencia').insert([payload]).select();
+      if (error) { showToast('Error: '+error.message,'error'); return; }
+      S._permisos = [data[0], ...(S._permisos||[])];
+    } else {
+      const { error } = await S.sbClient.from('permisos_ausencia').update(payload).eq('id', S.editPermisoId);
+      if (error) { showToast('Error: '+error.message,'error'); return; }
+      S._permisos = (S._permisos||[]).map(p => p.id===S.editPermisoId ? {...p,...payload} : p);
+    }
+    S.showPermisoModal=false;
+    showToast(S.permisoModalMode==='add'?'Permiso registrado':'Permiso actualizado','success');
+    render();
+  }));
+  document.querySelectorAll('[data-edit-permiso]').forEach(el => el.addEventListener('click', () => {
+    const p = (S._permisos||[]).find(p=>p.id===el.dataset.editPermiso); if(!p) return;
+    S.showPermisoModal=true; S.permisoModalMode='edit'; S.editPermisoId=p.id;
+    S.formPermiso={ nombre:p.nombre, fecha_solicitud:p.fecha_solicitud||'', motivo:p.motivo, lugar:p.lugar||'', fecha_ausencia:p.fecha_ausencia||'', estado:p.estado||'pendiente', observaciones:p.observaciones||'' };
+    render();
+  }));
+  document.querySelectorAll('[data-del-permiso]').forEach(el => el.addEventListener('click', () => {
+    S.showDeletePermisoConfirm=true; S.deletePermisoId=el.dataset.delPermiso; S.deletePermisoNombre=el.dataset.delPermisoNombre; render();
+  }));
+  q('#btn-del-permiso-cancel',  el => el.addEventListener('click', () => { S.showDeletePermisoConfirm=false; S.deletePermisoId=null; S.deletePermisoNombre=null; render(); }));
+  q('#btn-del-permiso-confirm', el => el.addEventListener('click', async () => {
+    const { error } = await S.sbClient.from('permisos_ausencia').delete().eq('id', S.deletePermisoId);
+    if (error) { showToast('Error: '+error.message,'error'); return; }
+    S._permisos = (S._permisos||[]).filter(p => p.id!==S.deletePermisoId);
+    S.showDeletePermisoConfirm=false; S.deletePermisoId=null; S.deletePermisoNombre=null;
+    showToast('Permiso eliminado','success'); render();
+  }));
+
   /* FLUJO CONFIG */
   q('#btn-save-flujo-cfg', el => el.addEventListener('click', async () => {
     const fc = {
@@ -1861,6 +2034,17 @@ async function loadSolicitudes() {
     S._solicitudes = [];
   }
   S._solicitudesLoading = false;
+  render();
+}
+
+async function loadPermisos() {
+  try {
+    const { data, error } = await S.sbClient.from('permisos_ausencia').select('*').order('created_at', { ascending: false });
+    S._permisos = error ? [] : (data || []);
+  } catch(e) {
+    S._permisos = [];
+  }
+  S._permisosLoading = false;
   render();
 }
 

@@ -39,13 +39,15 @@ textarea{resize:vertical;min-height:70px}
   </div>
   <div class="body" id="form-body">
     <div>
-      <label>Nombre completo <span class="required">*</span></label>
-      <input id="nombre" type="text" placeholder="Tu nombre completo" />
+      <label>Selecciona tu nombre <span class="required">*</span></label>
+      <select id="nombre" style="width:100%;padding:11px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:white;transition:border-color .15s;">
+        <option value="">Cargando pastores…</option>
+      </select>
     </div>
     <div>
       <label>Correo electrónico <span class="required">*</span></label>
-      <input id="email" type="email" placeholder="correo@ejemplo.com" />
-      <p style="font-size:12px;color:#9ca3af;margin-top:4px;">Se enviará la respuesta a este correo.</p>
+      <input id="email" type="email" placeholder="correo@ejemplo.com" readonly style="background:#f9fafb;cursor:not-allowed;" />
+      <p style="font-size:12px;color:#9ca3af;margin-top:4px;">Se autocompletará con tu email registrado.</p>
     </div>
     <div class="row">
       <div>
@@ -81,6 +83,37 @@ textarea{resize:vertical;min-height:70px}
 </div>
 
 <script>
+const SB_URL = 'https://gvbknabnrlliofbchczv.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2YmtuYWJucmxsaW9mYmNoY3p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMjg3MTcsImV4cCI6MjA5NjkwNDcxN30.v7IXmkGpidbpCPZsDh_wFh_pLsP13QhTueYtiLfkH9Q';
+let pastoresMap = {};
+
+async function cargarPastores() {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/pastores?select=cod,nombre,email&order=nombre`, {
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
+    });
+    const pastores = await r.json();
+    const sel = document.getElementById('nombre');
+    sel.innerHTML = '<option value="">Selecciona tu nombre</option>';
+    pastores.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.nombre;
+      opt.textContent = p.nombre;
+      opt.dataset.email = p.email || '';
+      sel.appendChild(opt);
+      pastoresMap[p.nombre] = p.email || '';
+    });
+  } catch(e) {
+    console.error('Error cargando pastores:', e);
+    document.getElementById('nombre').innerHTML = '<option value="">Error al cargar pastores</option>';
+  }
+}
+
+document.getElementById('nombre').addEventListener('change', () => {
+  const nombre = document.getElementById('nombre').value;
+  document.getElementById('email').value = pastoresMap[nombre] || '';
+});
+
 // Selección visual de motivo
 document.querySelectorAll('.motivo-opt input[type=radio]').forEach(r => {
   r.addEventListener('change', () => {
@@ -92,6 +125,9 @@ document.querySelectorAll('.motivo-opt input[type=radio]').forEach(r => {
 // Fecha por defecto: hoy
 document.getElementById('fecha_solicitud').value = new Date().toISOString().slice(0, 10);
 
+// Cargar pastores al inicio
+cargarPastores();
+
 async function enviar() {
   const nombre          = document.getElementById('nombre').value.trim();
   const email           = document.getElementById('email').value.trim();
@@ -101,8 +137,16 @@ async function enviar() {
   const lugar           = document.getElementById('lugar').value.trim();
   const observaciones   = document.getElementById('observaciones').value.trim();
 
-  if (!nombre || !email || !fecha_solicitud || !fecha_ausencia) {
-    mostrar('Completa los campos requeridos: nombre, correo y fechas.', 'err');
+  if (!nombre) {
+    mostrar('Selecciona tu nombre de la lista.', 'err');
+    return;
+  }
+  if (!email) {
+    mostrar('No se encontró email para este pastor. Contacta a la secretaría.', 'err');
+    return;
+  }
+  if (!fecha_solicitud || !fecha_ausencia) {
+    mostrar('Completa las fechas de solicitud y ausencia.', 'err');
     return;
   }
 

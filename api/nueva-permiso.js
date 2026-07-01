@@ -20,6 +20,11 @@ const motivoLabel = {
 };
 
 async function crear(req, res) {
+  if (!SERVICE_KEY || !SB_URL) {
+    console.error('ERROR: SERVICE_KEY o SB_URL no configurados', { SERVICE_KEY: !!SERVICE_KEY, SB_URL: !!SB_URL });
+    return res.status(500).json({ error: 'Error de configuración: variables de entorno no disponibles. Contacta al admin.' });
+  }
+
   const { nombre, email, fecha_solicitud, fecha_ausencia, motivo, lugar, observaciones } = req.body || {};
   if (!nombre || !email || !fecha_solicitud || !fecha_ausencia || !motivo) {
     return res.status(400).json({ error: 'Faltan campos requeridos' });

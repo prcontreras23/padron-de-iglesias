@@ -30,23 +30,30 @@ async function crear(req, res) {
     return res.status(400).json({ error: 'Faltan campos requeridos' });
   }
 
-  const r = await fetch(`${SB_URL}/rest/v1/permisos_ausencia`, {
-    method: 'POST',
-    headers: {
-      'apikey': SERVICE_KEY,
-      'Authorization': `Bearer ${SERVICE_KEY}`,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=representation',
-    },
-    body: JSON.stringify({ nombre, email, fecha_solicitud, fecha_ausencia, motivo, lugar: lugar||null, observaciones: observaciones||null, estado: 'pendiente' }),
-  });
+  try {
+    const url = `${SB_URL}/rest/v1/permisos_ausencia`;
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'apikey': SERVICE_KEY,
+        'Authorization': `Bearer ${SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify({ nombre, email, fecha_solicitud, fecha_ausencia, motivo, lugar: lugar||null, observaciones: observaciones||null, estado: 'pendiente' }),
+    });
 
-  if (!r.ok) {
-    const err = await r.text();
-    return res.status(500).json({ error: 'Error al guardar', detail: err });
+    const text = await r.text();
+    if (!r.ok) {
+      console.error('Supabase insert error:', r.status, text);
+      return res.status(500).json({ error: 'Error al guardar en Supabase', status: r.status, detail: text });
+    }
+
+    return res.status(200).json({ ok: true, mensaje: 'Solicitud recibida.' });
+  } catch (e) {
+    console.error('Excepción en crear():', e.message, e.stack);
+    return res.status(500).json({ error: 'Excepción: ' + e.message });
   }
-
-  return res.status(200).json({ ok: true, mensaje: 'Solicitud recibida.' });
 }
 
 async function notificar(req, res) {

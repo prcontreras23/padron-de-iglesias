@@ -1015,6 +1015,7 @@ function buildPermisos() {
         const canGest = canDo('gestionar_permisos');
         const btnAprobar  = canGest && p.estado !== 'aprobado'  ? `<button data-aprobar-permiso="${escHtml(p.id)}" style="background:#dcfce7;color:#166534;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">✓ Aprobar</button>` : '';
         const btnRechazar = canGest && p.estado !== 'rechazado' ? `<button data-rechazar-permiso="${escHtml(p.id)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">✕ Rechazar</button>` : '';
+        const btnPrint = `<button data-print-permiso="${escHtml(p.id)}" style="background:#eef2ff;color:#1e3564;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">🖨️ Imprimir</button>`;
         const btnEdit = canGest ? `<button data-edit-permiso="${escHtml(p.id)}" style="background:#f3f4f6;color:#374151;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">✎</button>` : '';
         const btnDel  = canGest ? `<button data-del-permiso="${escHtml(p.id)}" data-del-permiso-nombre="${escHtml(p.nombre)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;">✕</button>` : '';
         return `<tr style="border-bottom:1px solid #f0f2f7;">
@@ -1023,7 +1024,7 @@ function buildPermisos() {
           <td style="padding:12px 16px;color:#6b7280;">${escHtml(p.lugar||'—')}</td>
           <td style="padding:12px 16px;color:#6b7280;">${fechaAus}</td>
           <td style="padding:12px 16px;"><span style="background:${est.bg};color:${est.color};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">${est.label}</span></td>
-          <td style="padding:12px 16px;">${btnAprobar}${btnRechazar}${btnEdit}${btnDel}</td>
+          <td style="padding:12px 16px;">${btnAprobar}${btnRechazar}${btnPrint}${btnEdit}${btnDel}</td>
         </tr>`;
       }).join('')}</tbody>
     </table></div>`;
@@ -1992,6 +1993,7 @@ function bindEvents() {
   }
   document.querySelectorAll('[data-aprobar-permiso]').forEach(el => el.addEventListener('click', () => decidirPermiso(el.dataset.aprobarPermiso, 'aprobado')));
   document.querySelectorAll('[data-rechazar-permiso]').forEach(el => el.addEventListener('click', () => decidirPermiso(el.dataset.rechazarPermiso, 'rechazado')));
+  document.querySelectorAll('[data-print-permiso]').forEach(el => el.addEventListener('click', () => imprimirPermiso(el.dataset.printPermiso)));
 
   document.querySelectorAll('[data-edit-permiso]').forEach(el => el.addEventListener('click', () => {
     const p = (S._permisos||[]).find(p=>p.id===el.dataset.editPermiso); if(!p) return;
@@ -2087,6 +2089,116 @@ async function saveCamposCustom() {
 function showToast(msg, type='success') {
   if(S.toastTimer) clearTimeout(S.toastTimer);
   S.toast={msg,type}; S.toastTimer=setTimeout(()=>{S.toast=null;render();},3000);
+}
+
+function imprimirPermiso(id) {
+  const p = (S._permisos||[]).find(x => x.id === id);
+  if (!p) { showToast('Permiso no encontrado','error'); return; }
+
+  const motivoLabel = { enfermedad:'Enfermedad', cita_medica:'Cita Médica', asuntos_familiares:'Asuntos Familiares', asuntos_oficiales:'Asuntos Oficiales', asuntos_personales:'Asuntos Personales' };
+  const fechaAus = p.fecha_ausencia ? new Date(p.fecha_ausencia+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'long',year:'numeric'}) : '—';
+  const fechaSol = p.fecha_solicitud ? new Date(p.fecha_solicitud+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'long',year:'numeric'}) : '—';
+  const estadoLabel = { pendiente:'Pendiente', aprobado:'Aprobado', rechazado:'Rechazado' }[p.estado] || p.estado;
+  const hoy = new Date().toLocaleDateString('es-DO',{day:'2-digit',month:'long',year:'numeric'});
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <title>Constancia - ${p.nombre}</title>
+      <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; background: white; color: #1a2340; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 40px; border-bottom: 3px solid #1e3564; padding-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 28px; color: #1e3564; }
+        .header p { margin: 4px 0 0 0; font-size: 12px; color: #6b7280; }
+        .content { margin-bottom: 40px; }
+        .field { margin-bottom: 20px; }
+        .label { font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; }
+        .value { font-size: 16px; margin-top: 6px; color: #1a2340; font-weight: 500; }
+        .section { margin-bottom: 30px; }
+        .estado-box { background: #f8f9fc; border-left: 4px solid #1e3564; padding: 16px; margin: 20px 0; border-radius: 4px; }
+        .estado-label { font-size: 12px; color: #6b7280; font-weight: 600; }
+        .estado-valor { font-size: 24px; font-weight: 700; color: #1e3564; margin-top: 8px; }
+        .footer { text-align: center; margin-top: 60px; padding-top: 20px; border-top: 1px solid #e8eaf2; font-size: 11px; color: #9ca3af; }
+        .firmas { display: flex; justify-content: space-between; margin-top: 60px; }
+        .firma { text-align: center; width: 40%; }
+        .linea { border-top: 1px solid #1a2340; margin-bottom: 8px; height: 40px; }
+        @media print { body { margin: 0; padding: 20px; } }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Constancia de Permiso de Ausencia</h1>
+          <p>Asociación Dominicana del Sureste</p>
+        </div>
+
+        <div class="content">
+          <div class="section">
+            <div class="field">
+              <div class="label">Solicitante</div>
+              <div class="value">${escHtml(p.nombre)}</div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="field">
+              <div class="label">Motivo de Ausencia</div>
+              <div class="value">${motivoLabel[p.motivo] || p.motivo}</div>
+            </div>
+            <div class="field">
+              <div class="label">Fecha de Ausencia</div>
+              <div class="value">${fechaAus}</div>
+            </div>
+            ${p.lugar ? `<div class="field">
+              <div class="label">Lugar de Destino</div>
+              <div class="value">${escHtml(p.lugar)}</div>
+            </div>` : ''}
+            ${p.observaciones ? `<div class="field">
+              <div class="label">Observaciones</div>
+              <div class="value">${escHtml(p.observaciones)}</div>
+            </div>` : ''}
+          </div>
+
+          <div class="estado-box">
+            <div class="estado-label">Estado del Permiso</div>
+            <div class="estado-valor">${estadoLabel}</div>
+          </div>
+
+          <div class="section">
+            <div class="field">
+              <div class="label">Fecha de Solicitud</div>
+              <div class="value">${fechaSol}</div>
+            </div>
+            <div class="field">
+              <div class="label">Procesado el</div>
+              <div class="value">${hoy}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="firmas">
+          <div class="firma">
+            <div class="linea"></div>
+            <div style="font-size: 12px; font-weight: 600;">Secretaría Ejecutiva</div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <p>Este documento es una constancia oficial de la solicitud de permiso de ausencia registrada en el sistema de la Asociación Dominicana del Sureste.</p>
+          <p>Generado automáticamente — ${new Date().toLocaleString('es-DO')}</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const printWin = window.open('', '', 'width=800,height=600');
+  printWin.document.write(html);
+  printWin.document.close();
+  setTimeout(() => { printWin.print(); }, 250);
 }
 
 

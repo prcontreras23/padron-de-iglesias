@@ -73,13 +73,17 @@ async function notificar(req, res) {
     <table style="width:100%;border-collapse:collapse;font-size:14px;margin:8px 0 16px;">${filas}</table>
     <p style="font-size:13px;color:#6b7280;">Para cualquier consulta, comunícate con la Secretaría Ejecutiva de la Asociación.</p>`;
 
-  const { ok } = await sendEmail({
+  const { ok, data } = await sendEmail({
     to: email,
     subject: `${icono} Permiso de Ausencia — ${titulo} · Asoc. Dom. Sureste`,
     html: emailBase({ titulo: `${icono} ${titulo}`, cuerpo }),
   });
 
-  if (!ok) return res.status(500).json({ error: 'Error al enviar correo' });
+  if (!ok) {
+    console.error('Error enviando email a', email, ':', data);
+    return res.status(500).json({ error: 'Error al enviar correo', detail: data?.message || 'Resend error' });
+  }
+  console.log('Email enviado exitosamente a', email, '— id:', data?.id);
   return res.status(200).json({ ok: true });
 }
 

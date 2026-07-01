@@ -1988,7 +1988,9 @@ function bindEvents() {
       fetch('/api/nueva-permiso', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ accion:'notificar', nombre:p.nombre, email:p.email, motivo:p.motivo, fecha_ausencia:p.fecha_ausencia, estado:nuevoEstado, observaciones:p.observaciones })
-      }).catch(()=>{});
+      }).then(r => r.json()).then(data => {
+        if (!data.ok) showToast('⚠️ No se pudo enviar email: ' + (data.detail || data.error), 'error');
+      }).catch(e => showToast('Error enviando email: ' + e.message, 'error'));
     }
   }
   document.querySelectorAll('[data-aprobar-permiso]').forEach(el => el.addEventListener('click', () => decidirPermiso(el.dataset.aprobarPermiso, 'aprobado')));

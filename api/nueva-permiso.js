@@ -18,6 +18,10 @@ const transporter = nodemailer.createTransport({
 });
 
 async function sendEmailGmail(to, subject, html) {
+  console.log('📧 Intentando enviar email a:', to);
+  console.log('📧 Desde:', process.env.GMAIL_EMAIL);
+  console.log('📧 Credenciales configuradas:', !!process.env.GMAIL_EMAIL && !!process.env.GMAIL_APP_PASSWORD);
+
   try {
     const info = await transporter.sendMail({
       from: process.env.GMAIL_EMAIL,
@@ -26,9 +30,12 @@ async function sendEmailGmail(to, subject, html) {
       html,
       replyTo: 'prcontreras@adventistassureste.org',
     });
+    console.log('✅ Email enviado exitosamente. ID:', info.messageId);
     return { ok: true, id: info.messageId };
   } catch (error) {
-    console.error('Error sending email via Gmail:', error.message);
+    console.error('❌ Error enviando email:', error.message);
+    console.error('❌ Código de error:', error.code);
+    console.error('❌ Response:', error.response);
     return { ok: false, error: error.message };
   }
 }

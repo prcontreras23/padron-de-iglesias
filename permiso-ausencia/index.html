@@ -39,10 +39,9 @@ textarea{resize:vertical;min-height:70px}
   </div>
   <div class="body" id="form-body">
     <div>
-      <label>Selecciona tu nombre <span class="required">*</span></label>
-      <select id="nombre" style="width:100%;padding:11px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:white;transition:border-color .15s;">
-        <option value="">Cargando pastores…</option>
-      </select>
+      <label>Busca tu nombre <span class="required">*</span></label>
+      <input id="nombre" type="text" placeholder="Escribe tu nombre o apellido…" autocomplete="off" />
+      <div id="lista-pastores" style="display:none;position:absolute;background:white;border:1.5px solid #e8eaf2;border-top:none;border-radius:0 0 8px 8px;width:calc(100% - 64px);max-height:200px;overflow-y:auto;margin-top:-8px;z-index:10;"></div>
     </div>
     <div>
       <label>Correo electrónico <span class="required">*</span></label>
@@ -85,36 +84,80 @@ textarea{resize:vertical;min-height:70px}
 <script>
 const SB_URL = 'https://gvbknabnrlliofbchczv.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2YmtuYWJucmxsaW9mYmNoY3p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMjg3MTcsImV4cCI6MjA5NjkwNDcxN30.v7IXmkGpidbpCPZsDh_wFh_pLsP13QhTueYtiLfkH9Q';
+let pastoresList = []; // { cod, nombre, email }
 let pastoresMap = {}; // nombre -> { cod, email }
+let selectedPastor = null;
 
 async function cargarPastores() {
   try {
     const r = await fetch(`${SB_URL}/rest/v1/pastores?select=cod,nombre,email&order=nombre`, {
       headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
     });
-    const pastores = await r.json();
-    const sel = document.getElementById('nombre');
-    sel.innerHTML = '<option value="">Selecciona tu nombre</option>';
-    pastores.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.nombre;
-      opt.textContent = p.nombre;
-      sel.appendChild(opt);
+    pastoresList = await r.json();
+    pastoresList.forEach(p => {
       pastoresMap[p.nombre] = { cod: p.cod, email: p.email || '' };
     });
   } catch(e) {
     console.error('Error cargando pastores:', e);
-    document.getElementById('nombre').innerHTML = '<option value="">Error al cargar pastores</option>';
   }
 }
 
-document.getElementById('nombre').addEventListener('change', () => {
-  const nombre = document.getElementById('nombre').value;
-  document.getElementById('email').value = pastoresMap[nombre]?.email || '';
+function mostrarLista(query = '') {
+  const lista = document.getElementById('lista-pastores');
+  const input = document.getElementById('nombre');
+
+  if (!query.trim()) {
+    lista.style.display = 'none';
+    return;
+  }
+
+  const q = query.toLowerCase();
+  const filtered = pastoresList.filter(p =>
+    p.nombre.toLowerCase().includes(q) ||
+    (p.email || '').toLowerCase().includes(q)
+  ).slice(0, 10);
+
+  if (filtered.length === 0) {
+    lista.innerHTML = '<div style="padding:10px 14px;color:#9ca3af;font-size:13px;">No encontrado</div>';
+    lista.style.display = 'block';
+    return;
+  }
+
+  lista.innerHTML = filtered.map((p, i) => `
+    <div data-pastor-idx="${i}" style="padding:10px 14px;border-bottom:1px solid #f0f2f7;cursor:pointer;background:white;transition:background .1s;" onmouseover="this.style.background='#f8f9ff'" onmouseout="this.style.background='white'">
+      <div style="font-weight:500;color:#1a2340;">${p.nombre}</div>
+      <div style="font-size:12px;color:#9ca3af;">${p.email || '(sin email registrado)'}</div>
+    </div>
+  `).join('');
+  lista.style.display = 'block';
+
+  lista.querySelectorAll('[data-pastor-idx]').forEach(el => {
+    el.addEventListener('click', () => {
+      const p = filtered[parseInt(el.dataset.pastorIdx)];
+      document.getElementById('nombre').value = p.nombre;
+      document.getElementById('email').value = p.email || '';
+      selectedPastor = p;
+      lista.style.display = 'none';
+    });
+  });
+}
+
+document.getElementById('nombre').addEventListener('input', (e) => {
+  mostrarLista(e.target.value);
+});
+
+document.getElementById('nombre').addEventListener('blur', () => {
+  setTimeout(() => {
+    document.getElementById('lista-pastores').style.display = 'none';
+  }, 150);
+});
+
+document.getElementById('nombre').addEventListener('focus', (e) => {
+  if (e.target.value.trim()) mostrarLista(e.target.value);
 });
 
 async function guardarEmailSiNecesario(nombre, email) {
-  const p = pastoresMap[nombre];
+  const p = selectedPastor || pastoresMap[nombre];
   if (!p || !p.cod || p.email === email) return; // sin cambios
   try {
     await fetch(`${SB_URL}/rest/v1/pastores?cod=eq.${encodeURIComponent(p.cod)}`, {
@@ -122,7 +165,8 @@ async function guardarEmailSiNecesario(nombre, email) {
       headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify({ email })
     });
-    pastoresMap[nombre].email = email;
+    if (selectedPastor) selectedPastor.email = email;
+    if (pastoresMap[nombre]) pastoresMap[nombre].email = email;
   } catch(e) {
     console.error('No se pudo actualizar el email del perfil:', e);
   }

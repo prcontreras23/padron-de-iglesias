@@ -2,10 +2,36 @@
 //   Pastor envía solicitud pública → guarda en Supabase
 // POST /api/nueva-permiso { accion:'notificar', nombre, email, motivo, fecha_ausencia, estado, observaciones }
 //   Envía email al pastor con la decisión (aprobado / rechazado)
-import { sendEmail, emailBase, cors } from './_helpers2.js';
+import { emailBase, cors } from './_helpers2.js';
+import nodemailer from 'nodemailer';
 
 const SB_URL      = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Gmail SMTP transporter
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_EMAIL,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
+});
+
+async function sendEmailGmail(to, subject, html) {
+  try {
+    const info = await transporter.sendMail({
+      from: process.env.GMAIL_EMAIL,
+      to,
+      subject,
+      html,
+      replyTo: 'prcontreras@adventistassureste.org',
+    });
+    return { ok: true, id: info.messageId };
+  } catch (error) {
+    console.error('Error sending email via Gmail:', error.message);
+    return { ok: false, error: error.message };
+  }
+}
 
 const motivoLabel = {
   enfermedad:        'Enfermedad',
@@ -73,17 +99,17 @@ async function notificar(req, res) {
     <table style="width:100%;border-collapse:collapse;font-size:14px;margin:8px 0 16px;">${filas}</table>
     <p style="font-size:13px;color:#6b7280;">Para cualquier consulta, comunícate con la Secretaría Ejecutiva de la Asociación.</p>`;
 
-  const { ok, data } = await sendEmail({
-    to: email,
-    subject: `${icono} Permiso de Ausencia — ${titulo} · Asoc. Dom. Sureste`,
-    html: emailBase({ titulo: `${icono} ${titulo}`, cuerpo }),
-  });
+  const { ok, id, error } = await sendEmailGmail(
+    email,
+    `${icono} Permiso de Ausencia — ${titulo} · Asoc. Dom. Sureste`,
+    emailBase({ titulo: `${icono} ${titulo}`, cuerpo })
+  );
 
   if (!ok) {
-    console.error('Error enviando email a', email, ':', data);
-    return res.status(500).json({ error: 'Error al enviar correo', detail: data?.message || 'Resend error' });
+    console.error('Error enviando email a', email, ':', error);
+    return res.status(500).json({ error: 'Error al enviar correo', detail: error });
   }
-  console.log('Email enviado exitosamente a', email, '— id:', data?.id);
+  console.log('Email enviado exitosamente a', email, '— id:', id);
   return res.status(200).json({ ok: true });
 }
 

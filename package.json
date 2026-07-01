@@ -3,5 +3,10 @@
   "version": "1.0.0",
   "description": "Sistema de aprobaciones para SunPlus, Ecclesia, Infomac y ACMS",
   "private": true,
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "nodemailer": "^9.0.3"
+  }
 }

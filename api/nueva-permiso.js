@@ -7,6 +7,10 @@ import { sendEmail, emailBase, cors } from './_helpers2.js';
 const SB_URL      = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+if (!SERVICE_KEY) {
+  console.error('FATAL: SUPABASE_SERVICE_ROLE_KEY no configurada en Vercel');
+}
+
 const motivoLabel = {
   enfermedad:        'Enfermedad',
   cita_medica:       'Cita Médica',

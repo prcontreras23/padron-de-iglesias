@@ -41,7 +41,7 @@ const token = new URLSearchParams(location.search).get('token');
 if (!token) document.getElementById('body').innerHTML = '<p style="color:#991b1b">Token no válido.</p>';
 
 async function cargar() {
-  const r = await fetch('/api/get-solicitud?token=' + token);
+  const r = await fetch('/api/get-solicitudes?token=' + token);
   if (!r.ok) { document.getElementById('body').innerHTML = '<p style="color:#991b1b">Solicitud no encontrada.</p>'; return; }
   const s = await r.json();
   if (s.estado !== 'pendiente_francis') {

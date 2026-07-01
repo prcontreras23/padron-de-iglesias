@@ -1,10 +1,23 @@
-// GET  /api/get-solicitudes — lista todas las solicitudes
-// DELETE /api/get-solicitudes  { id } — elimina una solicitud
+// GET    /api/get-solicitudes            — lista todas las solicitudes
+// GET    /api/get-solicitudes?token=xxx  — retorna una solicitud por cualquiera de sus 4 tokens
+// POST   /api/get-solicitudes { accion:'eliminar', id }  — elimina una solicitud
 import { sbFetch, cors } from './_helpers2.js';
 
 export default async function handler(req, res) {
   cors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  if (req.method === 'GET' && req.query?.token) {
+    const { token } = req.query;
+    const campos = ['token_francis','token_cesar','token_carlos','token_noemi'];
+    let sol = null;
+    for (const campo of campos) {
+      const { ok, data } = await sbFetch(`solicitudes_iglesias?${campo}=eq.${token}&select=*`);
+      if (ok && data?.length) { sol = data[0]; break; }
+    }
+    if (!sol) return res.status(404).json({ error: 'Token no válido' });
+    return res.status(200).json(sol);
+  }
 
   if (req.method === 'POST' && req.body?.accion === 'eliminar') {
     const { id } = req.body;

@@ -1984,9 +1984,9 @@ function bindEvents() {
     showToast(nuevoEstado==='aprobado' ? 'Permiso aprobado' : 'Permiso rechazado', 'success');
     render();
     if (p.email) {
-      fetch('/api/notificar-permiso', {
+      fetch('/api/nueva-permiso', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ nombre:p.nombre, email:p.email, motivo:p.motivo, fecha_ausencia:p.fecha_ausencia, estado:nuevoEstado, observaciones:p.observaciones })
+        body: JSON.stringify({ accion:'notificar', nombre:p.nombre, email:p.email, motivo:p.motivo, fecha_ausencia:p.fecha_ausencia, estado:nuevoEstado, observaciones:p.observaciones })
       }).catch(()=>{});
     }
   }

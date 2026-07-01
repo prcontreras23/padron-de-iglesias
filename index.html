@@ -2099,7 +2099,10 @@ function imprimirPermiso(id) {
   const fechaAus = p.fecha_ausencia ? new Date(p.fecha_ausencia+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'long',year:'numeric'}) : '—';
   const fechaSol = p.fecha_solicitud ? new Date(p.fecha_solicitud+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'long',year:'numeric'}) : '—';
   const estadoLabel = { pendiente:'Pendiente', aprobado:'Aprobado', rechazado:'Rechazado' }[p.estado] || p.estado;
+  const estadoColor = { pendiente:'#ca8a04', aprobado:'#16a34a', rechazado:'#dc2626' }[p.estado] || '#6b7280';
+  const estadoBg = { pendiente:'#fef9c3', aprobado:'#dcfce7', rechazado:'#fee2e2' }[p.estado] || '#f3f4f6';
   const hoy = new Date().toLocaleDateString('es-DO',{day:'2-digit',month:'long',year:'numeric'});
+  const horaMinuto = new Date().toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'});
 
   const html = `
     <!DOCTYPE html>
@@ -2108,24 +2111,27 @@ function imprimirPermiso(id) {
       <meta charset="UTF-8">
       <title>Constancia - ${p.nombre}</title>
       <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; background: white; color: #1a2340; }
-        .container { max-width: 800px; margin: 0 auto; }
-        .header { text-align: center; margin-bottom: 40px; border-bottom: 3px solid #1e3564; padding-bottom: 20px; }
-        .header h1 { margin: 0; font-size: 28px; color: #1e3564; }
-        .header p { margin: 4px 0 0 0; font-size: 12px; color: #6b7280; }
-        .content { margin-bottom: 40px; }
-        .field { margin-bottom: 20px; }
-        .label { font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; }
-        .value { font-size: 16px; margin-top: 6px; color: #1a2340; font-weight: 500; }
-        .section { margin-bottom: 30px; }
-        .estado-box { background: #f8f9fc; border-left: 4px solid #1e3564; padding: 16px; margin: 20px 0; border-radius: 4px; }
-        .estado-label { font-size: 12px; color: #6b7280; font-weight: 600; }
-        .estado-valor { font-size: 24px; font-weight: 700; color: #1e3564; margin-top: 8px; }
-        .footer { text-align: center; margin-top: 60px; padding-top: 20px; border-top: 1px solid #e8eaf2; font-size: 11px; color: #9ca3af; }
-        .firmas { display: flex; justify-content: space-between; margin-top: 60px; }
-        .firma { text-align: center; width: 40%; }
-        .linea { border-top: 1px solid #1a2340; margin-bottom: 8px; height: 40px; }
-        @media print { body { margin: 0; padding: 20px; } }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 30px 25px; background: white; color: #1a2340; line-height: 1.5; }
+        .container { max-width: 750px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #1e3564; padding-bottom: 18px; }
+        .header h1 { margin: 0 0 6px 0; font-size: 24px; font-weight: 700; color: #1e3564; }
+        .header p { margin: 0; font-size: 12px; color: #6b7280; }
+        .content { margin-bottom: 25px; }
+        .field { margin-bottom: 14px; }
+        .label { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .value { font-size: 15px; color: #1a2340; font-weight: 500; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 14px; }
+        .row-item { }
+        .estado-box { background: ${estadoBg}; border-left: 5px solid ${estadoColor}; padding: 14px; margin: 18px 0; border-radius: 4px; }
+        .estado-label { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; }
+        .estado-valor { font-size: 20px; font-weight: 700; color: ${estadoColor}; margin-top: 4px; }
+        .firma-section { margin-top: 35px; }
+        .firma-linea { border-top: 1px solid #1a2340; width: 50%; margin-left: 0; margin-bottom: 4px; }
+        .firma-label { font-size: 11px; font-weight: 600; color: #1a2340; }
+        .footer { text-align: center; margin-top: 30px; padding-top: 15px; border-top: 1px solid #e5e7eb; font-size: 10px; color: #9ca3af; }
+        .footer p { margin: 3px 0; }
+        @media print { body { margin: 0; padding: 15px; } .container { max-width: 100%; } }
       </style>
     </head>
     <body>
@@ -2136,59 +2142,57 @@ function imprimirPermiso(id) {
         </div>
 
         <div class="content">
-          <div class="section">
-            <div class="field">
-              <div class="label">Solicitante</div>
-              <div class="value">${escHtml(p.nombre)}</div>
-            </div>
+          <div class="field">
+            <div class="label">Solicitante</div>
+            <div class="value">${escHtml(p.nombre)}</div>
           </div>
 
-          <div class="section">
-            <div class="field">
+          <div class="row">
+            <div class="row-item">
               <div class="label">Motivo de Ausencia</div>
               <div class="value">${motivoLabel[p.motivo] || p.motivo}</div>
             </div>
-            <div class="field">
+            <div class="row-item">
               <div class="label">Fecha de Ausencia</div>
               <div class="value">${fechaAus}</div>
             </div>
-            ${p.lugar ? `<div class="field">
-              <div class="label">Lugar de Destino</div>
-              <div class="value">${escHtml(p.lugar)}</div>
-            </div>` : ''}
-            ${p.observaciones ? `<div class="field">
-              <div class="label">Observaciones</div>
-              <div class="value">${escHtml(p.observaciones)}</div>
-            </div>` : ''}
           </div>
+
+          ${p.lugar ? `<div class="field">
+            <div class="label">Lugar de Destino</div>
+            <div class="value">${escHtml(p.lugar)}</div>
+          </div>` : ''}
 
           <div class="estado-box">
             <div class="estado-label">Estado del Permiso</div>
             <div class="estado-valor">${estadoLabel}</div>
           </div>
 
-          <div class="section">
-            <div class="field">
+          <div class="row">
+            <div class="row-item">
               <div class="label">Fecha de Solicitud</div>
               <div class="value">${fechaSol}</div>
             </div>
-            <div class="field">
+            <div class="row-item">
               <div class="label">Procesado el</div>
               <div class="value">${hoy}</div>
             </div>
           </div>
+
+          ${p.observaciones ? `<div class="field" style="margin-top:18px;padding:12px;background:#f8f9fc;border-radius:4px;">
+            <div class="label">Observaciones</div>
+            <div class="value">${escHtml(p.observaciones)}</div>
+          </div>` : ''}
         </div>
 
-        <div class="firmas">
-          <div class="firma">
-            <div class="linea"></div>
-            <div style="font-size: 12px; font-weight: 600;">Secretaría Ejecutiva</div>
-          </div>
+        <div class="firma-section">
+          <div class="firma-linea"></div>
+          <div class="firma-label">Secretaría Ejecutiva</div>
         </div>
 
         <div class="footer">
-          <p>Este documento es una constancia oficial de la solicitud de permiso de ausencia registrada en el sistema de la Asociación Dominicana del Sureste.</p>
-          <p>Generado automáticamente — ${new Date().toLocaleString('es-DO')}</p>
+          <p>Este es un documento oficial de permiso de ausencia del sistema de la Asociación Dominicana del Sureste.</p>
+          <p>Generado: ${hoy} • ${horaMinuto}</p>
         </div>
       </div>
     </body>

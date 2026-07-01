@@ -7,10 +7,6 @@ import { sendEmail, emailBase, cors } from './_helpers2.js';
 const SB_URL      = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!SERVICE_KEY) {
-  console.error('FATAL: SUPABASE_SERVICE_ROLE_KEY no configurada en Vercel');
-}
-
 const motivoLabel = {
   enfermedad:        'Enfermedad',
   cita_medica:       'Cita Médica',
@@ -21,7 +17,6 @@ const motivoLabel = {
 
 async function crear(req, res) {
   if (!SERVICE_KEY || !SB_URL) {
-    console.error('ERROR: SERVICE_KEY o SB_URL no configurados', { SERVICE_KEY: !!SERVICE_KEY, SB_URL: !!SB_URL });
     return res.status(500).json({ error: 'Error de configuración: variables de entorno no disponibles. Contacta al admin.' });
   }
 
@@ -45,13 +40,11 @@ async function crear(req, res) {
 
     const text = await r.text();
     if (!r.ok) {
-      console.error('Supabase insert error:', r.status, text);
-      return res.status(500).json({ error: 'Error al guardar en Supabase', status: r.status, detail: text });
+      return res.status(500).json({ error: 'Error al guardar en Supabase', detail: text });
     }
 
     return res.status(200).json({ ok: true, mensaje: 'Solicitud recibida.' });
   } catch (e) {
-    console.error('Excepción en crear():', e.message, e.stack);
     return res.status(500).json({ error: 'Excepción: ' + e.message });
   }
 }

@@ -46,8 +46,8 @@ textarea{resize:vertical;min-height:70px}
     </div>
     <div>
       <label>Correo electrónico <span class="required">*</span></label>
-      <input id="email" type="email" placeholder="correo@ejemplo.com" readonly style="background:#f9fafb;cursor:not-allowed;" />
-      <p style="font-size:12px;color:#9ca3af;margin-top:4px;">Se autocompletará con tu email registrado.</p>
+      <input id="email" type="email" placeholder="correo@ejemplo.com" />
+      <p style="font-size:12px;color:#9ca3af;margin-top:4px;">Si tu correo está registrado se autocompletará. Puedes editarlo o agregarlo si no lo tienes; quedará guardado en tu perfil.</p>
     </div>
     <div class="row">
       <div>
@@ -85,7 +85,7 @@ textarea{resize:vertical;min-height:70px}
 <script>
 const SB_URL = 'https://gvbknabnrlliofbchczv.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2YmtuYWJucmxsaW9mYmNoY3p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMjg3MTcsImV4cCI6MjA5NjkwNDcxN30.v7IXmkGpidbpCPZsDh_wFh_pLsP13QhTueYtiLfkH9Q';
-let pastoresMap = {};
+let pastoresMap = {}; // nombre -> { cod, email }
 
 async function cargarPastores() {
   try {
@@ -99,9 +99,8 @@ async function cargarPastores() {
       const opt = document.createElement('option');
       opt.value = p.nombre;
       opt.textContent = p.nombre;
-      opt.dataset.email = p.email || '';
       sel.appendChild(opt);
-      pastoresMap[p.nombre] = p.email || '';
+      pastoresMap[p.nombre] = { cod: p.cod, email: p.email || '' };
     });
   } catch(e) {
     console.error('Error cargando pastores:', e);
@@ -111,8 +110,23 @@ async function cargarPastores() {
 
 document.getElementById('nombre').addEventListener('change', () => {
   const nombre = document.getElementById('nombre').value;
-  document.getElementById('email').value = pastoresMap[nombre] || '';
+  document.getElementById('email').value = pastoresMap[nombre]?.email || '';
 });
+
+async function guardarEmailSiNecesario(nombre, email) {
+  const p = pastoresMap[nombre];
+  if (!p || !p.cod || p.email === email) return; // sin cambios
+  try {
+    await fetch(`${SB_URL}/rest/v1/pastores?cod=eq.${encodeURIComponent(p.cod)}`, {
+      method: 'PATCH',
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ email })
+    });
+    pastoresMap[nombre].email = email;
+  } catch(e) {
+    console.error('No se pudo actualizar el email del perfil:', e);
+  }
+}
 
 // Selección visual de motivo
 document.querySelectorAll('.motivo-opt input[type=radio]').forEach(r => {
@@ -156,6 +170,7 @@ async function enviar() {
   ocultarMsg();
 
   try {
+    await guardarEmailSiNecesario(nombre, email);
     const r = await fetch('/api/nueva-permiso', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

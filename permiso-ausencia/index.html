@@ -29,6 +29,12 @@ textarea{resize:vertical;min-height:70px}
 .msg{padding:14px;border-radius:8px;font-size:14px;display:none}
 .msg.ok{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
 .msg.err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+.historial-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:10px;border:1px solid #e8eaf2;border-radius:6px;margin-bottom:8px;background:#fafbff;font-size:13px;align-items:center}
+.historial-row-header{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:10px;background:#f3f4f6;border-radius:6px;margin-bottom:8px;font-weight:600;color:#6b7280;font-size:12px}
+.estado-badge{display:inline-block;padding:4px 10px;border-radius:4px;font-weight:600;font-size:11px}
+.estado-badge.pendiente{background:#fef9c3;color:#a16207}
+.estado-badge.aprobado{background:#dcfce7;color:#166534}
+.estado-badge.rechazado{background:#fee2e2;color:#991b1b}
 </style>
 </head>
 <body>
@@ -38,6 +44,10 @@ textarea{resize:vertical;min-height:70px}
     <p>Asociación Dominicana del Sureste · Oficina de Secretaría</p>
   </div>
   <div class="body" id="form-body">
+    <div id="historial-section" style="display:none;margin-bottom:24px;border-top:1px solid #e8eaf2;padding-top:24px;">
+      <h2 style="font-size:16px;font-weight:700;color:#1a2340;margin-bottom:12px;">Mis Solicitudes Anteriores</h2>
+      <div id="historial-tabla" style="width:100%;border-collapse:collapse;font-size:13px;"></div>
+    </div>
     <div>
       <label>Busca tu nombre <span class="required">*</span></label>
       <input id="nombre" type="text" placeholder="Escribe tu nombre o apellido…" autocomplete="off" />
@@ -90,12 +100,12 @@ let selectedPastor = null;
 
 async function cargarPastores() {
   try {
-    const r = await fetch(`${SB_URL}/rest/v1/pastores?select=cod,nombre,email&order=nombre`, {
+    const r = await fetch(`${SB_URL}/rest/v1/pastores?select=cod,nombre,email,telefono&order=nombre`, {
       headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
     });
     pastoresList = await r.json();
     pastoresList.forEach(p => {
-      pastoresMap[p.nombre] = { cod: p.cod, email: p.email || '' };
+      pastoresMap[p.nombre] = { cod: p.cod, email: p.email || '', telefono: p.telefono || '' };
     });
   } catch(e) {
     console.error('Error cargando pastores:', e);
@@ -138,6 +148,7 @@ function mostrarLista(query = '') {
       document.getElementById('email').value = p.email || '';
       selectedPastor = p;
       lista.style.display = 'none';
+      cargarHistorialPastor(p.nombre, p.email);
     });
   });
 }
@@ -182,6 +193,36 @@ document.querySelectorAll('.motivo-opt input[type=radio]').forEach(r => {
 
 // Fecha por defecto: hoy
 document.getElementById('fecha_solicitud').value = new Date().toISOString().slice(0, 10);
+
+async function cargarHistorialPastor(nombre, email) {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/permisos_ausencia?nombre=eq.${encodeURIComponent(nombre)}&select=*&order=fecha_solicitud.desc`, {
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
+    });
+    const solicitudes = await r.json();
+
+    if (!solicitudes.length) {
+      document.getElementById('historial-section').style.display = 'none';
+      return;
+    }
+
+    const formatFecha = (d) => new Date(d + 'T12:00:00').toLocaleDateString('es-DO', { day:'2-digit', month:'short', year:'numeric' });
+
+    let html = '<div class="historial-row-header"><div>Fecha de Ausencia</div><div>Motivo</div><div>Estado</div></div>';
+    html += solicitudes.map(s => `
+      <div class="historial-row">
+        <div>${formatFecha(s.fecha_ausencia)}</div>
+        <div style="color:#6b7280;">${s.motivo.replace(/_/g, ' ').toLowerCase()}</div>
+        <div><span class="estado-badge ${s.estado}">${s.estado.charAt(0).toUpperCase() + s.estado.slice(1)}</span></div>
+      </div>
+    `).join('');
+
+    document.getElementById('historial-tabla').innerHTML = html;
+    document.getElementById('historial-section').style.display = 'block';
+  } catch(e) {
+    console.error('Error cargando historial:', e);
+  }
+}
 
 // Cargar pastores al inicio
 cargarPastores();

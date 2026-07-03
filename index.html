@@ -1016,6 +1016,7 @@ function buildPermisos() {
         const btnAprobar  = canGest && p.estado !== 'aprobado'  ? `<button data-aprobar-permiso="${escHtml(p.id)}" style="background:#dcfce7;color:#166534;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">✓ Aprobar</button>` : '';
         const btnRechazar = canGest && p.estado !== 'rechazado' ? `<button data-rechazar-permiso="${escHtml(p.id)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">✕ Rechazar</button>` : '';
         const btnPrint = `<button data-print-permiso="${escHtml(p.id)}" style="background:#eef2ff;color:#1e3564;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">🖨️ Imprimir</button>`;
+        const btnEmail = p.email ? `<button data-email-permiso="${escHtml(p.id)}" data-email="${escHtml(p.email)}" style="background:#dbeafe;color:#1e40af;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">📧 Correo</button>` : '';
         const btnEdit = canGest ? `<button data-edit-permiso="${escHtml(p.id)}" style="background:#f3f4f6;color:#374151;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">✎</button>` : '';
         const btnDel  = canGest ? `<button data-del-permiso="${escHtml(p.id)}" data-del-permiso-nombre="${escHtml(p.nombre)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;">✕</button>` : '';
         return `<tr style="border-bottom:1px solid #f0f2f7;">
@@ -1024,7 +1025,7 @@ function buildPermisos() {
           <td style="padding:12px 16px;color:#6b7280;">${escHtml(p.lugar||'—')}</td>
           <td style="padding:12px 16px;color:#6b7280;">${fechaAus}</td>
           <td style="padding:12px 16px;"><span style="background:${est.bg};color:${est.color};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">${est.label}</span></td>
-          <td style="padding:12px 16px;">${btnAprobar}${btnRechazar}${btnPrint}${btnEdit}${btnDel}</td>
+          <td style="padding:12px 16px;">${btnAprobar}${btnRechazar}${btnPrint}${btnEmail}${btnEdit}${btnDel}</td>
         </tr>`;
       }).join('')}</tbody>
     </table></div>`;
@@ -1996,6 +1997,7 @@ function bindEvents() {
   document.querySelectorAll('[data-aprobar-permiso]').forEach(el => el.addEventListener('click', () => decidirPermiso(el.dataset.aprobarPermiso, 'aprobado')));
   document.querySelectorAll('[data-rechazar-permiso]').forEach(el => el.addEventListener('click', () => decidirPermiso(el.dataset.rechazarPermiso, 'rechazado')));
   document.querySelectorAll('[data-print-permiso]').forEach(el => el.addEventListener('click', () => imprimirPermiso(el.dataset.printPermiso)));
+  document.querySelectorAll('[data-email-permiso]').forEach(el => el.addEventListener('click', () => enviarPermisoEmail(el.dataset.emailPermiso, el.dataset.email)));
 
   document.querySelectorAll('[data-edit-permiso]').forEach(el => el.addEventListener('click', () => {
     const p = (S._permisos||[]).find(p=>p.id===el.dataset.editPermiso); if(!p) return;
@@ -2091,6 +2093,24 @@ async function saveCamposCustom() {
 function showToast(msg, type='success') {
   if(S.toastTimer) clearTimeout(S.toastTimer);
   S.toast={msg,type}; S.toastTimer=setTimeout(()=>{S.toast=null;render();},3000);
+}
+
+async function enviarPermisoEmail(id, email) {
+  const p = (S._permisos||[]).find(x => x.id === id);
+  if (!p) { showToast('Permiso no encontrado','error'); return; }
+  showToast('Enviando PDF por correo…','info');
+  try {
+    const r = await fetch('/api/enviar-permiso-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, email })
+    });
+    const data = await r.json();
+    if (!r.ok) { showToast('Error: ' + (data.detail || data.error), 'error'); return; }
+    showToast('✅ PDF enviado correctamente a ' + email, 'success');
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
 }
 
 function imprimirPermiso(id) {

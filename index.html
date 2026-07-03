@@ -1986,23 +1986,13 @@ function bindEvents() {
     showToast(nuevoEstado==='aprobado' ? 'Permiso aprobado' : 'Permiso rechazado', 'success');
     render();
 
-    if (p.email) {
-      fetch('/api/nueva-permiso', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ accion:'notificar', nombre:p.nombre, email:p.email, motivo:p.motivo, fecha_ausencia:p.fecha_ausencia, estado:nuevoEstado, observaciones:p.observaciones })
-      }).then(r => r.json()).then(data => {
-        if (!data.ok) showToast('⚠️ No se pudo enviar email: ' + (data.detail || data.error), 'error');
-      }).catch(e => showToast('Error enviando email: ' + e.message, 'error'));
-    }
-
     // Si aprobó, abrir WhatsApp del pastor
     if (nuevoEstado === 'aprobado') {
       const pastor = (RAW.pastores||[]).find(ps => ps.nombre === p.nombre);
       if (pastor && pastor.telefono) {
         const tel = pastor.telefono.replace(/\D/g, '');
-        const telInt = tel.length === 10 ? '+1-849-' + tel : '+1-' + tel.replace(/^1/, '');
-        const msg = encodeURIComponent('Tu permiso de ausencia ha sido aprobado ✅. Recibirás la constancia en tu email.');
-        setTimeout(() => window.open(`https://wa.me/${tel}?text=${msg}`, '_blank'), 800);
+        const msg = encodeURIComponent('Tu permiso de ausencia ha sido aprobado ✅');
+        setTimeout(() => window.open(`https://wa.me/${tel}?text=${msg}`, '_blank'), 500);
       }
     }
   }

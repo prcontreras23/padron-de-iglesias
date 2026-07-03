@@ -1991,7 +1991,7 @@ function bindEvents() {
       const pastor = (RAW.pastores||[]).find(ps => ps.nombre === p.nombre);
       if (pastor && pastor.telefono) {
         const tel = pastor.telefono.replace(/\D/g, '');
-        const msg = encodeURIComponent('Tu permiso de ausencia ha sido aprobado ✅');
+        const msg = encodeURIComponent('Tu permiso de salida ha sido aprobado ✅');
         setTimeout(() => window.open(`https://wa.me/${tel}?text=${msg}`, '_blank'), 500);
       }
     }

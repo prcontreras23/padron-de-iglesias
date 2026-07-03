@@ -2001,7 +2001,7 @@ function bindEvents() {
       if (pastor && pastor.telefono) {
         const tel = pastor.telefono.replace(/\D/g, '');
         const telInt = tel.length === 10 ? '+1-849-' + tel : '+1-' + tel.replace(/^1/, '');
-        const msg = encodeURIComponent('Tu permiso de ausencia ha sido aprobado ✅. Puedes imprimirlo desde la plataforma.');
+        const msg = encodeURIComponent('Tu permiso de ausencia ha sido aprobado ✅. Recibirás la constancia en tu email.');
         setTimeout(() => window.open(`https://wa.me/${tel}?text=${msg}`, '_blank'), 800);
       }
     }

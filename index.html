@@ -1244,7 +1244,7 @@ function buildOrganizacionModal() {
   const chk = (label, id, checked) => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#374151;cursor:pointer;">
     <input type="checkbox" id="${id}" ${checked?'checked':''} ${canGest?'':'disabled'} style="width:16px;height:16px;cursor:pointer;accent-color:#1e3564;flex-shrink:0;" /> ${label}</label>`;
   const section = (num, title, bodyHtml, doneKey) => `
-    <div style="border:1px solid #e8eaf2;border-radius:12px;overflow:hidden;">
+    <div style="border:1px solid #e8eaf2;border-radius:12px;overflow:hidden;flex-shrink:0;">
       <div style="background:${f[doneKey]?'#f0fdf4':'#f8f9fc'};padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="width:22px;height:22px;border-radius:50%;background:${f[doneKey]?'#166534':'#1e3564'};color:white;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${f[doneKey]?'✓':num}</span>
@@ -1303,8 +1303,8 @@ function buildOrganizacionModal() {
     </div>`;
 
   const iglesiaSelector = editing
-    ? `<div style="padding:12px 16px;background:#f8f9fc;border-radius:10px;font-size:14px;"><strong>${escHtml(f.iglesia_nombre)}</strong><div style="font-size:12px;color:#9ca3af;margin-top:2px;">${escHtml(f.distrito||'—')} · ${escHtml(f.zona||'—')}</div></div>`
-    : `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Grupo a organizar <span style="color:#ef4444;">*</span></label>
+    ? `<div style="padding:12px 16px;background:#f8f9fc;border-radius:10px;font-size:14px;flex-shrink:0;"><strong>${escHtml(f.iglesia_nombre)}</strong><div style="font-size:12px;color:#9ca3af;margin-top:2px;">${escHtml(f.distrito||'—')} · ${escHtml(f.zona||'—')}</div></div>`
+    : `<div style="flex-shrink:0;"><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Grupo a organizar <span style="color:#ef4444;">*</span></label>
         <select id="org-iglesia-select" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;">
           <option value="">Seleccione un grupo…</option>
           ${gruposDisponibles.map(i => `<option value="${escHtml(i.cod)}" ${f.iglesia_cod===i.cod?'selected':''}>${escHtml(i.nombre)} — ${escHtml(i.distrito||'')}</option>`).join('')}
@@ -1316,14 +1316,14 @@ function buildOrganizacionModal() {
         <h3 style="font-size:17px;font-weight:700;color:#1a2340;">${editing?'Gestionar Organización de Iglesia':'Nuevo Grupo en Proceso de Organización'}</h3>
         <button id="btn-organizacion-close" style="background:transparent;border:none;cursor:pointer;color:#9ca3af;font-size:20px;line-height:1;">×</button>
       </div>
-      <div style="padding:20px 24px;display:flex;flex-direction:column;gap:16px;overflow-y:auto;flex:1;">
+      <div id="organizacion-modal-scroll" style="padding:20px 24px;display:flex;flex-direction:column;gap:16px;overflow-y:auto;flex:1;">
         ${iglesiaSelector}
         ${section(1,'Asignar Pastor Oficial', fase1Body, 'fase1_completada')}
         ${section(2,'Asignar Fecha de Organización', fase2Body, 'fase2_completada')}
         ${section(3,'Realizar Ceremonia de Organización', fase3Body, 'fase3_completada')}
         ${section(4,'Actualizar ACMS', fase4Body, 'fase4_completada')}
         ${section(5,'Actualizar Demás Plataformas', fase5Body, 'fase5_completada')}
-        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Notas generales</label>
+        <div style="flex-shrink:0;"><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Notas generales</label>
           <textarea id="org-notas" placeholder="Notas adicionales…" ${canGest?'':'disabled'} style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;resize:vertical;min-height:60px;box-sizing:border-box;">${escHtml(f.notas||'')}</textarea></div>
       </div>
       <div style="padding:16px 24px 24px;display:flex;gap:10px;justify-content:flex-end;flex-shrink:0;border-top:1px solid #f0f2f7;">
@@ -2282,6 +2282,47 @@ function bindEvents() {
     if (ig && ig.pastor && !S.formOrganizacion.pastor_asignado) S.formOrganizacion.pastor_asignado = ig.pastor;
     render();
   }));
+
+  function harvestOrganizacionForm() {
+    const gv = id => document.getElementById(id)?.value ?? '';
+    const gc = id => !!document.getElementById(id)?.checked;
+    const f = S.formOrganizacion;
+    f.pastor_asignado = gv('org-pastor-asignado');
+    f.pastor_telefono = gv('org-pastor-telefono');
+    f.pastor_confirmado = gc('org-pastor-confirmado');
+    f.fase1_completada = gc('org-fase1_completada');
+    f.fecha_ceremonia = gv('org-fecha-ceremonia');
+    f.req_min_miembros = gc('org-req-miembros');
+    f.req_lideres = gc('org-req-lideres');
+    f.req_solvencia = gc('org-req-solvencia');
+    f.instructivo_enviado_junta = gc('org-instructivo-enviado');
+    f.fase2_completada = gc('org-fase2_completada');
+    f.fecha_ceremonia_realizada = gv('org-fecha-ceremonia-realizada');
+    f.acta_firmada = gc('org-acta-firmada');
+    const checklist_materiales = {};
+    MATERIALES_ORG.forEach(m => checklist_materiales[m.id] = gc('org-mat-'+m.id));
+    f.checklist_materiales = checklist_materiales;
+    f.fase3_completada = gc('org-fase3_completada');
+    f.acms_actualizado = gc('org-acms-actualizado');
+    f.acms_fecha = gv('org-acms-fecha');
+    f.oficiales_electos = gv('org-oficiales-electos');
+    f.fase4_completada = gc('org-fase4_completada');
+    const plataformas = {};
+    PLATAFORMAS_ORG.forEach(p => plataformas[p.id] = gc('org-plat-'+p.id));
+    f.plataformas = plataformas;
+    f.fase5_completada = gc('org-fase5_completada');
+    f.notas = gv('org-notas');
+  }
+  ['fase1_completada','fase2_completada','fase3_completada','fase4_completada','fase5_completada'].forEach(key => {
+    q('#org-'+key, el => el.addEventListener('change', () => {
+      harvestOrganizacionForm();
+      const scrollEl = document.getElementById('organizacion-modal-scroll');
+      const sy = scrollEl ? scrollEl.scrollTop : 0;
+      render();
+      const newScrollEl = document.getElementById('organizacion-modal-scroll');
+      if (newScrollEl) newScrollEl.scrollTop = sy;
+    }));
+  });
 
   async function promoverGrupoAIglesia(cod, nombre) {
     const { error } = await S.sbClient.from('iglesias').update({ tipo: 'iglesia' }).eq('cod', cod);

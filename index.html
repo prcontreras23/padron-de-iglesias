@@ -49,6 +49,19 @@ let S = {
   showPermisoModal: false, permisoModalMode: 'add', editPermisoId: null,
   formPermiso: { nombre:'', email:'', fecha_solicitud:'', motivo:'enfermedad', lugar:'', fecha_ausencia:'', estado:'pendiente', observaciones:'' },
   showDeletePermisoConfirm: false, deletePermisoId: null, deletePermisoNombre: null,
+  // Organización de Iglesias
+  _organizaciones: null, _organizacionesLoading: false,
+  showOrganizacionModal: false, organizacionModalMode: 'add', editOrganizacionId: null,
+  formOrganizacion: {
+    iglesia_cod:'', iglesia_nombre:'', zona:'', distrito:'',
+    pastor_asignado:'', pastor_telefono:'', pastor_confirmado:false, fase1_completada:false,
+    fecha_ceremonia:'', req_min_miembros:false, req_lideres:false, req_solvencia:false, instructivo_enviado_junta:false, fase2_completada:false,
+    fecha_ceremonia_realizada:'', acta_firmada:false, checklist_materiales:{}, fase3_completada:false,
+    acms_actualizado:false, acms_fecha:'', oficiales_electos:'', fase4_completada:false,
+    plataformas:{}, fase5_completada:false,
+    notas:''
+  },
+  showDeleteOrganizacionConfirm: false, deleteOrganizacionId: null, deleteOrganizacionNombre: null,
   selectedPastores: new Set(), selectedIglesias: new Set(),
   page: 1, pageSize: 25,
   // Iglesia modal
@@ -87,7 +100,7 @@ let S = {
   // Gestión de usuarios
   _allProfiles: null, _allProfilesLoading: false,
   showNewUserModal: false, editingProfileId: null,
-  newUserForm: { email:'', nombre:'', permisos:{ gestionar_usuarios:false, ver_dashboard:true, ver_iglesias:true, ver_pastores:true, ver_distritos:true, ver_zonas:true, ver_solicitudes:false, ver_historial:false, ver_configuracion:false, editar_iglesias:false, editar_pastores:false, editar_distritos:false, editar_zonas:false, eliminar_iglesias:false, eliminar_pastores:false, ver_permisos:false, gestionar_permisos:false, zonas:[] } },
+  newUserForm: { email:'', nombre:'', permisos:{ gestionar_usuarios:false, ver_dashboard:true, ver_iglesias:true, ver_pastores:true, ver_distritos:true, ver_zonas:true, ver_solicitudes:false, ver_historial:false, ver_configuracion:false, editar_iglesias:false, editar_pastores:false, editar_distritos:false, editar_zonas:false, eliminar_iglesias:false, eliminar_pastores:false, ver_permisos:false, gestionar_permisos:false, ver_organizacion:false, gestionar_organizacion:false, zonas:[] } },
 };
 
 /* =====================================================================
@@ -425,6 +438,8 @@ function buildHTML() {
   ${S.showDeleteSolicitudConfirm ? buildDeleteSolicitudConfirm() : ''}
   ${S.showPermisoModal ? buildPermisoModal() : ''}
   ${S.showDeletePermisoConfirm ? buildDeletePermisoConfirm() : ''}
+  ${S.showOrganizacionModal ? buildOrganizacionModal() : ''}
+  ${S.showDeleteOrganizacionConfirm ? buildDeleteOrganizacionConfirm() : ''}
   ${S.showSearch                  ? buildSearchModal()           : ''}
   ${S.showImportModal            ? buildImportModal()           : ''}
   ${S.toast                     ? buildToast()                 : ''}
@@ -466,6 +481,7 @@ function buildSidebar() {
       <div style="color:rgba(255,255,255,.3);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:10px 10px 4px;">Sistema</div>
       ${canDo('ver_solicitudes')   ? navItem('solicitudes','Solicitudes',icons.plus) : ''}
       ${canDo('ver_permisos')      ? navItem('permisos','Permisos de Ausencia',icons.calendar) : ''}
+      ${canDo('ver_organizacion')  ? navItem('organizacion','Organización de Iglesias',icons.shield,(S._organizaciones||[]).filter(o=>!o.completado).length||undefined) : ''}
       ${canDo('ver_historial')     ? navItem('historial','Historial',icons.clock) : ''}
       ${canDo('ver_configuracion') ? navItem('configuracion','Configuración',icons.settings) : ''}
     </nav>
@@ -498,7 +514,7 @@ function buildSidebar() {
 
 /* ---- HEADER ---- */
 function buildHeader() {
-  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Pastores', solicitudes:'Solicitudes de Congregación', permisos:'Permisos de Ausencia', configuracion:'Configuracion' };
+  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Pastores', solicitudes:'Solicitudes de Congregación', permisos:'Permisos de Ausencia', organizacion:'Organización de Iglesias', configuracion:'Configuracion' };
   const needsSearch = ['iglesias','distritos','pastores'].includes(S.view);
   const addBtn = (id,label) => `<button id="${id}" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;">${icons.plus.replace('currentColor','white')} ${label}</button>`;
   const searchBtn = `<button id="btn-global-search" title="Ctrl+K" style="background:#f0f2f7;border:none;border-radius:8px;padding:8px;cursor:pointer;color:#6b7280;display:flex;align-items:center;">${icons.search}</button>`;
@@ -508,6 +524,7 @@ function buildHeader() {
     distritos: canDo('editar_distritos') ? addBtn('btn-add-distrito','Nuevo Distrito') : '',
     iglesias:  (canDo('editar_iglesias') ? exportBtn : '') + `<a href="/nueva-congregacion" target="_blank" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;text-decoration:none;">+ Nueva Congregación</a>`,
     pastores:  (canDo('editar_pastores') ? exportBtn+addBtn('btn-add-pastor','Nuevo Pastor') : ''),
+    organizacion: canDo('gestionar_organizacion') ? addBtn('btn-add-organizacion','Agregar Grupo en Proceso') : '',
   };
   return `
   <header style="background:white;padding:0 22px;height:60px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #e8eaf2;flex-shrink:0;z-index:50;">
@@ -520,7 +537,7 @@ function buildHeader() {
 }
 
 /* ---- CONTENT ROUTER ---- */
-const PERM_MAP = { dashboard:'ver_dashboard', zonas:'ver_zonas', distritos:'ver_distritos', iglesias:'ver_iglesias', pastores:'ver_pastores', historial:'ver_historial', solicitudes:'ver_solicitudes', permisos:'ver_permisos', configuracion:'ver_configuracion' };
+const PERM_MAP = { dashboard:'ver_dashboard', zonas:'ver_zonas', distritos:'ver_distritos', iglesias:'ver_iglesias', pastores:'ver_pastores', historial:'ver_historial', solicitudes:'ver_solicitudes', permisos:'ver_permisos', organizacion:'ver_organizacion', configuracion:'ver_configuracion' };
 const NO_ACCESO = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;color:#9ca3af;gap:12px;"><span style="font-size:40px;">${icons.lock.replace('currentColor','#cbd5e1')}</span><div style="font-size:15px;font-weight:600;color:#6b7280;">Sin acceso</div><div style="font-size:13px;text-align:center;">No tienes permiso para ver esta sección.<br>Contacta al administrador.</div></div>`;
 
 function buildContent() {
@@ -537,6 +554,7 @@ function buildContent() {
     case 'historial':     return buildHistorialView();
     case 'solicitudes':   return buildSolicitudes();
     case 'permisos':      return buildPermisos();
+    case 'organizacion':  return buildOrganizacion();
     case 'configuracion': return buildConfiguracion();
     default:              return buildDashboard();
   }
@@ -1104,6 +1122,221 @@ function buildDeletePermisoConfirm() {
   return confirmModal('Eliminar permiso', `Se eliminará el permiso de <strong>${escHtml(S.deletePermisoNombre||'')}</strong> permanentemente.`, 'btn-del-permiso-cancel', 'btn-del-permiso-confirm');
 }
 
+/* ---- ORGANIZACIÓN DE IGLESIAS ---- */
+const MATERIALES_ORG = [
+  { id:'listado_acms', cat:'El Oficial Llevará', label:'Listado de Miembros ACMS' },
+  { id:'copias_programa', cat:'El Oficial Llevará', label:'25 copias del programa de ordenación de iglesia + 1 original' },
+  { id:'instructivo_programa', cat:'El Oficial Llevará', label:'Instructivo del programa (incluye teléfono del pastor titular)' },
+  { id:'formulario_actualizacion', cat:'El Oficial Llevará', label:'Formulario de Actualización de Datos' },
+  { id:'carta_modelo', cat:'El Oficial Llevará', label:'Carta modelo para la incorporación de iglesias' },
+  { id:'talonarios_remesas', cat:'El Oficial Llevará', label:'Talonarios de remesas' },
+  { id:'orden_culto', cat:'El Oficial Llevará', label:'Orden de Culto' },
+  { id:'lista_feligresia', cat:'El Oficial Requerirá', label:'Lista de feligresía' },
+  { id:'cartas_solicitud', cat:'El Oficial Requerirá', label:'Cartas de solicitud' },
+  { id:'lista_dirigentes', cat:'El Oficial Requerirá', label:'Lista de Dirigentes' },
+  { id:'utensilios_santa_cena', cat:'El Oficial Requerirá', label:'Utensilios de Ceremonia de Santa Cena (sólo para verlo)' },
+];
+const PLATAFORMAS_ORG = [
+  { id:'padron', label:'Padrón de Iglesias (App)', resp:'Secretaría' },
+  { id:'flota', label:'Flota Móvil ADOSE 2026', resp:'Tesorería' },
+  { id:'reportes', label:'Sistema de Reportes Estadísticos', resp:'Secretaría' },
+  { id:'manual', label:'Manual administrativo', resp:'Secretaría' },
+  { id:'comunicacion', label:'Comunicación interna', resp:'Comunicación' },
+  { id:'directorio', label:'Directorio de pastores', resp:'RRHH' },
+];
+const PROGRAMA_CEREMONIA_ORG = [
+  ['Bienvenida',3], ['Himno de Apertura',3], ['Lectura Bíblica',3], ['Oración Inicial',3],
+  ['Breve Historia de la Iglesia',10], ['Parte Especial',3], ['Devocional y repaso de las doctrinas',30],
+  ['Himno Congregacional',3], ['Formación del Núcleo',10], ['Aceptación de la Feligresía',15],
+  ['Comisión de Nombramientos',15], ['Cantos Congregacionales y música especial',15],
+  ['Votación de nuevos oficiales',10], ['Ordenación Nuevos Ancianos',10], ['Ordenación Nuevos Diáconos',10],
+  ['Ordenación Nuevas Diaconisas',10], ['Desafío a la Nueva Iglesia',10], ['Respuestas de la Iglesia',10],
+  ['Oración de Dedicación',3], ['Solicitud de la Nueva Iglesia para ser recibida',3],
+  ['Himno Final (A Dios sea Gloria)',3], ['Oración Final',3],
+];
+function orgFases(o) {
+  return [
+    { n:1, label:'Pastor Asignado', done:!!o.fase1_completada },
+    { n:2, label:'Fecha Coordinada', done:!!o.fase2_completada },
+    { n:3, label:'Ceremonia Realizada', done:!!o.fase3_completada },
+    { n:4, label:'ACMS Actualizado', done:!!o.fase4_completada },
+    { n:5, label:'Plataformas Actualizadas', done:!!o.fase5_completada },
+  ];
+}
+function orgFaseActual(o) {
+  const f = orgFases(o).find(x => !x.done);
+  return f ? f.n : 5;
+}
+function buildOrganizacionCard(o, canGest) {
+  const fases = orgFases(o);
+  const doneCount = fases.filter(f => f.done).length;
+  const completado = doneCount === 5;
+  const actual = fases.find(f => !f.done);
+  const badge = completado
+    ? `<span style="background:#dcfce7;color:#166534;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:600;">✓ Completado</span>`
+    : `<span style="background:#fef9c3;color:#854d0e;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:600;">Fase ${actual.n}: ${actual.label}</span>`;
+  const barSegs = fases.map(f => `<div style="flex:1;height:6px;border-radius:3px;background:${f.done?'#1e3564':'#e8eaf2'};"></div>`).join('');
+  const quickBtn = (!completado && canGest) ? `<button data-org-avanzar="${escHtml(o.id)}" style="background:#1e3564;color:white;border:none;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:500;">Marcar Fase ${actual.n} completada →</button>` : '';
+  const gestBtn = `<button data-org-edit="${escHtml(o.id)}" style="background:#f3f4f6;color:#374151;border:none;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:500;">${canGest?'Gestionar':'Ver'}</button>`;
+  const delBtn = canGest ? `<button data-org-del="${escHtml(o.id)}" data-org-del-nombre="${escHtml(o.iglesia_nombre)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;font-weight:500;">✕</button>` : '';
+  const fechaCer = o.fecha_ceremonia ? new Date(o.fecha_ceremonia+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'}) : '';
+  return `<div style="background:white;border-radius:14px;padding:18px 20px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;display:flex;flex-direction:column;gap:10px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div style="font-weight:700;color:#1e3564;font-size:15px;">${escHtml(o.iglesia_nombre)}</div>
+        <div style="font-size:12px;color:#9ca3af;">${escHtml(o.distrito||'—')} · ${escHtml(o.zona||'—')}${o.pastor_asignado?' · Pastor: '+escHtml(o.pastor_asignado):''}</div>
+      </div>
+      ${badge}
+    </div>
+    <div style="display:flex;gap:4px;">${barSegs}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div style="font-size:12px;color:#6b7280;">${doneCount}/5 fases completadas${fechaCer?' · Ceremonia: '+fechaCer:''}</div>
+      <div style="display:flex;gap:8px;">${quickBtn}${gestBtn}${delBtn}</div>
+    </div>
+  </div>`;
+}
+function buildOrganizacion() {
+  if (!canDo('ver_organizacion')) return NO_ACCESO;
+  const items = S._organizaciones || [];
+  const loading = S._organizacionesLoading;
+  const canGest = canDo('gestionar_organizacion');
+  let list = items;
+  const fFase = S.fOrgFase || 'all';
+  if (fFase !== 'all') {
+    list = fFase === 'completado' ? list.filter(o => orgFaseActual(o)===5 && orgFases(o).every(f=>f.done)) : list.filter(o => !orgFases(o).every(f=>f.done) && orgFaseActual(o)===Number(fFase));
+  }
+  let contenido;
+  if (loading) {
+    contenido = `<div style="text-align:center;padding:60px;color:#6b7280;">Cargando…</div>`;
+  } else if (!list.length) {
+    contenido = `<div style="text-align:center;padding:60px;"><div style="font-size:40px;margin-bottom:12px;">⛪</div><div style="color:#6b7280;font-size:15px;">No hay grupos en proceso de organización.</div></div>`;
+  } else {
+    contenido = `<div style="display:flex;flex-direction:column;gap:14px;">${list.map(o => buildOrganizacionCard(o, canGest)).join('')}</div>`;
+  }
+  const filtros = [
+    { v:'all', label:'Todos' }, { v:'1', label:'Fase 1' }, { v:'2', label:'Fase 2' },
+    { v:'3', label:'Fase 3' }, { v:'4', label:'Fase 4' }, { v:'5', label:'Fase 5' }, { v:'completado', label:'Completados' },
+  ];
+  return `<div style="padding:24px;display:flex;flex-direction:column;gap:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h2 style="font-size:18px;font-weight:700;color:#1a2340;margin-bottom:4px;">Organización de Iglesias</h2>
+        <p style="font-size:13px;color:#6b7280;">Seguimiento del proceso de organización de un grupo/misión como iglesia (5 fases).</p>
+      </div>
+      <button id="btn-reload-organizacion" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">↻ Actualizar</button>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      ${filtros.map(o => `<button data-org-filter="${o.v}" style="padding:6px 14px;border-radius:20px;border:1.5px solid ${fFase===o.v?'#1e3564':'#e8eaf2'};background:${fFase===o.v?'#1e3564':'white'};color:${fFase===o.v?'white':'#374151'};font-size:12px;font-weight:500;cursor:pointer;">${o.label}</button>`).join('')}
+    </div>
+    ${contenido}
+  </div>`;
+}
+function buildOrganizacionModal() {
+  const editing = S.organizacionModalMode === 'edit';
+  const f = S.formOrganizacion;
+  const canGest = canDo('gestionar_organizacion');
+  const gruposDisponibles = RAW.iglesias
+    .filter(i => i.tipo === 'grupo' && (i.cod === f.iglesia_cod || !(S._organizaciones||[]).some(o => o.iglesia_cod === i.cod)))
+    .sort((a,b) => a.nombre.localeCompare(b.nombre,'es'));
+
+  const fld = (label, id, value, type='text') => `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">${label}</label>
+    <input id="${id}" type="${type}" value="${escHtml(value||'')}" ${canGest?'':'disabled'} style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;background:${canGest?'white':'#f8f9fc'};" /></div>`;
+  const chk = (label, id, checked) => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#374151;cursor:pointer;">
+    <input type="checkbox" id="${id}" ${checked?'checked':''} ${canGest?'':'disabled'} style="width:16px;height:16px;cursor:pointer;accent-color:#1e3564;flex-shrink:0;" /> ${label}</label>`;
+  const section = (num, title, bodyHtml, doneKey) => `
+    <div style="border:1px solid #e8eaf2;border-radius:12px;overflow:hidden;">
+      <div style="background:${f[doneKey]?'#f0fdf4':'#f8f9fc'};padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="width:22px;height:22px;border-radius:50%;background:${f[doneKey]?'#166534':'#1e3564'};color:white;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${f[doneKey]?'✓':num}</span>
+          <span style="font-weight:600;font-size:14px;color:#1a2340;">${title}</span>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;">
+          <input type="checkbox" id="org-${doneKey}" ${f[doneKey]?'checked':''} ${canGest?'':'disabled'} style="width:15px;height:15px;cursor:pointer;accent-color:#166534;" /> Fase completada
+        </label>
+      </div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">${bodyHtml}</div>
+    </div>`;
+
+  const fase1Body = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      ${fld('Pastor asignado','org-pastor-asignado',f.pastor_asignado)}
+      ${fld('Teléfono del pastor','org-pastor-telefono',f.pastor_telefono,'tel')}
+    </div>
+    ${chk('Pastor confirmó disponibilidad','org-pastor-confirmado',f.pastor_confirmado)}`;
+
+  const fase2Body = `
+    ${fld('Fecha de ceremonia coordinada','org-fecha-ceremonia',f.fecha_ceremonia,'date')}
+    <div style="font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-top:4px;">Requisitos mínimos</div>
+    ${chk('Mínimo 25 miembros','org-req-miembros',f.req_min_miembros)}
+    ${chk('Líderes dispuestos a asumir compromisos','org-req-lideres',f.req_lideres)}
+    ${chk('Solvencia financiera','org-req-solvencia',f.req_solvencia)}
+    ${chk('Instructivo de organización enviado a la junta','org-instructivo-enviado',f.instructivo_enviado_junta)}`;
+
+  const fase3Body = `
+    ${fld('Fecha en que se realizó la ceremonia','org-fecha-ceremonia-realizada',f.fecha_ceremonia_realizada,'date')}
+    ${chk('Solicitud de recepción oficial firmada','org-acta-firmada',f.acta_firmada)}
+    <div style="font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-top:4px;">Checklist de materiales</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;">
+      ${MATERIALES_ORG.map(m => chk(m.label, 'org-mat-'+m.id, !!(f.checklist_materiales||{})[m.id])).join('')}
+    </div>
+    <details style="margin-top:6px;">
+      <summary style="cursor:pointer;font-size:12px;color:#1e3564;font-weight:600;">Ver programa sugerido de la ceremonia (~185 min)</summary>
+      <div style="margin-top:8px;max-height:180px;overflow-y:auto;font-size:12px;color:#374151;">
+        ${PROGRAMA_CEREMONIA_ORG.map(([a,m]) => `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f2f7;"><span>${escHtml(a)}</span><span style="color:#9ca3af;">${m} min</span></div>`).join('')}
+      </div>
+    </details>`;
+
+  const fase4Body = `
+    ${fld('Fecha de actualización en ACMS','org-acms-fecha',f.acms_fecha,'date')}
+    ${chk('Estado cambiado en ACMS a "Iglesia Organizada"','org-acms-actualizado',f.acms_actualizado)}
+    <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Primeros oficiales electos</label>
+      <textarea id="org-oficiales-electos" placeholder="Ancianos, diáconos, diaconisas…" ${canGest?'':'disabled'} style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;resize:vertical;min-height:60px;box-sizing:border-box;">${escHtml(f.oficiales_electos||'')}</textarea></div>
+    <div style="font-size:12px;color:#9ca3af;">Al marcar esta fase como completada, el sistema cambiará automáticamente el tipo de esta iglesia de "Grupo" a "Iglesia" en el padrón.</div>`;
+
+  const fase5Body = `
+    <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">Marcar cada plataforma una vez actualizada.</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${PLATAFORMAS_ORG.map(p => `<label style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;color:#374151;padding:6px 10px;background:#f8f9fc;border-radius:8px;">
+        <span style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="org-plat-${p.id}" ${!!(f.plataformas||{})[p.id]?'checked':''} ${canGest?'':'disabled'} style="width:16px;height:16px;cursor:pointer;accent-color:#1e3564;" /> ${escHtml(p.label)}</span>
+        <span style="color:#9ca3af;font-size:11px;">${escHtml(p.resp)}</span>
+      </label>`).join('')}
+    </div>`;
+
+  const iglesiaSelector = editing
+    ? `<div style="padding:12px 16px;background:#f8f9fc;border-radius:10px;font-size:14px;"><strong>${escHtml(f.iglesia_nombre)}</strong><div style="font-size:12px;color:#9ca3af;margin-top:2px;">${escHtml(f.distrito||'—')} · ${escHtml(f.zona||'—')}</div></div>`
+    : `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Grupo a organizar <span style="color:#ef4444;">*</span></label>
+        <select id="org-iglesia-select" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;">
+          <option value="">Seleccione un grupo…</option>
+          ${gruposDisponibles.map(i => `<option value="${escHtml(i.cod)}" ${f.iglesia_cod===i.cod?'selected':''}>${escHtml(i.nombre)} — ${escHtml(i.distrito||'')}</option>`).join('')}
+        </select></div>`;
+
+  return `<div id="organizacion-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:22px 24px 0;flex-shrink:0;">
+        <h3 style="font-size:17px;font-weight:700;color:#1a2340;">${editing?'Gestionar Organización de Iglesia':'Nuevo Grupo en Proceso de Organización'}</h3>
+        <button id="btn-organizacion-close" style="background:transparent;border:none;cursor:pointer;color:#9ca3af;font-size:20px;line-height:1;">×</button>
+      </div>
+      <div style="padding:20px 24px;display:flex;flex-direction:column;gap:16px;overflow-y:auto;flex:1;">
+        ${iglesiaSelector}
+        ${section(1,'Asignar Pastor Oficial', fase1Body, 'fase1_completada')}
+        ${section(2,'Asignar Fecha de Organización', fase2Body, 'fase2_completada')}
+        ${section(3,'Realizar Ceremonia de Organización', fase3Body, 'fase3_completada')}
+        ${section(4,'Actualizar ACMS', fase4Body, 'fase4_completada')}
+        ${section(5,'Actualizar Demás Plataformas', fase5Body, 'fase5_completada')}
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Notas generales</label>
+          <textarea id="org-notas" placeholder="Notas adicionales…" ${canGest?'':'disabled'} style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;resize:vertical;min-height:60px;box-sizing:border-box;">${escHtml(f.notas||'')}</textarea></div>
+      </div>
+      <div style="padding:16px 24px 24px;display:flex;gap:10px;justify-content:flex-end;flex-shrink:0;border-top:1px solid #f0f2f7;">
+        <button id="btn-organizacion-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">${canGest?'Cancelar':'Cerrar'}</button>
+        ${canGest?`<button id="btn-organizacion-save" style="padding:10px 20px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;">${editing?'Guardar cambios':'Crear'}</button>`:''}
+      </div>
+    </div>
+  </div>`;
+}
+function buildDeleteOrganizacionConfirm() {
+  return confirmModal('Eliminar seguimiento', `Se eliminará el seguimiento de organización de <strong>${escHtml(S.deleteOrganizacionNombre||'')}</strong> permanentemente. Esto no afecta el registro de la iglesia en el padrón.`, 'btn-del-organizacion-cancel', 'btn-del-organizacion-confirm');
+}
+
 /* ---- CONFIGURACION ---- */
 function buildUsuariosSection() {
   if (!isAdmin()) return '';
@@ -1116,6 +1349,8 @@ function buildUsuariosSection() {
     { key:'ver_solicitudes',  label:'Ver Solicitudes' },
     { key:'ver_permisos',     label:'Ver Permisos de Ausencia' },
     { key:'gestionar_permisos', label:'Gestionar Permisos de Ausencia' },
+    { key:'ver_organizacion', label:'Ver Organización de Iglesias' },
+    { key:'gestionar_organizacion', label:'Gestionar Organización de Iglesias' },
     { key:'ver_historial',    label:'Ver Historial' },
     { key:'ver_configuracion',label:'Ver Configuración' },
     { key:'editar_iglesias',  label:'Editar Iglesias' },
@@ -1592,13 +1827,13 @@ function formField(label, id, value, type='text', placeholder='', fontFamily='',
    ===================================================================== */
 function bindEvents() {
   q('#btn-sidebar-toggle', el => el.addEventListener('click', () => { S.sidebarOpen=!S.sidebarOpen; render(); }));
-  document.querySelectorAll('[data-nav]').forEach(el => el.addEventListener('click', () => { S.view=el.dataset.nav; location.hash=S.view; S.search=''; S.fZona='all'; S.fDistrito='all'; S.fPastor='all'; S.fEstado='all'; S.fRol='all'; S.fTipoIg='all'; S.page=1; if(el.dataset.nav==='historial')S._historialData=null; render(); }));
+  document.querySelectorAll('[data-nav]').forEach(el => el.addEventListener('click', () => { S.view=el.dataset.nav; location.hash=S.view; S.search=''; S.fZona='all'; S.fDistrito='all'; S.fPastor='all'; S.fEstado='all'; S.fRol='all'; S.fTipoIg='all'; S.fOrgFase='all'; S.page=1; if(el.dataset.nav==='historial')S._historialData=null; render(); }));
   document.querySelectorAll('[data-nav-zona]').forEach(el => el.addEventListener('click', () => { S.view='distritos'; S.fZona=el.dataset.navZona; S.search=''; S.page=1; render(); }));
   document.querySelectorAll('[data-nav-zona-ig]').forEach(el => el.addEventListener('click', () => { S.view='iglesias'; S.fZona=el.dataset.navZonaIg; S.fDistrito='all'; S.search=''; S.page=1; render(); }));
   document.querySelectorAll('[data-nav-dash]').forEach(el => el.addEventListener('click', () => {
     const val = el.dataset.navDash; if (!val) return;
     const [vista, param] = val.split('|');
-    S.view=vista; S.search=''; S.page=1; S.fZona='all'; S.fDistrito='all'; S.fPastor='all'; S.fEstado='all'; S.fRol='all'; S.fTipoIg='all';
+    S.view=vista; S.search=''; S.page=1; S.fZona='all'; S.fDistrito='all'; S.fPastor='all'; S.fEstado='all'; S.fRol='all'; S.fTipoIg='all'; S.fOrgFase='all';
     if (param) {
       const [key,v] = param.split('=');
       if (key==='estado') S.fEstado=v;
@@ -1880,7 +2115,7 @@ function bindEvents() {
   if (S.view==='configuracion' && isAdmin() && S._allProfiles===null && !S._allProfilesLoading) { loadAllProfiles(); }
   q('#btn-add-user', el => el.addEventListener('click', () => {
     S.showNewUserModal=true; S.editingProfileId=null;
-    S.newUserForm={ email:'', nombre:'', permisos:{ gestionar_usuarios:false, ver_dashboard:true, ver_iglesias:true, ver_pastores:true, ver_distritos:true, ver_zonas:true, ver_solicitudes:false, ver_historial:false, ver_configuracion:false, editar_iglesias:false, editar_pastores:false, editar_distritos:false, editar_zonas:false, eliminar_iglesias:false, eliminar_pastores:false, zonas:[] } };
+    S.newUserForm={ email:'', nombre:'', permisos:{ gestionar_usuarios:false, ver_dashboard:true, ver_iglesias:true, ver_pastores:true, ver_distritos:true, ver_zonas:true, ver_solicitudes:false, ver_historial:false, ver_configuracion:false, editar_iglesias:false, editar_pastores:false, editar_distritos:false, editar_zonas:false, eliminar_iglesias:false, eliminar_pastores:false, ver_organizacion:false, gestionar_organizacion:false, zonas:[] } };
     render();
   }));
   q('#btn-nu-close',  el => el.addEventListener('click', () => { S.showNewUserModal=false; render(); }));
@@ -2017,6 +2252,139 @@ function bindEvents() {
     showToast('Permiso eliminado','success'); render();
   }));
 
+  /* ORGANIZACIÓN DE IGLESIAS */
+  if (S.view==='organizacion' && !S._organizaciones && !S._organizacionesLoading) { S._organizacionesLoading=true; loadOrganizaciones(); }
+  q('#btn-reload-organizacion', el => el.addEventListener('click', () => { S._organizaciones=null; S._organizacionesLoading=true; render(); loadOrganizaciones(); }));
+  document.querySelectorAll('[data-org-filter]').forEach(el => el.addEventListener('click', () => { S.fOrgFase = el.dataset.orgFilter; render(); }));
+
+  q('#btn-add-organizacion', el => el.addEventListener('click', () => {
+    S.showOrganizacionModal=true; S.organizacionModalMode='add'; S.editOrganizacionId=null;
+    S.formOrganizacion={
+      iglesia_cod:'', iglesia_nombre:'', zona:'', distrito:'',
+      pastor_asignado:'', pastor_telefono:'', pastor_confirmado:false, fase1_completada:false,
+      fecha_ceremonia:'', req_min_miembros:false, req_lideres:false, req_solvencia:false, instructivo_enviado_junta:false, fase2_completada:false,
+      fecha_ceremonia_realizada:'', acta_firmada:false, checklist_materiales:{}, fase3_completada:false,
+      acms_actualizado:false, acms_fecha:'', oficiales_electos:'', fase4_completada:false,
+      plataformas:{}, fase5_completada:false, notas:''
+    };
+    render();
+  }));
+  q('#btn-organizacion-close',  el => el.addEventListener('click', () => { S.showOrganizacionModal=false; render(); }));
+  q('#btn-organizacion-cancel', el => el.addEventListener('click', () => { S.showOrganizacionModal=false; render(); }));
+  q('#organizacion-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el){S.showOrganizacionModal=false;render();} }));
+  q('#org-iglesia-select', el => el.addEventListener('change', () => {
+    const cod = el.value;
+    const ig = RAW.iglesias.find(i=>i.cod===cod);
+    S.formOrganizacion.iglesia_cod = cod;
+    S.formOrganizacion.iglesia_nombre = ig ? ig.nombre : '';
+    S.formOrganizacion.zona = ig ? (ig.zona||'') : '';
+    S.formOrganizacion.distrito = ig ? (ig.distrito||'') : '';
+    if (ig && ig.pastor && !S.formOrganizacion.pastor_asignado) S.formOrganizacion.pastor_asignado = ig.pastor;
+    render();
+  }));
+
+  async function promoverGrupoAIglesia(cod, nombre) {
+    const { error } = await S.sbClient.from('iglesias').update({ tipo: 'iglesia' }).eq('cod', cod);
+    if (error) { showToast('Aviso: no se pudo actualizar el tipo en el padrón ('+error.message+')','error'); return; }
+    RAW.iglesias = RAW.iglesias.map(i => i.cod===cod ? {...i, tipo:'iglesia'} : i);
+    recomputeCounts();
+    registrarHistorial('Cambio tipo automático (organización)', 'Iglesia', cod, nombre);
+    showToast(escHtml(nombre)+' fue marcada como Iglesia Organizada en el padrón','success');
+  }
+
+  async function guardarOrganizacion() {
+    const gv = id => document.getElementById(id)?.value ?? '';
+    const gc = id => !!document.getElementById(id)?.checked;
+    const iglesia_cod = S.organizacionModalMode==='add' ? (document.getElementById('org-iglesia-select')?.value||'') : S.formOrganizacion.iglesia_cod;
+    if (!iglesia_cod) { showToast('Debe seleccionar un grupo','error'); return; }
+    const ig = RAW.iglesias.find(i=>i.cod===iglesia_cod);
+    const checklist_materiales = {};
+    MATERIALES_ORG.forEach(m => checklist_materiales[m.id] = gc('org-mat-'+m.id));
+    const plataformas = {};
+    PLATAFORMAS_ORG.forEach(p => plataformas[p.id] = gc('org-plat-'+p.id));
+    const hoy = new Date().toISOString().slice(0,10);
+    const fase1_completada = gc('org-fase1_completada');
+    const fase2_completada = gc('org-fase2_completada');
+    const fase3_completada = gc('org-fase3_completada');
+    const fase4_completada = gc('org-fase4_completada');
+    const fase5_completada = gc('org-fase5_completada');
+    const completado = fase1_completada && fase2_completada && fase3_completada && fase4_completada && fase5_completada;
+    const payload = {
+      iglesia_cod, iglesia_nombre: ig ? ig.nombre : S.formOrganizacion.iglesia_nombre, zona: ig ? (ig.zona||'') : S.formOrganizacion.zona, distrito: ig ? (ig.distrito||'') : S.formOrganizacion.distrito,
+      pastor_asignado: gv('org-pastor-asignado').trim()||null, pastor_telefono: gv('org-pastor-telefono').trim()||null, pastor_confirmado: gc('org-pastor-confirmado'),
+      fase1_completada, fase1_fecha: fase1_completada ? (S.formOrganizacion.fase1_fecha||hoy) : null,
+      fecha_ceremonia: gv('org-fecha-ceremonia')||null, req_min_miembros: gc('org-req-miembros'), req_lideres: gc('org-req-lideres'), req_solvencia: gc('org-req-solvencia'), instructivo_enviado_junta: gc('org-instructivo-enviado'),
+      fase2_completada, fase2_fecha: fase2_completada ? (S.formOrganizacion.fase2_fecha||hoy) : null,
+      fecha_ceremonia_realizada: gv('org-fecha-ceremonia-realizada')||null, acta_firmada: gc('org-acta-firmada'), checklist_materiales,
+      fase3_completada, fase3_fecha: fase3_completada ? (S.formOrganizacion.fase3_fecha||hoy) : null,
+      acms_actualizado: gc('org-acms-actualizado'), acms_fecha: gv('org-acms-fecha')||null, oficiales_electos: gv('org-oficiales-electos').trim()||null,
+      fase4_completada, fase4_fecha: fase4_completada ? (S.formOrganizacion.fase4_fecha||hoy) : null,
+      plataformas, fase5_completada, fase5_fecha: fase5_completada ? (S.formOrganizacion.fase5_fecha||hoy) : null,
+      completado, completado_fecha: completado ? (S.formOrganizacion.completado_fecha||hoy) : null,
+      notas: gv('org-notas').trim()||null,
+    };
+    const wasFase4Completed = S.organizacionModalMode==='edit' ? !!(S._organizaciones||[]).find(o=>o.id===S.editOrganizacionId)?.fase4_completada : false;
+
+    if (S.organizacionModalMode==='add') {
+      const { data, error } = await S.sbClient.from('organizacion_iglesias').insert([payload]).select();
+      if (error) { showToast('Error: '+error.message,'error'); return; }
+      S._organizaciones = [data[0], ...(S._organizaciones||[])];
+      registrarHistorial('Creo', 'OrganizacionIglesia', iglesia_cod, payload.iglesia_nombre);
+    } else {
+      const { error } = await S.sbClient.from('organizacion_iglesias').update(payload).eq('id', S.editOrganizacionId);
+      if (error) { showToast('Error: '+error.message,'error'); return; }
+      S._organizaciones = (S._organizaciones||[]).map(o => o.id===S.editOrganizacionId ? {...o,...payload} : o);
+      registrarHistorial('Edito', 'OrganizacionIglesia', iglesia_cod, payload.iglesia_nombre);
+    }
+
+    if (fase4_completada && !wasFase4Completed) {
+      await promoverGrupoAIglesia(iglesia_cod, payload.iglesia_nombre);
+    }
+
+    S.showOrganizacionModal=false;
+    showToast(S.organizacionModalMode==='add'?'Registro creado':'Registro actualizado','success');
+    render();
+  }
+  q('#btn-organizacion-save', el => el.addEventListener('click', guardarOrganizacion));
+
+  document.querySelectorAll('[data-org-edit]').forEach(el => el.addEventListener('click', () => {
+    const o = (S._organizaciones||[]).find(x=>x.id===el.dataset.orgEdit); if(!o) return;
+    S.showOrganizacionModal=true; S.organizacionModalMode='edit'; S.editOrganizacionId=o.id;
+    S.formOrganizacion = { ...o, checklist_materiales: o.checklist_materiales||{}, plataformas: o.plataformas||{} };
+    render();
+  }));
+
+  document.querySelectorAll('[data-org-avanzar]').forEach(el => el.addEventListener('click', async () => {
+    const o = (S._organizaciones||[]).find(x=>x.id===el.dataset.orgAvanzar); if(!o) return;
+    const actual = orgFaseActual(o);
+    const key = 'fase'+actual+'_completada';
+    const fechaKey = 'fase'+actual+'_fecha';
+    const hoy = new Date().toISOString().slice(0,10);
+    const patch = { [key]: true, [fechaKey]: hoy };
+    const nuevo = { ...o, ...patch };
+    const completado = [1,2,3,4,5].every(n => nuevo['fase'+n+'_completada']);
+    if (completado) { patch.completado = true; patch.completado_fecha = hoy; }
+    const { error } = await S.sbClient.from('organizacion_iglesias').update(patch).eq('id', o.id);
+    if (error) { showToast('Error: '+error.message,'error'); return; }
+    S._organizaciones = (S._organizaciones||[]).map(x => x.id===o.id ? {...x, ...patch} : x);
+    registrarHistorial('Avanzo Fase '+actual, 'OrganizacionIglesia', o.iglesia_cod, o.iglesia_nombre);
+    showToast('Fase '+actual+' marcada como completada','success');
+    if (actual === 4) { await promoverGrupoAIglesia(o.iglesia_cod, o.iglesia_nombre); }
+    render();
+  }));
+
+  document.querySelectorAll('[data-org-del]').forEach(el => el.addEventListener('click', () => {
+    S.showDeleteOrganizacionConfirm=true; S.deleteOrganizacionId=el.dataset.orgDel; S.deleteOrganizacionNombre=el.dataset.orgDelNombre; render();
+  }));
+  q('#btn-del-organizacion-cancel',  el => el.addEventListener('click', () => { S.showDeleteOrganizacionConfirm=false; S.deleteOrganizacionId=null; S.deleteOrganizacionNombre=null; render(); }));
+  q('#btn-del-organizacion-confirm', el => el.addEventListener('click', async () => {
+    const { error } = await S.sbClient.from('organizacion_iglesias').delete().eq('id', S.deleteOrganizacionId);
+    if (error) { showToast('Error: '+error.message,'error'); return; }
+    S._organizaciones = (S._organizaciones||[]).filter(o => o.id!==S.deleteOrganizacionId);
+    S.showDeleteOrganizacionConfirm=false; S.deleteOrganizacionId=null; S.deleteOrganizacionNombre=null;
+    showToast('Registro eliminado','success'); render();
+  }));
+
   /* FLUJO CONFIG */
   q('#btn-save-flujo-cfg', el => el.addEventListener('click', async () => {
     const fc = {
@@ -2077,6 +2445,17 @@ async function loadPermisos() {
     S._permisos = [];
   }
   S._permisosLoading = false;
+  render();
+}
+
+async function loadOrganizaciones() {
+  try {
+    const { data, error } = await S.sbClient.from('organizacion_iglesias').select('*').order('created_at', { ascending: false });
+    S._organizaciones = error ? [] : (data || []);
+  } catch(e) {
+    S._organizaciones = [];
+  }
+  S._organizacionesLoading = false;
   render();
 }
 
@@ -2378,7 +2757,7 @@ function buildHistorialView() {
     getHistorialFromDB().then(data => { S._historialData = data; S._historialLoading = false; render(); });
   }
   const accionColor = { 'Creo':'#15803d', 'Edito':'#854d0e', 'Elimino':'#b91c1c' };
-  const entColor = { 'Zona':'#1e3564', 'Distrito':'#2d5090', 'Iglesia':'#d4a820', 'Pastor':'#3a6ab0', 'Campo':'#6b7280' };
+  const entColor = { 'Zona':'#1e3564', 'Distrito':'#2d5090', 'Iglesia':'#d4a820', 'Pastor':'#3a6ab0', 'Campo':'#6b7280', 'OrganizacionIglesia':'#166534' };
   const rows = h.map(e => {
     const fecha = new Date(e.ts);
     const label = fecha.toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'}) + ' ' + fecha.toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'});

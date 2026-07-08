@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Sistema de Iglesias — Asoc. Dom. Sureste</title>
+<title>SIGA — Asoc. Dom. Sureste</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
@@ -281,7 +281,7 @@ function buildLoginScreen() {
       <div style="text-align:center;margin-bottom:32px;">
         <div style="width:60px;height:60px;background:#1e3564;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">${icons.home.replace('currentColor','white')}</div>
         <div style="font-size:20px;font-weight:700;color:#1a2340;">Asoc. Dom. Sureste</div>
-        <div style="font-size:13px;color:#9ca3af;margin-top:4px;">Sistema de Gestión de Iglesias</div>
+        <div style="font-size:13px;color:#9ca3af;margin-top:4px;">SIGA — Sistema de Gestión de Iglesias</div>
       </div>
       ${S.loginError ? `<div style="background:#fee2e2;color:#b91c1c;border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px;">${escHtml(S.loginError)}</div>` : ''}
       <div style="display:flex;flex-direction:column;gap:14px;">
@@ -466,7 +466,7 @@ function buildSidebar() {
         </div>
         <div style="overflow:hidden;">
           <div style="color:white;font-weight:700;font-size:13px;line-height:1.2;white-space:nowrap;">Asoc. Dom. Sureste</div>
-          <div style="color:rgba(255,255,255,.45);font-size:11px;white-space:nowrap;">Sistema de Gestión</div>
+          <div style="color:rgba(255,255,255,.45);font-size:11px;white-space:nowrap;">SIGA</div>
         </div>
       </div>
     </div>
@@ -1137,12 +1137,8 @@ const MATERIALES_ORG = [
   { id:'utensilios_santa_cena', cat:'El Oficial Requerirá', label:'Utensilios de Ceremonia de Santa Cena (sólo para verlo)' },
 ];
 const PLATAFORMAS_ORG = [
-  { id:'padron', label:'Padrón de Iglesias (App)', resp:'Secretaría' },
-  { id:'flota', label:'Flota Móvil ADOSE 2026', resp:'Tesorería' },
+  { id:'padron', label:'SIGA (Padrón de Iglesias)', resp:'Secretaría' },
   { id:'reportes', label:'Sistema de Reportes Estadísticos', resp:'Secretaría' },
-  { id:'manual', label:'Manual administrativo', resp:'Secretaría' },
-  { id:'comunicacion', label:'Comunicación interna', resp:'Comunicación' },
-  { id:'directorio', label:'Directorio de pastores', resp:'RRHH' },
 ];
 const PROGRAMA_CEREMONIA_ORG = [
   ['Bienvenida',3], ['Himno de Apertura',3], ['Lectura Bíblica',3], ['Oración Inicial',3],

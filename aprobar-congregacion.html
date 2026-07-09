@@ -58,7 +58,11 @@ async function cargar() {
       ${s.zona?`<tr><td>Zona</td><td>${s.zona}</td></tr>`:''}
       ${s.distrito?`<tr><td>Distrito</td><td>${s.distrito}</td></tr>`:''}
       ${s.direccion?`<tr><td>Dirección</td><td>${s.direccion}</td></tr>`:''}
-      ${s.descripcion?`<tr><td>Descripción</td><td>${s.descripcion}</td></tr>`:''}
+      ${s.iglesia_madre?`<tr><td>Iglesia/grupo madre</td><td>${s.iglesia_madre}</td></tr>`:''}
+      ${s.cantidad_miembros?`<tr><td>Miembros aprox.</td><td>${s.cantidad_miembros}</td></tr>`:''}
+      ${s.lugar_reunion?`<tr><td>Lugar de reunión</td><td>${s.lugar_reunion}</td></tr>`:''}
+      <tr><td>Líderes identificados</td><td>${s.lideres_identificados?'Sí':'No'}</td></tr>
+      ${s.notas?`<tr><td>Notas</td><td>${s.notas}</td></tr>`:''}
     </table>
     <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-top:12px">Notas (opcional)</label>
     <textarea id="notas" placeholder="Observaciones para el registro…"></textarea>

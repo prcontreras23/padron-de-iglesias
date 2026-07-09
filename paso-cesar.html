@@ -50,7 +50,8 @@ async function cargar() {
       <tr><td>Pastor</td><td>${s.nombre_pastor}</td></tr>
       ${s.zona?`<tr><td>Zona</td><td>${s.zona}</td></tr>`:''}
       ${s.distrito?`<tr><td>Distrito</td><td>${s.distrito}</td></tr>`:''}
-      ${s.descripcion?`<tr><td>Descripción</td><td>${s.descripcion}</td></tr>`:''}
+      ${s.cantidad_miembros?`<tr><td>Miembros aprox.</td><td>${s.cantidad_miembros}</td></tr>`:''}
+      ${s.notas?`<tr><td>Notas</td><td>${s.notas}</td></tr>`:''}
     </table>
     <div class="group">
       <label>Código asignado <span class="req">*</span></label>

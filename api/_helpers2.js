@@ -83,6 +83,10 @@ export function tablaSolicitud(s) {
     ${row('Zona', s.zona)}
     ${row('Distrito', s.distrito)}
     ${row('Dirección', s.direccion)}
-    ${row('Descripción', s.descripcion)}
+    ${row('Iglesia/grupo madre', s.iglesia_madre)}
+    ${row('Cantidad de miembros', s.cantidad_miembros)}
+    ${row('Lugar de reunión', s.lugar_reunion)}
+    ${row('Líderes identificados', s.lideres_identificados ? 'Sí' : '')}
+    ${row('Notas', s.notas)}
   </table>`;
 }

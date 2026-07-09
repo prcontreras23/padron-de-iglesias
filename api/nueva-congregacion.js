@@ -8,7 +8,8 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
 
   const { nombre_congregacion, nombre_pastor, telefono_pastor, email_pastor,
-          zona, cod_zona, distrito, cod_distrito, direccion, descripcion } = req.body || {};
+          zona, cod_zona, distrito, cod_distrito, direccion,
+          iglesia_madre, cantidad_miembros, lugar_reunion, lideres_identificados, notas } = req.body || {};
 
   if (!nombre_congregacion || !nombre_pastor) {
     return res.status(400).json({ error: 'Faltan campos requeridos: nombre_congregacion, nombre_pastor' });
@@ -17,7 +18,8 @@ export default async function handler(req, res) {
   // 1. Crear solicitud en Supabase
   const { ok, data } = await sbFetch('solicitudes_iglesias', 'POST', {
     nombre_congregacion, nombre_pastor, telefono_pastor, email_pastor,
-    zona, cod_zona, distrito, cod_distrito, direccion, descripcion,
+    zona, cod_zona, distrito, cod_distrito, direccion,
+    iglesia_madre, cantidad_miembros, lugar_reunion, lideres_identificados, notas,
   });
 
   if (!ok || !data?.[0]?.id) {

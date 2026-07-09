@@ -9,7 +9,7 @@ export default async function handler(req, res) {
 
   const { nombre_congregacion, nombre_pastor, telefono_pastor, email_pastor,
           zona, cod_zona, distrito, cod_distrito, direccion,
-          iglesia_madre, cantidad_miembros, lugar_reunion, lideres_identificados, notas } = req.body || {};
+          iglesia_madre, cod_iglesia_madre, cantidad_miembros, lugar_reunion, lideres_identificados, notas } = req.body || {};
 
   if (!nombre_congregacion || !nombre_pastor) {
     return res.status(400).json({ error: 'Faltan campos requeridos: nombre_congregacion, nombre_pastor' });
@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   const { ok, data } = await sbFetch('solicitudes_iglesias', 'POST', {
     nombre_congregacion, nombre_pastor, telefono_pastor, email_pastor,
     zona, cod_zona, distrito, cod_distrito, direccion,
-    iglesia_madre, cantidad_miembros, lugar_reunion, lideres_identificados, notas,
+    iglesia_madre, cod_iglesia_madre, cantidad_miembros, lugar_reunion, lideres_identificados, notas,
   });
 
   if (!ok || !data?.[0]?.id) {

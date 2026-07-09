@@ -42,7 +42,7 @@ textarea{resize:vertical;min-height:80px}
       </div>
       <div class="group"><label>Dirección / Sector</label><input type="text" name="direccion" placeholder="Barrio, municipio o dirección"></div>
       <div class="row">
-        <div class="group"><label>Iglesia o grupo madre</label><input type="text" name="iglesia_madre" placeholder="Si se desprende de otra congregación"></div>
+        <div class="group"><label>Iglesia o grupo madre</label><select name="iglesia_madre" id="sel-madre"><option value="">No aplica…</option></select></div>
         <div class="group"><label>Cantidad aproximada de miembros</label><input type="number" name="cantidad_miembros" min="0" placeholder="Ej: 30"></div>
       </div>
       <div class="group"><label>Lugar de reunión actual</label><input type="text" name="lugar_reunion" placeholder="Templo propio, casa, local alquilado…"></div>
@@ -59,11 +59,13 @@ textarea{resize:vertical;min-height:80px}
 <script>
 const SB_URL='https://gvbknabnrlliofbchczv.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2YmtuYWJucmxsaW9mYmNoY3p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMjg3MTcsImV4cCI6MjA5NjkwNDcxN30.v7IXmkGpidbpCPZsDh_wFh_pLsP13QhTueYtiLfkH9Q';
 async function sbGet(p){return(await fetch(`${SB_URL}/rest/v1/${p}`,{headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}})).json();}
-let zonas=[],distritos=[];
+let zonas=[],distritos=[],iglesias=[];
 async function init(){
-  [zonas,distritos]=await Promise.all([sbGet('zonas?select=cod,nombre&order=nombre'),sbGet('distritos?select=cod,nombre,codZona&order=nombre')]);
+  [zonas,distritos,iglesias]=await Promise.all([sbGet('zonas?select=cod,nombre&order=nombre'),sbGet('distritos?select=cod,nombre,codZona&order=nombre'),sbGet('iglesias?select=cod,nombre&order=nombre')]);
   const s=document.getElementById('sel-zona');
   zonas.forEach(z=>s.innerHTML+=`<option value="${z.cod}">${z.nombre}</option>`);
+  const m=document.getElementById('sel-madre');
+  iglesias.forEach(i=>m.innerHTML+=`<option value="${i.cod}">${i.nombre}</option>`);
 }
 document.getElementById('sel-zona').addEventListener('change',function(){
   const s=document.getElementById('sel-distrito');
@@ -78,6 +80,8 @@ document.getElementById('form').addEventListener('submit',async function(e){
   const zona=zonas.find(z=>z.cod===body.zona),distrito=distritos.find(d=>d.cod===body.distrito);
   body.cod_zona=body.zona;body.zona=zona?.nombre||body.zona;
   body.cod_distrito=body.distrito;body.distrito=distrito?.nombre||body.distrito;
+  const madre=iglesias.find(i=>i.cod===body.iglesia_madre);
+  body.cod_iglesia_madre=body.iglesia_madre||null;body.iglesia_madre=madre?.nombre||null;
   body.lideres_identificados=document.getElementById('chk-lideres').checked;
   body.cantidad_miembros=body.cantidad_miembros?Number(body.cantidad_miembros):null;
   try{

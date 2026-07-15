@@ -1711,7 +1711,7 @@ function buildImportModal() {
           <button id="btn-import-close" style="background:transparent;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#9ca3af;">${icons.x}</button>
         </div>
         ${!p && !res ? `
-        <p style="font-size:13px;color:#6b7280;margin-bottom:18px;">Sube un archivo Excel con hojas llamadas <strong>Zonas</strong>, <strong>Distritos</strong>, <strong>Iglesias</strong> y/o <strong>Pastores</strong>. Los registros existentes se actualizaran por codigo (ej. cambiar el pastor o el tipo de una iglesia ya creada).</p>
+        <p style="font-size:13px;color:#6b7280;margin-bottom:18px;">Sube un archivo Excel con <strong>una sola hoja</strong> (una fila por iglesia/grupo, con su zona/distrito/pastor) o, si prefieres, hojas separadas <strong>Zonas</strong>/<strong>Distritos</strong>/<strong>Iglesias</strong>/<strong>Pastores</strong> — ambos formatos se reconocen. Los registros existentes se actualizan por código (ej. cambiar el pastor o el tipo de una iglesia ya creada).</p>
         <div id="import-drop-zone" style="border:2px dashed #d4a820;border-radius:12px;padding:40px;text-align:center;cursor:pointer;background:#fffdf0;">
           <div style="font-size:32px;margin-bottom:10px;">📊</div>
           <div style="font-weight:600;color:#1a2340;margin-bottom:6px;">Arrastra tu archivo aqui</div>
@@ -1719,15 +1719,12 @@ function buildImportModal() {
           <input id="import-file-input" type="file" accept=".xlsx,.xls" style="display:none;" />
         </div>
         <div style="margin-top:14px;padding:14px;background:#f0f2f7;border-radius:10px;">
-          <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px;">Columnas esperadas por hoja:</div>
+          <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px;">Columnas de la hoja única (una fila por iglesia/grupo):</div>
           <div style="font-size:12px;color:#6b7280;line-height:1.8;">
-            <b>Zonas:</b> cod, nombre<br>
-            <b>Distritos:</b> cod, nombre, codZona (o zona)<br>
-            <b>Iglesias:</b> cod, nombre, pastor, tipo (Iglesia/Grupo), codZona, codDistrito (o zona, distrito)<br>
-            <b>Pastores:</b> cod, nombre, telefono, email, codZona, codDistrito (o zona, distrito)
+            Cod Zona, Zona, Cod Distrito, Distrito, Cod Iglesia, Iglesia, Tipo (Iglesia/Grupo), Pastor
           </div>
         </div>
-        <button onclick="downloadTemplate()" style="margin-top:12px;width:100%;padding:10px;border-radius:8px;border:1.5px solid #d4a820;background:white;color:#d4a820;font-size:13px;font-weight:600;cursor:pointer;">&#11015; Descargar plantilla con el catálogo actual (Zonas, Distritos, Iglesias, Pastores)</button>` : ''}
+        <button onclick="downloadTemplate()" style="margin-top:12px;width:100%;padding:10px;border-radius:8px;border:1.5px solid #d4a820;background:white;color:#d4a820;font-size:13px;font-weight:600;cursor:pointer;">&#11015; Descargar plantilla con el catálogo actual</button>` : ''}
         ${p && !res ? `
         <div style="display:flex;flex-direction:column;gap:12px;">
           ${p.zonas?.length    ? previewCard('Zonas',    p.zonas,    '#1e3564') : ''}
@@ -2975,16 +2972,20 @@ function parseExcel(file) {
               const distrito   = String(findCol(r,'Distrito','DISTRITO','distrito')||'').trim();
               const codIglesia = String(findCol(r,'COD_IGLESIA','cod_iglesia','codIglesia')||'').trim().toUpperCase();
               const iglesia    = String(findCol(r,'Iglesia','IGLESIA','iglesia','nombre')||'').trim();
+              const tipo       = normalizarTipoIglesia(findCol(r,'Tipo','TIPO','tipo'));
               const pastor     = String(findCol(r,'Pastor','PASTOR','pastor')||'').trim();
               if (codZona&&zona&&!zonasMap[codZona])    zonasMap[codZona]    = {cod:codZona,nombre:zona};
               if (codDist&&distrito&&!distritosMap[codDist]) distritosMap[codDist] = {cod:codDist,nombre:distrito,codZona,zona};
               if (pastor&&!pastoresMap[pastor]) {
-                // Buscar cod en RAW.pastores por nombre, o generar uno
+                // Buscar cod en RAW.pastores por nombre, o generar uno.
+                // No se incluye telefono/email: esta hoja plana no los trae,
+                // y de incluirlos en blanco el upsert borraria los que ya
+                // tenia guardados el pastor.
                 const existing = RAW.pastores.find(p=>p.nombre.toLowerCase()===pastor.toLowerCase());
                 const cod = existing ? existing.cod : ('P'+String(Object.keys(pastoresMap).length+RAW.pastores.length+1).padStart(3,'0'));
-                pastoresMap[pastor] = {cod,nombre:pastor,telefono:'',email:'',codZona,zona,codDistrito:codDist,distrito};
+                pastoresMap[pastor] = {cod,nombre:pastor,codZona,zona,codDistrito:codDist,distrito};
               }
-              if (codIglesia&&iglesia) iglesias.push({cod:codIglesia,nombre:iglesia,pastor,codZona,zona,codDistrito:codDist,distrito});
+              if (codIglesia&&iglesia) iglesias.push({cod:codIglesia,nombre:iglesia,pastor,tipo,codZona,zona,codDistrito:codDist,distrito});
             }
             preview.zonas     = Object.values(zonasMap);
             preview.distritos = Object.values(distritosMap);
@@ -3013,33 +3014,37 @@ function parseExcel(file) {
    pueda editar en Excel (cambiar pastor, tipo, agregar filas nuevas al
    final...) y volver a subirlo con "Importar desde Excel" -- el mismo
    mecanismo ya actualiza por codigo (upsert), no duplica. */
+/* Una sola hoja con todo (zona, distrito, iglesia, tipo, pastor por fila) --
+   es el mismo formato plano "Patron" que parseExcel() ya sabe leer como
+   fallback cuando no encuentra hojas separadas Zonas/Distritos/Iglesias/
+   Pastores. Los encabezados van sin tildes a proposito: findCol() compara
+   por igualdad exacta tras normalizar (solo letras/numeros), así que un
+   encabezado con tilde ("Cód. Zona") no calzaria con los candidatos ya
+   codificados ("codZona", "cod_zona", etc.). */
 function downloadTemplate() {
   const wb = XLSX.utils.book_new();
 
-  const zonasRows = [
-    ['cod', 'nombre'],
-    ...RAW.zonas.map(z => [z.cod, z.nombre]),
-  ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(zonasRows), 'Zonas');
+  const iglesiasOrdenadas = [...RAW.iglesias].sort((a, b) =>
+    (a.codZona || '').localeCompare(b.codZona || '') ||
+    (a.codDistrito || '').localeCompare(b.codDistrito || '') ||
+    a.nombre.localeCompare(b.nombre)
+  );
 
-  const distritosRows = [
-    ['cod', 'nombre', 'codZona', 'zona'],
-    ...RAW.distritos.map(d => [d.cod, d.nombre, d.codZona || '', d.zona || '']),
+  const filas = [
+    ['Cod Zona', 'Zona', 'Cod Distrito', 'Distrito', 'Cod Iglesia', 'Iglesia', 'Tipo', 'Pastor'],
+    ...iglesiasOrdenadas.map(i => [i.codZona || '', i.zona || '', i.codDistrito || '', i.distrito || '', i.cod, i.nombre, i.tipo === 'grupo' ? 'Grupo' : 'Iglesia', i.pastor || '']),
   ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(distritosRows), 'Distritos');
 
-  const iglesiasRows = [
-    ['cod', 'nombre', 'pastor', 'tipo', 'codZona', 'zona', 'codDistrito', 'distrito'],
-    ...RAW.iglesias.map(i => [i.cod, i.nombre, i.pastor || '', i.tipo === 'grupo' ? 'Grupo' : 'Iglesia', i.codZona || '', i.zona || '', i.codDistrito || '', i.distrito || '']),
-  ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(iglesiasRows), 'Iglesias');
+  // Pastores sin ninguna iglesia asignada (ej. personal departamental): se
+  // agregan al final solo con su zona/distrito, sin fila de iglesia, para
+  // no perderlos del todo.
+  const nombresAsignados = new Set(RAW.iglesias.map(i => (i.pastor || '').toLowerCase()).filter(Boolean));
+  const pastoresSinIglesia = RAW.pastores.filter(p => !nombresAsignados.has((p.nombre || '').toLowerCase()));
+  for (const p of pastoresSinIglesia) {
+    filas.push([p.codZona || '', p.zona || '', p.codDistrito || '', p.distrito || '', '', '', '', p.nombre]);
+  }
 
-  const pastoresRows = [
-    ['cod', 'nombre', 'telefono', 'email', 'codZona', 'zona', 'codDistrito', 'distrito'],
-    ...RAW.pastores.map(p => [p.cod, p.nombre, p.telefono || '', p.email || '', p.codZona || '', p.zona || '', p.codDistrito || '', p.distrito || '']),
-  ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pastoresRows), 'Pastores');
-
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(filas), 'Padrón');
   XLSX.writeFile(wb, 'Plantilla_Padron_Completo.xlsx');
 }
 

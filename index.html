@@ -117,6 +117,9 @@ let S = {
   gosInformeError: '', gosExportando: false,
   showGosMembresiaModal: false, gosMembresiaFilas: [], gosMembresiaResumen: null,
   gosMembresiaError: '', gosMembresiaProcesando: false, gosMembresiaConfirmando: false,
+  // Eliminacion masiva (Iglesias/Pastores)
+  showBulkDeleteConfirm: false, bulkDeleteTipo: null, bulkDeleteChecking: false, bulkDeleteConfirming: false,
+  bulkDeleteSeguros: [], bulkDeleteBloqueados: [], bulkDeleteError: '',
   showGosCerrarConfirm: false, gosCerrarTrimestreId: null,
   showGosReabrirConfirm: false, gosReabrirTrimestreId: null,
 };
@@ -464,6 +467,7 @@ function buildHTML() {
   ${S.showImportModal            ? buildImportModal()           : ''}
   ${S.showGosAjusteModal         ? buildGosAjusteModal()        : ''}
   ${S.showGosMembresiaModal      ? buildGosMembresiaModal()     : ''}
+  ${S.showBulkDeleteConfirm      ? buildBulkDeleteConfirmModal(): ''}
   ${S.showGosCerrarConfirm       ? buildGosCerrarConfirm()      : ''}
   ${S.showGosReabrirConfirm      ? buildGosReabrirConfirm()     : ''}
   ${S.toast                     ? buildToast()                 : ''}
@@ -823,6 +827,7 @@ function buildIglesias() {
       <span style="font-size:12px;opacity:.7;">Cambiar tipo a:</span>
       <button id="btn-bulk-ig-iglesia" style="background:#1e40af;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Iglesia</button>
       <button id="btn-bulk-ig-grupo" style="background:#92400e;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Grupo</button>
+      ${canDo('eliminar_iglesias') ? `<button id="btn-bulk-ig-eliminar" style="background:#7f1d1d;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">🗑 Eliminar</button>` : ''}
       <button id="btn-bulk-ig-clear" style="background:rgba(255,255,255,.15);color:white;border:none;border-radius:7px;padding:7px 12px;font-size:13px;cursor:pointer;">✕ Cancelar</button>
     </div>` : '';
 
@@ -893,6 +898,7 @@ function buildPastores() {
       <span style="font-size:12px;opacity:.7;">Cambiar estado a:</span>
       <button id="btn-bulk-pastor-ordenado" style="background:#166534;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Ordenado</button>
       <button id="btn-bulk-pastor-licenciado" style="background:#991b1b;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Licenciado</button>
+      ${canDo('eliminar_pastores') ? `<button id="btn-bulk-pastor-eliminar" style="background:#7f1d1d;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">🗑 Eliminar</button>` : ''}
       <button id="btn-bulk-pastor-clear" style="background:rgba(255,255,255,.15);color:white;border:none;border-radius:7px;padding:7px 12px;font-size:13px;cursor:pointer;">✕ Cancelar</button>
     </div>` : '';
 
@@ -1828,6 +1834,44 @@ function buildDeletePastorConfirm() {
   </div>`;
 }
 
+/* Eliminacion masiva (Iglesias/Pastores): antes de borrar, revisa si algun
+   codigo seleccionado tiene historial en GOS/Organizacion de Iglesias (para
+   iglesias -- pastores no tienen esa dependencia) y separa lo que SI se
+   puede borrar de lo que no, mostrando nombres concretos en vez de solo un
+   numero. */
+function buildBulkDeleteConfirmModal() {
+  const tipo = S.bulkDeleteTipo;
+  const nombreDe = cod => tipo === 'iglesias'
+    ? (RAW.iglesias.find(i => i.cod === cod)?.nombre || cod)
+    : (RAW.pastores.find(p => p.cod === cod)?.nombre || cod);
+  const etiqueta = tipo === 'iglesias' ? 'iglesias/grupos' : 'pastores';
+  return `<div id="bulk-delete-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:250;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:520px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:modalIn .2s ease;">
+      <div style="padding:24px;">
+        <h3 style="font-size:16px;font-weight:700;color:#1a2340;margin-bottom:6px;">Eliminar ${etiqueta} seleccionados</h3>
+        ${S.bulkDeleteChecking ? `<p style="font-size:13px;color:#6b7280;">Verificando dependencias...</p>` : `
+        <p style="font-size:13px;color:#b91c1c;margin-bottom:10px;">Esta acción no se puede deshacer.</p>
+        ${S.bulkDeleteSeguros.length ? `
+        <div style="font-size:12px;color:#374151;font-weight:600;margin-bottom:4px;">Se eliminarán (${S.bulkDeleteSeguros.length}):</div>
+        <div style="max-height:140px;overflow-y:auto;font-size:12px;color:#374151;background:#f8f9fc;border-radius:8px;padding:8px 12px;margin-bottom:12px;">
+          ${S.bulkDeleteSeguros.map(c => `<div>${escHtml(nombreDe(c))}</div>`).join('')}
+        </div>` : `<p style="font-size:13px;color:#9ca3af;margin-bottom:12px;">Ninguno de los seleccionados se puede eliminar.</p>`}
+        ${S.bulkDeleteBloqueados.length ? `
+        <div style="font-size:12px;color:#b45309;font-weight:600;margin-bottom:4px;">No se pueden eliminar (${S.bulkDeleteBloqueados.length}) — tienen historial en Informes GOS u Organización de Iglesias:</div>
+        <div style="max-height:100px;overflow-y:auto;font-size:12px;color:#b45309;background:#fffbeb;border-radius:8px;padding:8px 12px;margin-bottom:12px;">
+          ${S.bulkDeleteBloqueados.map(c => `<div>${escHtml(nombreDe(c))}</div>`).join('')}
+        </div>` : ''}
+        `}
+        ${S.bulkDeleteError ? `<p style="font-size:12px;color:#b91c1c;margin-bottom:10px;">${escHtml(S.bulkDeleteError)}</p>` : ''}
+      </div>
+      <div style="padding:16px 24px;border-top:1px solid #f0f2f7;display:flex;gap:10px;justify-content:flex-end;">
+        <button id="btn-bulk-delete-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
+        <button id="btn-bulk-delete-confirm" ${(S.bulkDeleteChecking || !S.bulkDeleteSeguros.length) ? 'disabled' : ''} style="padding:10px 20px;border-radius:8px;border:none;background:#dc2626;color:white;font-size:14px;cursor:pointer;font-weight:600;opacity:${(S.bulkDeleteChecking || !S.bulkDeleteSeguros.length) ? '.5' : '1'};">${S.bulkDeleteConfirming ? 'Eliminando...' : 'Eliminar ' + S.bulkDeleteSeguros.length}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 function buildToast() {
   const t = S.toast;
   return `<div style="position:fixed;bottom:24px;right:24px;z-index:400;background:#1a2340;color:white;padding:12px 20px;border-radius:10px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.2);display:flex;align-items:center;gap:10px;animation:toastIn .2s ease;"><div style="width:8px;height:8px;border-radius:50%;background:${t.type==='success'?'#22c55e':'#ef4444'};flex-shrink:0;"></div>${escHtml(t.msg)}</div>`;
@@ -2055,6 +2099,60 @@ function bindEvents() {
   }
   q('#btn-bulk-pastor-ordenado',   el => el.addEventListener('click', () => bulkUpdatePastores('ordenado')));
   q('#btn-bulk-pastor-licenciado', el => el.addEventListener('click', () => bulkUpdatePastores('licenciado')));
+
+  /* ELIMINACION MASIVA (Iglesias/Pastores) */
+  async function abrirConfirmBulkDelete(tipo) {
+    const cods = tipo === 'iglesias' ? [...S.selectedIglesias] : [...S.selectedPastores];
+    if (!cods.length) return;
+    S.bulkDeleteTipo = tipo; S.showBulkDeleteConfirm = true; S.bulkDeleteChecking = true;
+    S.bulkDeleteError = ''; S.bulkDeleteSeguros = []; S.bulkDeleteBloqueados = [];
+    render();
+    if (tipo === 'iglesias' && S.sbClient) {
+      // Pastores no tiene esta restriccion: solo se auto-desvincula (SET NULL) de pastor_principal_cod.
+      const tablasDependientes = ['gos_reporte_iglesia', 'iglesia_distrito_historial', 'organizacion_iglesias', 'gos_movimientos'];
+      const bloqueadosSet = new Set();
+      for (const tabla of tablasDependientes) {
+        const { data, error } = await S.sbClient.from(tabla).select('iglesia_cod').in('iglesia_cod', cods);
+        if (!error) (data || []).forEach(r => bloqueadosSet.add(r.iglesia_cod));
+      }
+      S.bulkDeleteBloqueados = cods.filter(c => bloqueadosSet.has(c));
+      S.bulkDeleteSeguros = cods.filter(c => !bloqueadosSet.has(c));
+    } else {
+      S.bulkDeleteSeguros = cods;
+    }
+    S.bulkDeleteChecking = false;
+    render();
+  }
+  q('#btn-bulk-ig-eliminar',     el => el.addEventListener('click', () => abrirConfirmBulkDelete('iglesias')));
+  q('#btn-bulk-pastor-eliminar', el => el.addEventListener('click', () => abrirConfirmBulkDelete('pastores')));
+  q('#btn-bulk-delete-cancel', el => el.addEventListener('click', () => { S.showBulkDeleteConfirm=false; render(); }));
+  q('#bulk-delete-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el && !S.bulkDeleteConfirming){S.showBulkDeleteConfirm=false;render();} }));
+  q('#btn-bulk-delete-confirm', el => el.addEventListener('click', async () => {
+    const tipo = S.bulkDeleteTipo;
+    const cods = S.bulkDeleteSeguros;
+    if (!cods.length) return;
+    S.bulkDeleteConfirming = true; S.bulkDeleteError = ''; render();
+    const tabla = tipo === 'iglesias' ? S.sbTable : 'pastores';
+    if (S.sbClient) {
+      const { error } = await S.sbClient.from(tabla).delete().in('cod', cods);
+      if (error) { S.bulkDeleteConfirming = false; S.bulkDeleteError = 'Error: ' + error.message; render(); return; }
+    }
+    if (tipo === 'iglesias') {
+      const nombres = cods.map(c => RAW.iglesias.find(i => i.cod === c)?.nombre || c);
+      RAW.iglesias = RAW.iglesias.filter(i => !cods.includes(i.cod));
+      S.selectedIglesias.clear();
+      registrarHistorial('Eliminación masiva', 'Iglesia', cods.join(','), nombres.join(', '));
+      recomputeCounts();
+    } else {
+      const nombres = cods.map(c => RAW.pastores.find(p => p.cod === c)?.nombre || c);
+      RAW.pastores = RAW.pastores.filter(p => !cods.includes(p.cod));
+      S.selectedPastores.clear();
+      registrarHistorial('Eliminación masiva', 'Pastor', cods.join(','), nombres.join(', '));
+    }
+    S.bulkDeleteConfirming = false; S.showBulkDeleteConfirm = false;
+    showToast(`${cods.length} eliminado${cods.length !== 1 ? 's' : ''}`, 'success');
+    render();
+  }));
 
   /* SOLICITUDES — eliminar */
   document.querySelectorAll('[data-del-sol]').forEach(el => el.addEventListener('click', () => {

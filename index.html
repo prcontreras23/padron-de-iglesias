@@ -115,6 +115,8 @@ let S = {
   showGosAjusteModal: false, gosAjusteIglesiaCod: null, gosAjusteError: '', gosAjusteGuardando: false,
   _gosReporte: null, _gosReporteLoading: false, _gosReporteTrimestreId: null,
   gosInformeError: '', gosExportando: false,
+  showGosMembresiaModal: false, gosMembresiaFilas: [], gosMembresiaResumen: null,
+  gosMembresiaError: '', gosMembresiaProcesando: false, gosMembresiaConfirmando: false,
   showGosCerrarConfirm: false, gosCerrarTrimestreId: null,
   showGosReabrirConfirm: false, gosReabrirTrimestreId: null,
 };
@@ -461,6 +463,7 @@ function buildHTML() {
   ${S.showSearch                  ? buildSearchModal()           : ''}
   ${S.showImportModal            ? buildImportModal()           : ''}
   ${S.showGosAjusteModal         ? buildGosAjusteModal()        : ''}
+  ${S.showGosMembresiaModal      ? buildGosMembresiaModal()     : ''}
   ${S.showGosCerrarConfirm       ? buildGosCerrarConfirm()      : ''}
   ${S.showGosReabrirConfirm      ? buildGosReabrirConfirm()     : ''}
   ${S.toast                     ? buildToast()                 : ''}
@@ -2697,6 +2700,55 @@ function bindEvents() {
     if (!res.ok) { S.gosAjusteError=res.error; render(); return; }
     S.showGosAjusteModal=false; S._gosReporteTrimestreId=null; render();
   }));
+
+  /* Informe: carga masiva de membresia inicial desde Excel */
+  q('#gos-btn-abrir-membresia-modal', el => el.addEventListener('click', () => {
+    S.showGosMembresiaModal=true; S.gosMembresiaFilas=[]; S.gosMembresiaResumen=null; S.gosMembresiaError=''; render();
+  }));
+  q('#gos-btn-membresia-close', el => el.addEventListener('click', () => { S.showGosMembresiaModal=false; render(); }));
+  q('#gos-membresia-modal-bg', el => el.addEventListener('click', e => { if(e.target===el){S.showGosMembresiaModal=false;render();} }));
+  q('#gos-btn-membresia-procesar', el => el.addEventListener('click', async () => {
+    const file = document.getElementById('gos-membresia-archivo')?.files?.[0];
+    if (!file) { S.gosMembresiaError='Selecciona un archivo .xlsx, .xls o .csv.'; render(); return; }
+    S.gosMembresiaProcesando=true; S.gosMembresiaError=''; render();
+    try {
+      const crudas = await gosParsearMembresiaInicial(file);
+      if (!crudas.length) { S.gosMembresiaError='El archivo no tiene filas.'; S.gosMembresiaProcesando=false; render(); return; }
+      const catalogo = gosCatalogoIglesias().filter(i=>i.asociacion_id===S.gosAsociacionId);
+      const porCod = new Map(catalogo.map(i=>[i.cod, i]));
+      const porNombre = new Map(catalogo.map(i=>[gosNormalizarTexto(i.nombre), i]));
+      const validas = [];
+      const excepcionesLista = [];
+      for (const f of crudas) {
+        if (f.valorRaw===null || f.valorRaw==='' || f.valorRaw===undefined) continue; // sin dato, se omite
+        const valor = Number(f.valorRaw);
+        const igl = (f.cod && porCod.get(f.cod)) || (f.nombre && porNombre.get(gosNormalizarTexto(f.nombre)));
+        if (!igl) { excepcionesLista.push(`${f.nombre || f.cod || '(sin nombre)'} — no se reconoce en el catálogo`); continue; }
+        if (!Number.isInteger(valor) || valor < 0) { excepcionesLista.push(`${igl.nombre} — valor inválido (${f.valorRaw})`); continue; }
+        validas.push({ cod: igl.cod, valor });
+      }
+      S.gosMembresiaFilas = validas;
+      S.gosMembresiaResumen = { validas: validas.length, excepciones: excepcionesLista.length, excepcionesLista };
+    } catch(err) {
+      S.gosMembresiaError = err.message || String(err);
+    }
+    S.gosMembresiaProcesando=false; render();
+  }));
+  q('#gos-btn-membresia-reintentar', el => el.addEventListener('click', () => {
+    S.gosMembresiaFilas=[]; S.gosMembresiaResumen=null; S.gosMembresiaError=''; render();
+  }));
+  q('#gos-btn-membresia-confirmar', el => el.addEventListener('click', async () => {
+    const t = S._gosTrimestres.find(x=>x.id===S.gosTrimestreSeleccionado);
+    if (!t || !S.gosMembresiaFilas.length) return;
+    const esSemilla = gosEsTrimestreSemilla(t, S._gosTrimestres);
+    S.gosMembresiaConfirmando=true; S.gosMembresiaError=''; render();
+    const res = await gosCargarMembresiaInicialMasiva(t, esSemilla, S.gosMembresiaFilas);
+    S.gosMembresiaConfirmando=false;
+    if (!res.ok) { S.gosMembresiaError=res.error; render(); return; }
+    S.showGosMembresiaModal=false; S._gosReporteTrimestreId=null;
+    showToast(`Membresía inicial cargada (${res.actualizadas} iglesias)`, 'success');
+    render();
+  }));
 }
 
 function q(sel, fn) { const el=document.querySelector(sel); if(el) fn(el); }
@@ -3286,6 +3338,103 @@ async function gosActualizarMembresiaInicial(trimestre, esSemilla, iglesiaCod, v
   return { ok:true };
 }
 
+/* Carga masiva de membresia inicial (trimestre semilla) desde Excel/CSV. */
+async function gosCargarMembresiaInicialMasiva(trimestre, esSemilla, filas) {
+  if (trimestre.estado !== 'abierto') return { ok:false, error:'Este trimestre esta cerrado, no se puede editar la membresia inicial.' };
+  if (!esSemilla) return { ok:false, error:'La membresia inicial solo es editable en el primer trimestre de la asociacion.' };
+  if (!filas.length) return { ok:false, error:'No hay filas validas para cargar.' };
+  const filasUpsert = filas.map(f => ({ trimestre_id: trimestre.id, iglesia_cod: f.cod, membresia_inicial: f.valor }));
+  const LOTE = 500;
+  for (let i=0;i<filasUpsert.length;i+=LOTE) {
+    const lote = filasUpsert.slice(i,i+LOTE);
+    const { error } = await S.sbClient.from('gos_reporte_iglesia').upsert(lote, { onConflict: 'trimestre_id,iglesia_cod' });
+    if (error) return { ok:false, error: 'No se pudo guardar: '+error.message };
+  }
+  return { ok:true, actualizadas: filasUpsert.length };
+}
+
+function gosDescargarPlantillaMembresiaInicial() {
+  const catalogo = gosCatalogoIglesias().filter(i=>i.asociacion_id===S.gosAsociacionId)
+    .sort((a,b)=>(a.codZona||'').localeCompare(b.codZona||'')||(a.codDistrito||'').localeCompare(b.codDistrito||'')||a.nombre.localeCompare(b.nombre));
+  const wb = XLSX.utils.book_new();
+  const rows = [
+    ['Cód. Iglesia (no modificar)', 'Zona', 'Distrito', 'Iglesia/Grupo', 'Membresía inicial'],
+    ...catalogo.map(i => [i.cod, i.zona || '', i.distrito || '', i.nombre, '']),
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Membresía Inicial');
+  XLSX.writeFile(wb, 'Plantilla_Membresia_Inicial.xlsx');
+}
+
+/* Parseo tolerante: acepta la plantilla propia (con Cód. Iglesia) o un
+   archivo del usuario que solo traiga el nombre de la iglesia. */
+function gosParsearMembresiaInicial(file) {
+  return new Promise((resolve, reject) => {
+    const esCsv = /\.csv$/i.test(file.name);
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, esCsv ? { type:'string', raw:true } : { type:'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rowsAoA = XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:null });
+        if (!rowsAoA.length) { resolve([]); return; }
+        const headers = rowsAoA[0].map(h => h ? gosNormalizarTexto(String(h)) : '');
+        const idxCod = headers.findIndex(h => h.includes('cod'));
+        // Excluye la columna de codigo: su encabezado tambien contiene
+        // "iglesia" ("Cod. Iglesia") y haria falso match aqui.
+        const idxNombre = headers.findIndex((h, idx) => idx !== idxCod && (h.includes('iglesia') || h.includes('grupo')));
+        const idxValor = headers.findIndex(h => h.includes('membresia') || h.includes('inicial'));
+        if (idxCod === -1 && idxNombre === -1) throw new Error('No se encontró una columna de código o nombre de iglesia.');
+        if (idxValor === -1) throw new Error('No se encontró la columna de "Membresía inicial".');
+        const filas = [];
+        for (let i = 1; i < rowsAoA.length; i++) {
+          const fila = rowsAoA[i];
+          const cod = idxCod !== -1 ? fila[idxCod] : null;
+          const nombre = idxNombre !== -1 ? fila[idxNombre] : null;
+          if (!cod && !nombre) continue;
+          filas.push({ cod: cod ? String(cod).trim() : null, nombre: nombre ? String(nombre).trim() : null, valorRaw: fila[idxValor] });
+        }
+        resolve(filas);
+      } catch (err) { reject(err); }
+    };
+    reader.onerror = reject;
+    if (esCsv) reader.readAsText(file); else reader.readAsArrayBuffer(file);
+  });
+}
+
+function buildGosMembresiaModal() {
+  const resumen = S.gosMembresiaResumen;
+  return `<div id="gos-membresia-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:640px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:modalIn .2s ease;">
+      <div style="padding:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <h2 style="font-size:16px;font-weight:700;color:#1a2340;">Cargar membresía inicial desde Excel</h2>
+          <button id="gos-btn-membresia-close" style="background:transparent;border:none;cursor:pointer;padding:6px;color:#9ca3af;">${icons.x}</button>
+        </div>
+        <p style="font-size:12px;color:#9ca3af;margin-bottom:16px;">Descarga la plantilla con el catálogo de iglesias/grupos, llena la columna "Membresía inicial" y súbela de vuelta. Las filas vacías se omiten (no borran un valor ya guardado).</p>
+        <button onclick="gosDescargarPlantillaMembresiaInicial()" style="margin-bottom:14px;padding:8px 14px;border-radius:8px;border:1.5px solid #d4a820;background:white;color:#d4a820;font-size:12px;font-weight:600;cursor:pointer;">⬇ Descargar plantilla</button>
+        ${!resumen ? `
+        <div>
+          <input id="gos-membresia-archivo" type="file" accept=".xlsx,.xls,.csv" style="font-size:13px;" />
+          <button id="gos-btn-membresia-procesar" style="margin-left:10px;padding:8px 16px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:13px;font-weight:600;cursor:pointer;">${S.gosMembresiaProcesando?'Procesando...':'Procesar archivo'}</button>
+        </div>` : `
+        <div style="font-size:12px;color:#6b7280;margin-bottom:8px;">
+          <span style="color:#15803d;">Válidas: ${resumen.validas}</span> ·
+          <span style="color:${resumen.excepciones?'#b91c1c':'#9ca3af'};">Sin reconocer: ${resumen.excepciones}</span>
+        </div>
+        ${resumen.excepcionesLista.length ? `<div style="max-height:160px;overflow-y:auto;font-size:12px;color:#b91c1c;background:#fef2f2;border-radius:8px;padding:8px 12px;margin-bottom:10px;">
+          ${resumen.excepcionesLista.map(e=>`<div>${escHtml(e)}</div>`).join('')}
+        </div>` : ''}
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button id="gos-btn-membresia-confirmar" ${resumen.validas===0?'disabled':''} style="padding:9px 18px;border-radius:8px;border:none;background:#15803d;color:white;font-size:13px;font-weight:600;cursor:pointer;opacity:${resumen.validas===0?'.5':'1'};">${S.gosMembresiaConfirmando?'Guardando...':'Confirmar ('+resumen.validas+' iglesias)'}</button>
+          <button id="gos-btn-membresia-reintentar" style="padding:9px 18px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:13px;font-weight:500;cursor:pointer;">← Subir otro archivo</button>
+        </div>
+        `}
+        ${S.gosMembresiaError ? `<p style="margin-top:10px;font-size:12px;color:#b91c1c;">${escHtml(S.gosMembresiaError)}</p>` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+
 /* ---- Carga de datos: builds ---- */
 async function gosCargarAsociaciones() {
   const { data, error } = await S.sbClient.from('asociaciones').select('id, nombre').order('nombre');
@@ -3549,7 +3698,10 @@ function buildGosInformeDetalle(t) {
         ${!abierto && S.currentProfile?.permisos?.rol==='superadmin' ? `<button id="gos-btn-reabrir-trimestre" style="padding:8px 16px;border-radius:8px;border:1.5px solid #f59e0b;background:#fffbeb;color:#92650a;font-size:13px;font-weight:600;cursor:pointer;">Reabrir trimestre</button>` : ''}
       </div>
     </div>
-    ${esSemilla ? `<div style="font-size:12px;color:#6b7280;background:#eef2ff;border-radius:8px;padding:8px 12px;">Trimestre semilla: la columna D (membresía inicial) es editable por iglesia/grupo.</div>` : ''}
+    ${esSemilla ? `<div style="font-size:12px;color:#6b7280;background:#eef2ff;border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <span>Trimestre semilla: la columna D (membresía inicial) es editable por iglesia/grupo, o puedes cargarla en bloque desde Excel.</span>
+      ${gestionar ? `<button id="gos-btn-abrir-membresia-modal" style="padding:6px 12px;border-radius:6px;border:1.5px solid #1e3564;background:white;color:#1e3564;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Cargar desde Excel</button>` : ''}
+    </div>` : ''}
     ${S.gosInformeError ? `<p style="font-size:12px;color:#b91c1c;">${escHtml(S.gosInformeError)}</p>` : ''}
     <div style="overflow-x:auto;background:white;border-radius:14px;border:1px solid #e8eaf2;">
       <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:1100px;">

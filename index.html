@@ -3145,10 +3145,13 @@ function gosParsearArchivo(file) {
 function gosDescargarPlantilla() {
   const wb = XLSX.utils.book_new();
 
+  // Distrito y Zona son OPCIONALES: si se dejan vacías, el sistema las
+  // completa automáticamente con los datos de la iglesia ya registrados
+  // en el catálogo (no hace falta que Francis las sepa por movimiento).
   const movimientos = [
-    ['Nombre de la Iglesia', 'Fecha de Movimiento', 'Nombre del tipo de movimiento', 'Fecha de la ceremonia', 'Distrito', 'Zona'],
-    ['Bethel', '15/01/2026', 'Bautismo', '15/01/2026', 'Bethesda', 'ZONA I'],
-    ['La Fe', '20/01/2026', 'Transferencia Salida', '', 'La Fe', 'ZONA I'],
+    ['Nombre de la Iglesia', 'Fecha de Movimiento', 'Nombre del tipo de movimiento', 'Fecha de la ceremonia', 'Distrito (opcional)', 'Zona (opcional)'],
+    ['Bethel', '15/01/2026', 'Bautismo', '15/01/2026', '', ''],
+    ['La Fe', '20/01/2026', 'Transferencia Salida', '', '', ''],
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(movimientos), 'Movimientos');
 
@@ -3403,7 +3406,7 @@ function buildGosCarga() {
   }
 
   return `<div style="display:flex;flex-direction:column;gap:16px;max-width:900px;">
-    <p style="font-size:13px;color:#6b7280;">Sube el archivo de movimientos (formato Report Data: Nombre de la Iglesia, Fecha de Movimiento, Nombre del tipo de movimiento, Fecha de la ceremonia, Distrito, Zona) para el trimestre destino.</p>
+    <p style="font-size:13px;color:#6b7280;">Sube el archivo de movimientos para el trimestre destino. Columnas requeridas: <strong>Nombre de la Iglesia</strong> y <strong>Nombre del tipo de movimiento</strong>. Columnas opcionales: Fecha de Movimiento, Fecha de la ceremonia, Distrito, Zona — si no las incluyes, el sistema completa Distrito/Zona automáticamente con los datos de la iglesia ya registrados en el catálogo.</p>
     ${contenidoPaso}
   </div>`;
 }

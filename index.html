@@ -3506,8 +3506,8 @@ function gosDescargarPlantillaMembresiaInicial() {
     .sort((a,b)=>(a.codZona||'').localeCompare(b.codZona||'')||(a.codDistrito||'').localeCompare(b.codDistrito||'')||a.nombre.localeCompare(b.nombre));
   const wb = XLSX.utils.book_new();
   const rows = [
-    ['Cód. Iglesia (no modificar)', 'Zona', 'Distrito', 'Iglesia/Grupo', 'Membresía inicial'],
-    ...catalogo.map(i => [i.cod, i.zona || '', i.distrito || '', i.nombre, '']),
+    ['Cód. Iglesia (no modificar)', 'Zona', 'Distrito', 'Iglesia/Grupo', 'Tipo', 'Membresía inicial'],
+    ...catalogo.map(i => [i.cod, i.zona || '', i.distrito || '', i.nombre, i.tipo === 'grupo' ? 'Grupo' : 'Iglesia', '']),
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Membresía Inicial');
   XLSX.writeFile(wb, 'Plantilla_Membresia_Inicial.xlsx');

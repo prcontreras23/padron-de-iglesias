@@ -1711,7 +1711,7 @@ function buildImportModal() {
           <button id="btn-import-close" style="background:transparent;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#9ca3af;">${icons.x}</button>
         </div>
         ${!p && !res ? `
-        <p style="font-size:13px;color:#6b7280;margin-bottom:18px;">Sube un archivo Excel con hojas llamadas <strong>Zonas</strong>, <strong>Distritos</strong>, <strong>Iglesias</strong> y/o <strong>Pastores</strong>. Los registros existentes se actualizaran por codigo.</p>
+        <p style="font-size:13px;color:#6b7280;margin-bottom:18px;">Sube un archivo Excel con hojas llamadas <strong>Zonas</strong>, <strong>Distritos</strong>, <strong>Iglesias</strong> y/o <strong>Pastores</strong>. Los registros existentes se actualizaran por codigo (ej. cambiar el pastor o el tipo de una iglesia ya creada).</p>
         <div id="import-drop-zone" style="border:2px dashed #d4a820;border-radius:12px;padding:40px;text-align:center;cursor:pointer;background:#fffdf0;">
           <div style="font-size:32px;margin-bottom:10px;">📊</div>
           <div style="font-weight:600;color:#1a2340;margin-bottom:6px;">Arrastra tu archivo aqui</div>
@@ -1723,11 +1723,11 @@ function buildImportModal() {
           <div style="font-size:12px;color:#6b7280;line-height:1.8;">
             <b>Zonas:</b> cod, nombre<br>
             <b>Distritos:</b> cod, nombre, codZona (o zona)<br>
-            <b>Iglesias:</b> cod, nombre, pastor, codZona, codDistrito (o zona, distrito)<br>
+            <b>Iglesias:</b> cod, nombre, pastor, tipo (Iglesia/Grupo), codZona, codDistrito (o zona, distrito)<br>
             <b>Pastores:</b> cod, nombre, telefono, email, codZona, codDistrito (o zona, distrito)
           </div>
         </div>
-        <button onclick="downloadTemplate()" style="margin-top:12px;width:100%;padding:10px;border-radius:8px;border:1.5px solid #d4a820;background:white;color:#d4a820;font-size:13px;font-weight:600;cursor:pointer;">&#11015; Descargar plantilla Excel</button>` : ''}
+        <button onclick="downloadTemplate()" style="margin-top:12px;width:100%;padding:10px;border-radius:8px;border:1.5px solid #d4a820;background:white;color:#d4a820;font-size:13px;font-weight:600;cursor:pointer;">&#11015; Descargar plantilla con el catálogo actual (Zonas, Distritos, Iglesias, Pastores)</button>` : ''}
         ${p && !res ? `
         <div style="display:flex;flex-direction:column;gap:12px;">
           ${p.zonas?.length    ? previewCard('Zonas',    p.zonas,    '#1e3564') : ''}
@@ -2921,6 +2921,16 @@ function imprimirPermiso(id) {
    EXCEL IMPORT
    ===================================================================== */
 function normalizeKey(k) { return String(k).toLowerCase().replace(/[^a-z0-9]/g,''); }
+/* Devuelve undefined si la celda viene vacia o no reconocida -- asi el
+   upsert no toca el tipo ya guardado de una iglesia existente al
+   actualizar otros campos desde Excel. */
+function normalizarTipoIglesia(valor) {
+  const v = normalizeKey(valor);
+  if (!v) return undefined;
+  if (v.includes('grupo')) return 'grupo';
+  if (v.includes('iglesia')) return 'iglesia';
+  return undefined;
+}
 function findCol(row, ...candidates) {
   const keys = Object.keys(row); for (const c of candidates) { const n=normalizeKey(c); const k=keys.find(k=>normalizeKey(k)===n); if(k!==undefined)return row[k]; } return '';
 }
@@ -2943,7 +2953,7 @@ function parseExcel(file) {
 
         if (zonasSheet)     preview.zonas    = zonasSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre','name')||'').trim() })).filter(r=>r.cod&&r.nombre);
         if (distritosSheet) preview.distritos = distritosSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre')||'').trim(), codZona: String(findCol(r,'codZona','cod_zona','codzona')||'').trim().toUpperCase(), zona: String(findCol(r,'zona')||'').trim() })).filter(r=>r.cod&&r.nombre);
-        if (iglesiasSheet)  preview.iglesias  = iglesiasSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre')||'').trim(), pastor: String(findCol(r,'pastor')||'').trim(), codZona: String(findCol(r,'codZona','cod_zona','codzona')||'').trim().toUpperCase(), zona: String(findCol(r,'zona')||'').trim(), codDistrito: String(findCol(r,'codDistrito','cod_distrito','coddistrito')||'').trim().toUpperCase(), distrito: String(findCol(r,'distrito')||'').trim() })).filter(r=>r.cod&&r.nombre);
+        if (iglesiasSheet)  preview.iglesias  = iglesiasSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre')||'').trim(), pastor: String(findCol(r,'pastor')||'').trim(), tipo: normalizarTipoIglesia(findCol(r,'tipo')), codZona: String(findCol(r,'codZona','cod_zona','codzona')||'').trim().toUpperCase(), zona: String(findCol(r,'zona')||'').trim(), codDistrito: String(findCol(r,'codDistrito','cod_distrito','coddistrito')||'').trim().toUpperCase(), distrito: String(findCol(r,'distrito')||'').trim() })).filter(r=>r.cod&&r.nombre);
         if (pastoresSheet)  preview.pastores  = pastoresSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre')||'').trim(), telefono: String(findCol(r,'telefono','tel','phone')||'').trim(), email: String(findCol(r,'email','correo')||'').trim(), codZona: String(findCol(r,'codZona','cod_zona','codzona')||'').trim().toUpperCase(), zona: String(findCol(r,'zona')||'').trim(), codDistrito: String(findCol(r,'codDistrito','cod_distrito','coddistrito')||'').trim().toUpperCase(), distrito: String(findCol(r,'distrito')||'').trim() })).filter(r=>r.cod&&r.nombre);
 
         // Si no habia hojas estandar, buscar formato plano tipo PADRON (una sola hoja con todo)
@@ -2999,15 +3009,38 @@ function parseExcel(file) {
   });
 }
 
+/* Exporta el catalogo REAL completo (no un ejemplo en blanco) para que se
+   pueda editar en Excel (cambiar pastor, tipo, agregar filas nuevas al
+   final...) y volver a subirlo con "Importar desde Excel" -- el mismo
+   mecanismo ya actualiza por codigo (upsert), no duplica. */
 function downloadTemplate() {
   const wb = XLSX.utils.book_new();
-  const data = [
-    ['cod','nombre','pastor','codZona','zona','codDistrito','distrito','carpeta_drive'],
-    ['TIGLES01','Iglesia Ejemplo','Apellido, Nombre','Z01','ZONA I','DT001','Distrito Ejemplo',''],
-    ['TIGLES02','Segunda Iglesia','Otro Pastor','Z01','ZONA I','DT001','Distrito Ejemplo',''],
+
+  const zonasRows = [
+    ['cod', 'nombre'],
+    ...RAW.zonas.map(z => [z.cod, z.nombre]),
   ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), 'Iglesias');
-  XLSX.writeFile(wb, 'Plantilla_Importacion.xlsx');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(zonasRows), 'Zonas');
+
+  const distritosRows = [
+    ['cod', 'nombre', 'codZona', 'zona'],
+    ...RAW.distritos.map(d => [d.cod, d.nombre, d.codZona || '', d.zona || '']),
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(distritosRows), 'Distritos');
+
+  const iglesiasRows = [
+    ['cod', 'nombre', 'pastor', 'tipo', 'codZona', 'zona', 'codDistrito', 'distrito'],
+    ...RAW.iglesias.map(i => [i.cod, i.nombre, i.pastor || '', i.tipo === 'grupo' ? 'Grupo' : 'Iglesia', i.codZona || '', i.zona || '', i.codDistrito || '', i.distrito || '']),
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(iglesiasRows), 'Iglesias');
+
+  const pastoresRows = [
+    ['cod', 'nombre', 'telefono', 'email', 'codZona', 'zona', 'codDistrito', 'distrito'],
+    ...RAW.pastores.map(p => [p.cod, p.nombre, p.telefono || '', p.email || '', p.codZona || '', p.zona || '', p.codDistrito || '', p.distrito || '']),
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pastoresRows), 'Pastores');
+
+  XLSX.writeFile(wb, 'Plantilla_Padron_Completo.xlsx');
 }
 
 async function executeImport(preview, mode='all') {
@@ -3036,7 +3069,13 @@ async function executeImport(preview, mode='all') {
       if (rows_i_all.length) { const rows = rows_i_all.map(ig => { if(!ig.codZona&&ig.zona){const z=RAW.zonas.find(z=>z.nombre.toLowerCase()===ig.zona.toLowerCase());if(z)ig.codZona=z.cod;} if(!ig.codDistrito&&ig.distrito){const d=RAW.distritos.find(d=>d.nombre.toLowerCase()===ig.distrito.toLowerCase());if(d)ig.codDistrito=d.cod;} return ig; });
       const chunks = []; for(let i=0;i<rows.length;i+=200)chunks.push(rows.slice(i,i+200));
       for (const chunk of chunks) { const{error}=await sb.from(S.sbTable).upsert(chunk,{onConflict:'cod'}); if(error)throw error; }
-      for (const ig of rows) { const i=RAW.iglesias.findIndex(x=>x.cod===ig.cod); if(i>=0)RAW.iglesias[i]={...RAW.iglesias[i],...ig}; else RAW.iglesias.push(ig); }
+      for (const ig of rows) {
+        // No sobrescribir localmente con undefined (ej. tipo no incluido en
+        // el archivo) -- Supabase ya lo respeta al hacer upsert (undefined
+        // se omite del JSON), pero el spread de JS si pisaria el valor.
+        const igLimpio = Object.fromEntries(Object.entries(ig).filter(([, v]) => v !== undefined));
+        const i=RAW.iglesias.findIndex(x=>x.cod===ig.cod); if(i>=0)RAW.iglesias[i]={...RAW.iglesias[i],...igLimpio}; else RAW.iglesias.push(igLimpio);
+      }
       total += rows.length;
       } }
     if (preview.pastores?.length) {

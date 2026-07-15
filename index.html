@@ -3139,6 +3139,38 @@ function gosParsearArchivo(file) {
   });
 }
 
+/* Plantilla descargable: columnas esperadas + catalogo real de iglesias
+   (para copiar nombres exactos y evitar typos) + tipos de movimiento
+   validos, todo scopeado a la asociacion seleccionada en el wizard. */
+function gosDescargarPlantilla() {
+  const wb = XLSX.utils.book_new();
+
+  const movimientos = [
+    ['Nombre de la Iglesia', 'Fecha de Movimiento', 'Nombre del tipo de movimiento', 'Fecha de la ceremonia', 'Distrito', 'Zona'],
+    ['Bethel', '15/01/2026', 'Bautismo', '15/01/2026', 'Bethesda', 'ZONA I'],
+    ['La Fe', '20/01/2026', 'Transferencia Salida', '', 'La Fe', 'ZONA I'],
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(movimientos), 'Movimientos');
+
+  const catalogo = gosCatalogoIglesias().filter(i=>i.asociacion_id===S.gosAsociacionId);
+  const catalogoRows = [
+    ['Nombre exacto (copiar tal cual)', 'Zona', 'Distrito', 'Tipo'],
+    ...catalogo
+      .sort((a,b)=>a.nombre.localeCompare(b.nombre))
+      .map(i => [i.nombre, i.zona||'', i.distrito||'', i.tipo==='grupo'?'Grupo':'Iglesia']),
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(catalogoRows), 'Catálogo Iglesias');
+
+  const tipos = [
+    ['Valor exacto a usar en "Nombre del tipo de movimiento"'],
+    ['Bautismo'], ['Profesión de Fe'], ['Transferencia Entrada'], ['Transferencia Salida'],
+    ['Remoción'], ['Fallecimiento'], ['Desaparecido'], ['Rebautismo'],
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(tipos), 'Tipos válidos');
+
+  XLSX.writeFile(wb, 'Plantilla_Carga_GOS.xlsx');
+}
+
 /* ---- Recalculo de gos_reporte_iglesia (desde cero, no incremental) ---- */
 const GOS_TIPOS_CON_COLUMNA = ['bautismo','profesion_fe','transferencia_entrada','transferencia_salida','apostasia','muerte','paradero_desconocido','ajuste'];
 const GOS_COLUMNA_POR_TIPO = {
@@ -3300,7 +3332,9 @@ function buildGosCarga() {
     contenidoPaso = `
     <div style="background:white;border-radius:14px;border:1px solid #e8eaf2;padding:20px;">
       <h3 style="font-size:14px;font-weight:700;color:#1a2340;margin-bottom:4px;">2. Subir archivo de movimientos</h3>
-      <p style="font-size:12px;color:#9ca3af;margin-bottom:14px;">Trimestre destino: T${t?.numero_trimestre||''} ${t?.anio||''}. Todas las filas se asignarán a este trimestre.</p>
+      <p style="font-size:12px;color:#9ca3af;margin-bottom:10px;">Trimestre destino: T${t?.numero_trimestre||''} ${t?.anio||''}. Todas las filas se asignarán a este trimestre.</p>
+      <button onclick="gosDescargarPlantilla()" style="margin-bottom:14px;padding:8px 14px;border-radius:8px;border:1.5px solid #d4a820;background:white;color:#d4a820;font-size:12px;font-weight:600;cursor:pointer;">⬇ Descargar plantilla (con catálogo de iglesias)</button>
+      <p style="font-size:11px;color:#9ca3af;margin-bottom:14px;margin-top:-6px;">La plantilla trae el catálogo real de iglesias/grupos de tu asociación — copia los nombres de ahí tal cual para evitar errores de coincidencia.</p>
       ${gestionar ? `
       <input id="gos-archivo-input" type="file" accept=".xlsx,.xls,.csv" style="font-size:13px;" />
       <button id="gos-btn-procesar" style="margin-left:10px;padding:8px 16px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:13px;font-weight:600;cursor:pointer;">${S.gosCargando?'Procesando...':'Procesar archivo'}</button>
@@ -3311,36 +3345,47 @@ function buildGosCarga() {
     const filas = S.gosCargaFilas;
     const activas = filas.filter(f=>!f.descartada);
     const excepciones = activas.filter(f=>!f.iglesiaCod||!f.tipoMovimiento);
-    const limpias = activas.length - excepciones.length;
+    const aproximadas = activas.filter(f=>f.iglesiaCod && f.tipoMovimiento && f.confianzaIglesia==='similar');
+    const limpias = activas.length - excepciones.length - aproximadas.length;
+    const filaFixRow = f => `
+      <tr style="border-bottom:1px solid #f0f2f7;">
+        <td style="padding:8px 10px;">${escHtml(f.iglesiaNombreOriginal)}</td>
+        <td style="padding:8px 10px;">
+          <select data-gos-fix-iglesia="${f.id}" style="width:100%;padding:5px;border:1px solid #e8eaf2;border-radius:6px;font-size:12px;">
+            <option value="">— sin resolver —</option>
+            ${gosCatalogoIglesias().map(i=>`<option value="${escHtml(i.cod)}" ${f.iglesiaCod===i.cod?'selected':''}>${escHtml(i.nombre)}</option>`).join('')}
+          </select>
+        </td>
+        <td style="padding:8px 10px;color:#9ca3af;">${escHtml(f.tipoMovimientoOriginal)}</td>
+        <td style="padding:8px 10px;">
+          <select data-gos-fix-tipo="${f.id}" style="width:100%;padding:5px;border:1px solid #e8eaf2;border-radius:6px;font-size:12px;">
+            <option value="">— sin resolver —</option>
+            ${GOS_TIPOS_MOVIMIENTO.map(tm=>`<option value="${tm.value}" ${f.tipoMovimiento===tm.value?'selected':''}>${tm.label}</option>`).join('')}
+          </select>
+        </td>
+        <td style="padding:8px 10px;text-align:center;"><input type="checkbox" data-gos-descartar="${f.id}" ${f.descartada?'checked':''} /></td>
+      </tr>`;
     contenidoPaso = `
     <div style="background:white;border-radius:14px;border:1px solid #e8eaf2;padding:20px;">
       <h3 style="font-size:14px;font-weight:700;color:#1a2340;margin-bottom:8px;">3. Revisión antes de confirmar</h3>
       <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#6b7280;margin-bottom:12px;">
         <span>Total filas: ${S.gosCargaResumen?.totalFilas||0}</span>
         <span style="color:#15803d;">Limpias: ${limpias}</span>
-        <span style="color:${excepciones.length?'#b45309':'#9ca3af'};">Excepciones: ${excepciones.length}</span>
+        <span style="color:${aproximadas.length?'#b45309':'#9ca3af'};">Coincidencias aproximadas: ${aproximadas.length}</span>
+        <span style="color:${excepciones.length?'#b91c1c':'#9ca3af'};">Excepciones: ${excepciones.length}</span>
       </div>
-      ${excepciones.length ? `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">
-        <thead><tr style="background:#f8f9fc;">${thCell('Iglesia (archivo)')}${thCell('Iglesia resuelta')}${thCell('Tipo (archivo)')}${thCell('Tipo resuelto')}${thCell('Descartar')}</tr></thead>
-        <tbody>${excepciones.map(f=>`
-          <tr style="border-bottom:1px solid #f0f2f7;">
-            <td style="padding:8px 10px;">${escHtml(f.iglesiaNombreOriginal)}</td>
-            <td style="padding:8px 10px;">
-              <select data-gos-fix-iglesia="${f.id}" style="width:100%;padding:5px;border:1px solid #e8eaf2;border-radius:6px;font-size:12px;">
-                <option value="">— sin resolver —</option>
-                ${gosCatalogoIglesias().map(i=>`<option value="${escHtml(i.cod)}" ${f.iglesiaCod===i.cod?'selected':''}>${escHtml(i.nombre)}</option>`).join('')}
-              </select>
-            </td>
-            <td style="padding:8px 10px;color:#9ca3af;">${escHtml(f.tipoMovimientoOriginal)}</td>
-            <td style="padding:8px 10px;">
-              <select data-gos-fix-tipo="${f.id}" style="width:100%;padding:5px;border:1px solid #e8eaf2;border-radius:6px;font-size:12px;">
-                <option value="">— sin resolver —</option>
-                ${GOS_TIPOS_MOVIMIENTO.map(tm=>`<option value="${tm.value}" ${f.tipoMovimiento===tm.value?'selected':''}>${tm.label}</option>`).join('')}
-              </select>
-            </td>
-            <td style="padding:8px 10px;text-align:center;"><input type="checkbox" data-gos-descartar="${f.id}" ${f.descartada?'checked':''} /></td>
-          </tr>`).join('')}
-        </tbody>
+      ${excepciones.length ? `
+      <h4 style="font-size:12px;font-weight:700;color:#b91c1c;margin-bottom:6px;">Excepciones — sin resolver</h4>
+      <div style="overflow-x:auto;margin-bottom:16px;"><table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr style="background:#fef2f2;">${thCell('Iglesia (archivo)')}${thCell('Iglesia resuelta')}${thCell('Tipo (archivo)')}${thCell('Tipo resuelto')}${thCell('Descartar')}</tr></thead>
+        <tbody>${excepciones.map(filaFixRow).join('')}</tbody>
+      </table></div>` : ''}
+      ${aproximadas.length ? `
+      <h4 style="font-size:12px;font-weight:700;color:#b45309;margin-bottom:6px;">Coincidencias aproximadas — verifica que el nombre resuelto sea correcto</h4>
+      <p style="font-size:11px;color:#9ca3af;margin-bottom:6px;">El nombre del archivo no coincide exacto con el catálogo; se resolvió por similitud (ej. un typo). Revisa cada fila antes de confirmar.</p>
+      <div style="overflow-x:auto;margin-bottom:16px;"><table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr style="background:#fffbeb;">${thCell('Iglesia (archivo)')}${thCell('Iglesia resuelta')}${thCell('Tipo (archivo)')}${thCell('Tipo resuelto')}${thCell('Descartar')}</tr></thead>
+        <tbody>${aproximadas.map(filaFixRow).join('')}</tbody>
       </table></div>` : ''}
       ${S.gosCargaError ? `<p style="margin-top:10px;font-size:12px;color:#b91c1c;">${escHtml(S.gosCargaError)}</p>` : ''}
       <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">

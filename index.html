@@ -2928,6 +2928,12 @@ function normalizarTipoIglesia(valor) {
   if (v.includes('iglesia')) return 'iglesia';
   return undefined;
 }
+/* undefined en vez de '' para que el upsert no toque (borre) un valor ya
+   guardado cuando la celda viene vacia en una actualizacion por Excel. */
+function celdaOIndefinido(valor) {
+  const v = String(valor==null?'':valor).trim();
+  return v === '' ? undefined : v;
+}
 function findCol(row, ...candidates) {
   const keys = Object.keys(row); for (const c of candidates) { const n=normalizeKey(c); const k=keys.find(k=>normalizeKey(k)===n); if(k!==undefined)return row[k]; } return '';
 }
@@ -2949,9 +2955,9 @@ function parseExcel(file) {
         const pastoresSheet  = getSheet('pastores','pastor','pastors');
 
         if (zonasSheet)     preview.zonas    = zonasSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre','name')||'').trim() })).filter(r=>r.cod&&r.nombre);
-        if (distritosSheet) preview.distritos = distritosSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre')||'').trim(), codZona: String(findCol(r,'codZona','cod_zona','codzona')||'').trim().toUpperCase(), zona: String(findCol(r,'zona')||'').trim() })).filter(r=>r.cod&&r.nombre);
-        if (iglesiasSheet)  preview.iglesias  = iglesiasSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre')||'').trim(), pastor: String(findCol(r,'pastor')||'').trim(), tipo: normalizarTipoIglesia(findCol(r,'tipo')), codZona: String(findCol(r,'codZona','cod_zona','codzona')||'').trim().toUpperCase(), zona: String(findCol(r,'zona')||'').trim(), codDistrito: String(findCol(r,'codDistrito','cod_distrito','coddistrito')||'').trim().toUpperCase(), distrito: String(findCol(r,'distrito')||'').trim() })).filter(r=>r.cod&&r.nombre);
-        if (pastoresSheet)  preview.pastores  = pastoresSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre')||'').trim(), telefono: String(findCol(r,'telefono','tel','phone')||'').trim(), email: String(findCol(r,'email','correo')||'').trim(), codZona: String(findCol(r,'codZona','cod_zona','codzona')||'').trim().toUpperCase(), zona: String(findCol(r,'zona')||'').trim(), codDistrito: String(findCol(r,'codDistrito','cod_distrito','coddistrito')||'').trim().toUpperCase(), distrito: String(findCol(r,'distrito')||'').trim() })).filter(r=>r.cod&&r.nombre);
+        if (distritosSheet) preview.distritos = distritosSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre')||'').trim(), codZona: celdaOIndefinido(String(findCol(r,'codZona','cod_zona','codzona')||'').trim().toUpperCase()), zona: celdaOIndefinido(findCol(r,'zona')) })).filter(r=>r.cod&&r.nombre);
+        if (iglesiasSheet)  preview.iglesias  = iglesiasSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre')||'').trim(), pastor: celdaOIndefinido(findCol(r,'pastor')), tipo: normalizarTipoIglesia(findCol(r,'tipo')), codZona: celdaOIndefinido(String(findCol(r,'codZona','cod_zona','codzona')||'').trim().toUpperCase()), zona: celdaOIndefinido(findCol(r,'zona')), codDistrito: celdaOIndefinido(String(findCol(r,'codDistrito','cod_distrito','coddistrito')||'').trim().toUpperCase()), distrito: celdaOIndefinido(findCol(r,'distrito')) })).filter(r=>r.cod&&r.nombre);
+        if (pastoresSheet)  preview.pastores  = pastoresSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre')||'').trim(), telefono: celdaOIndefinido(findCol(r,'telefono','tel','phone')), email: celdaOIndefinido(findCol(r,'email','correo')), codZona: celdaOIndefinido(String(findCol(r,'codZona','cod_zona','codzona')||'').trim().toUpperCase()), zona: celdaOIndefinido(findCol(r,'zona')), codDistrito: celdaOIndefinido(String(findCol(r,'codDistrito','cod_distrito','coddistrito')||'').trim().toUpperCase()), distrito: celdaOIndefinido(findCol(r,'distrito')) })).filter(r=>r.cod&&r.nombre);
 
         // Si no habia hojas estandar, buscar formato plano tipo PADRON (una sola hoja con todo)
         if (!zonasSheet && !distritosSheet && !iglesiasSheet && !pastoresSheet) {
@@ -2985,7 +2991,7 @@ function parseExcel(file) {
                 const cod = existing ? existing.cod : ('P'+String(Object.keys(pastoresMap).length+RAW.pastores.length+1).padStart(3,'0'));
                 pastoresMap[pastor] = {cod,nombre:pastor,codZona,zona,codDistrito:codDist,distrito};
               }
-              if (codIglesia&&iglesia) iglesias.push({cod:codIglesia,nombre:iglesia,pastor,tipo,codZona,zona,codDistrito:codDist,distrito});
+              if (codIglesia&&iglesia) iglesias.push({cod:codIglesia,nombre:iglesia,pastor:celdaOIndefinido(pastor),tipo,codZona:celdaOIndefinido(codZona),zona:celdaOIndefinido(zona),codDistrito:celdaOIndefinido(codDist),distrito:celdaOIndefinido(distrito)});
             }
             preview.zonas     = Object.values(zonasMap);
             preview.distritos = Object.values(distritosMap);
@@ -3066,7 +3072,7 @@ async function executeImport(preview, mode='all') {
       if (rows_d_all.length) { const rows = rows_d_all.map(d => { if (!d.codZona) { const z=RAW.zonas.find(z=>z.nombre.toLowerCase()===d.zona.toLowerCase()); if(z)d.codZona=z.cod; } return d; });
       const { error } = await sb.from('distritos').upsert(rows, { onConflict: 'cod' });
       if (error) throw error;
-      for (const d of rows) { const i=RAW.distritos.findIndex(x=>x.cod===d.cod); if(i>=0)RAW.distritos[i]={...RAW.distritos[i],...d}; else RAW.distritos.push(d); }
+      for (const d of rows) { const dLimpio=Object.fromEntries(Object.entries(d).filter(([,v])=>v!==undefined)); const i=RAW.distritos.findIndex(x=>x.cod===d.cod); if(i>=0)RAW.distritos[i]={...RAW.distritos[i],...dLimpio}; else RAW.distritos.push(dLimpio); }
       total += rows.length;
       } }
     if (preview.iglesias?.length) {
@@ -3088,7 +3094,7 @@ async function executeImport(preview, mode='all') {
       if (rows_p_all.length) { const rows = rows_p_all.map(p => { if(!p.codZona&&p.zona){const z=RAW.zonas.find(z=>z.nombre.toLowerCase()===p.zona.toLowerCase());if(z)p.codZona=z.cod;} if(!p.codDistrito&&p.distrito){const d=RAW.distritos.find(d=>d.nombre.toLowerCase()===p.distrito.toLowerCase());if(d)p.codDistrito=d.cod;} return p; });
       const { error } = await sb.from('pastores').upsert(rows, { onConflict: 'cod' });
       if (error) throw error;
-      for (const p of rows) { const i=RAW.pastores.findIndex(x=>x.cod===p.cod); if(i>=0)RAW.pastores[i]={...RAW.pastores[i],...p}; else RAW.pastores.push(p); }
+      for (const p of rows) { const pLimpio=Object.fromEntries(Object.entries(p).filter(([,v])=>v!==undefined)); const i=RAW.pastores.findIndex(x=>x.cod===p.cod); if(i>=0)RAW.pastores[i]={...RAW.pastores[i],...pLimpio}; else RAW.pastores.push(pLimpio); }
       total += rows.length;
       } }
     recomputeCounts();

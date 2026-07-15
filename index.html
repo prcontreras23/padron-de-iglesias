@@ -100,7 +100,23 @@ let S = {
   // Gestión de usuarios
   _allProfiles: null, _allProfilesLoading: false,
   showNewUserModal: false, editingProfileId: null,
-  newUserForm: { email:'', nombre:'', permisos:{ gestionar_usuarios:false, ver_dashboard:true, ver_iglesias:true, ver_pastores:true, ver_distritos:true, ver_zonas:true, ver_solicitudes:false, ver_historial:false, ver_configuracion:false, editar_iglesias:false, editar_pastores:false, editar_distritos:false, editar_zonas:false, eliminar_iglesias:false, eliminar_pastores:false, ver_permisos:false, gestionar_permisos:false, ver_organizacion:false, gestionar_organizacion:false, zonas:[] } },
+  newUserForm: { email:'', nombre:'', permisos:{ gestionar_usuarios:false, ver_dashboard:true, ver_iglesias:true, ver_pastores:true, ver_distritos:true, ver_zonas:true, ver_solicitudes:false, ver_historial:false, ver_configuracion:false, editar_iglesias:false, editar_pastores:false, editar_distritos:false, editar_zonas:false, eliminar_iglesias:false, eliminar_pastores:false, ver_permisos:false, gestionar_permisos:false, ver_organizacion:false, gestionar_organizacion:false, ver_gos:false, gestionar_gos:false, zonas:[] } },
+  // GOS — Informes Trimestrales
+  gosView: 'carga', // 'carga' | 'trimestres'
+  _gosAsociaciones: null, _gosAsociacionesLoading: false,
+  gosAsociacionId: null,
+  _gosTrimestres: null, _gosTrimestresLoading: false,
+  gosTrimestreSeleccionado: null,
+  gosCargaPaso: 'seleccion', // 'seleccion' | 'archivo' | 'revision' | 'listo'
+  gosMostrarNuevoTrimestre: false,
+  gosCargaTrimestreId: '', gosCargaAnioNuevo: new Date().getFullYear(), gosCargaNumeroNuevo: 1,
+  gosCargaArchivoNombre: '', gosCargaError: '', gosCargaFilas: [], gosCargaResumen: null, gosCargaResultado: null,
+  gosCargando: false, gosConfirmando: false,
+  showGosAjusteModal: false, gosAjusteIglesiaCod: null, gosAjusteError: '', gosAjusteGuardando: false,
+  _gosReporte: null, _gosReporteLoading: false, _gosReporteTrimestreId: null,
+  gosInformeError: '',
+  showGosCerrarConfirm: false, gosCerrarTrimestreId: null,
+  showGosReabrirConfirm: false, gosReabrirTrimestreId: null,
 };
 
 /* =====================================================================
@@ -132,6 +148,8 @@ const icons = {
   calendar:ic('<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'),
   logout:  ic('<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>'),
   shield:  ic('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
+  upload:  ic('<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>'),
+  barchart:ic('<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>'),
 };
 
 /* =====================================================================
@@ -442,6 +460,9 @@ function buildHTML() {
   ${S.showDeleteOrganizacionConfirm ? buildDeleteOrganizacionConfirm() : ''}
   ${S.showSearch                  ? buildSearchModal()           : ''}
   ${S.showImportModal            ? buildImportModal()           : ''}
+  ${S.showGosAjusteModal         ? buildGosAjusteModal()        : ''}
+  ${S.showGosCerrarConfirm       ? buildGosCerrarConfirm()      : ''}
+  ${S.showGosReabrirConfirm      ? buildGosReabrirConfirm()     : ''}
   ${S.toast                     ? buildToast()                 : ''}
   `;
 }
@@ -484,6 +505,9 @@ function buildSidebar() {
       ${canDo('ver_organizacion')  ? navItem('organizacion','Organización de Iglesias',icons.shield,(S._organizaciones||[]).filter(o=>!o.completado).length||undefined) : ''}
       ${canDo('ver_historial')     ? navItem('historial','Historial',icons.clock) : ''}
       ${canDo('ver_configuracion') ? navItem('configuracion','Configuración',icons.settings) : ''}
+      <div style="color:rgba(255,255,255,.3);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:10px 10px 4px;">Informes</div>
+      ${canDo('ver_gos') ? navItem('gos_carga','Carga de Datos GOS',icons.upload) : ''}
+      ${canDo('ver_gos') ? navItem('gos_trimestres','Informes GOS',icons.barchart) : ''}
     </nav>
     <div style="padding:10px 12px 14px;border-top:1px solid rgba(255,255,255,.08);">
       <button id="btn-import-excel" style="display:flex;align-items:center;gap:8px;width:100%;background:rgba(212,168,32,.12);border:none;cursor:pointer;padding:8px;border-radius:8px;margin-bottom:6px;">
@@ -514,7 +538,7 @@ function buildSidebar() {
 
 /* ---- HEADER ---- */
 function buildHeader() {
-  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Pastores', solicitudes:'Solicitudes de Congregación', permisos:'Permisos de Ausencia', organizacion:'Organización de Iglesias', configuracion:'Configuracion' };
+  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Pastores', solicitudes:'Solicitudes de Congregación', permisos:'Permisos de Ausencia', organizacion:'Organización de Iglesias', configuracion:'Configuracion', gos_carga:'Carga de Datos GOS', gos_trimestres:'Informes GOS' };
   const needsSearch = ['iglesias','distritos','pastores'].includes(S.view);
   const addBtn = (id,label) => `<button id="${id}" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;">${icons.plus.replace('currentColor','white')} ${label}</button>`;
   const searchBtn = `<button id="btn-global-search" title="Ctrl+K" style="background:#f0f2f7;border:none;border-radius:8px;padding:8px;cursor:pointer;color:#6b7280;display:flex;align-items:center;">${icons.search}</button>`;
@@ -537,7 +561,7 @@ function buildHeader() {
 }
 
 /* ---- CONTENT ROUTER ---- */
-const PERM_MAP = { dashboard:'ver_dashboard', zonas:'ver_zonas', distritos:'ver_distritos', iglesias:'ver_iglesias', pastores:'ver_pastores', historial:'ver_historial', solicitudes:'ver_solicitudes', permisos:'ver_permisos', organizacion:'ver_organizacion', configuracion:'ver_configuracion' };
+const PERM_MAP = { dashboard:'ver_dashboard', zonas:'ver_zonas', distritos:'ver_distritos', iglesias:'ver_iglesias', pastores:'ver_pastores', historial:'ver_historial', solicitudes:'ver_solicitudes', permisos:'ver_permisos', organizacion:'ver_organizacion', configuracion:'ver_configuracion', gos_carga:'ver_gos', gos_trimestres:'ver_gos' };
 const NO_ACCESO = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;color:#9ca3af;gap:12px;"><span style="font-size:40px;">${icons.lock.replace('currentColor','#cbd5e1')}</span><div style="font-size:15px;font-weight:600;color:#6b7280;">Sin acceso</div><div style="font-size:13px;text-align:center;">No tienes permiso para ver esta sección.<br>Contacta al administrador.</div></div>`;
 
 function buildContent() {
@@ -556,6 +580,8 @@ function buildContent() {
     case 'permisos':      return buildPermisos();
     case 'organizacion':  return buildOrganizacion();
     case 'configuracion': return buildConfiguracion();
+    case 'gos_carga':     return buildGosCarga();
+    case 'gos_trimestres':return buildGosTrimestres();
     default:              return buildDashboard();
   }
 }
@@ -1347,6 +1373,8 @@ function buildUsuariosSection() {
     { key:'gestionar_permisos', label:'Gestionar Permisos de Ausencia' },
     { key:'ver_organizacion', label:'Ver Organización de Iglesias' },
     { key:'gestionar_organizacion', label:'Gestionar Organización de Iglesias' },
+    { key:'ver_gos',          label:'Ver Informes GOS' },
+    { key:'gestionar_gos',    label:'Gestionar Informes GOS (cargar, ajustar, cerrar trimestre)' },
     { key:'ver_historial',    label:'Ver Historial' },
     { key:'ver_configuracion',label:'Ver Configuración' },
     { key:'editar_iglesias',  label:'Editar Iglesias' },
@@ -2458,6 +2486,189 @@ function bindEvents() {
       recomputeCounts();showToast('Supabase conectado','success');render();}
     catch(e){S.sbErr='Error: '+e.message;render();}
   }));
+
+  /* ===================== GOS — INFORMES TRIMESTRALES ===================== */
+  if ((S.view==='gos_carga'||S.view==='gos_trimestres') && !S._gosAsociaciones && !S._gosAsociacionesLoading) { S._gosAsociacionesLoading=true; gosCargarAsociaciones(); }
+  if ((S.view==='gos_carga'||S.view==='gos_trimestres') && S.gosAsociacionId && !S._gosTrimestres && !S._gosTrimestresLoading) { S._gosTrimestresLoading=true; gosCargarTrimestres(); }
+  if (S.view==='gos_trimestres' && S.gosTrimestreSeleccionado && S._gosReporteTrimestreId!==S.gosTrimestreSeleccionado && !S._gosReporteLoading) { S._gosReporteLoading=true; gosCargarReporte(S.gosTrimestreSeleccionado); }
+
+  /* Carga: seleccion de trimestre */
+  q('#gos-sel-asociacion', el => el.addEventListener('change', e => { S.gosAsociacionId=e.target.value; S._gosTrimestres=null; S.gosCargaTrimestreId=''; render(); }));
+  q('#gos-sel-trimestre', el => el.addEventListener('change', e => { S.gosCargaTrimestreId=e.target.value; render(); }));
+  q('#gos-btn-mostrar-nuevo', el => el.addEventListener('click', () => { S.gosMostrarNuevoTrimestre=true; render(); }));
+  q('#gos-anio-nuevo', el => el.addEventListener('input', e => { S.gosCargaAnioNuevo=Number(e.target.value); }));
+  q('#gos-numero-nuevo', el => el.addEventListener('change', e => { S.gosCargaNumeroNuevo=Number(e.target.value); }));
+  q('#gos-btn-abrir-trimestre', el => el.addEventListener('click', async () => {
+    S.gosCargaError='';
+    const res = await gosAbrirTrimestre(S.gosAsociacionId, S.gosCargaAnioNuevo, S.gosCargaNumeroNuevo);
+    if (!res.ok) { S.gosCargaError=res.error; render(); return; }
+    S._gosTrimestres = null; S.gosCargaTrimestreId = res.id; S.gosMostrarNuevoTrimestre=false;
+    render();
+  }));
+  q('#gos-btn-ir-archivo', el => el.addEventListener('click', () => { S.gosCargaPaso='archivo'; S.gosCargaError=''; render(); }));
+
+  /* Carga: subir archivo */
+  q('#gos-btn-procesar', el => el.addEventListener('click', async () => {
+    const file = document.getElementById('gos-archivo-input')?.files?.[0];
+    if (!file) { S.gosCargaError='Selecciona un archivo .xlsx, .xls o .csv.'; render(); return; }
+    S.gosCargando=true; S.gosCargaError=''; render();
+    try {
+      const crudas = await gosParsearArchivo(file);
+      if (!crudas.length) { S.gosCargaError='El archivo no tiene filas de datos.'; S.gosCargando=false; render(); return; }
+      const catalogo = gosCatalogoIglesias().filter(i=>i.asociacion_id===S.gosAsociacionId);
+      const filas = crudas.map((c, idx) => {
+        const match = gosMatchIglesia(c.iglesiaNombre, catalogo);
+        return {
+          id: idx,
+          iglesiaNombreOriginal: c.iglesiaNombre,
+          fechaMovimiento: c.fechaMovimiento,
+          tipoMovimientoOriginal: c.tipoMovimientoRaw,
+          fechaCeremonia: c.fechaCeremonia,
+          distritoOriginal: c.distrito,
+          zonaOriginal: c.zona,
+          iglesiaCod: match.cod,
+          iglesiaNombreResuelto: match.nombre,
+          confianzaIglesia: match.confianza,
+          tipoMovimiento: gosMapearTipoMovimiento(c.tipoMovimientoRaw),
+          descartada: false,
+        };
+      });
+      S.gosCargaFilas = filas;
+      S.gosCargaResumen = {
+        totalFilas: filas.length,
+        limpias: filas.filter(f=>f.iglesiaCod&&f.tipoMovimiento).length,
+        excepcionesIglesia: filas.filter(f=>!f.iglesiaCod).length,
+        excepcionesTipo: filas.filter(f=>!f.tipoMovimiento).length,
+      };
+      S.gosCargaArchivoNombre = file.name;
+      S.gosCargaPaso = 'revision';
+    } catch(err) {
+      S.gosCargaError = err.message || String(err);
+    }
+    S.gosCargando=false; render();
+  }));
+
+  /* Carga: panel de excepciones */
+  document.querySelectorAll('[data-gos-fix-iglesia]').forEach(el => el.addEventListener('change', e => {
+    const id = Number(el.dataset.gosFixIglesia);
+    const fila = S.gosCargaFilas.find(f=>f.id===id); if (!fila) return;
+    const cod = e.target.value || null;
+    const ig = cod ? RAW.iglesias.find(i=>i.cod===cod) : null;
+    fila.iglesiaCod = cod; fila.iglesiaNombreResuelto = ig?.nombre||null; fila.confianzaIglesia = cod?'manual':'ninguno';
+    render();
+  }));
+  document.querySelectorAll('[data-gos-fix-tipo]').forEach(el => el.addEventListener('change', e => {
+    const id = Number(el.dataset.gosFixTipo);
+    const fila = S.gosCargaFilas.find(f=>f.id===id); if (!fila) return;
+    fila.tipoMovimiento = e.target.value || null;
+    render();
+  }));
+  document.querySelectorAll('[data-gos-descartar]').forEach(el => el.addEventListener('change', e => {
+    const id = Number(el.dataset.gosDescartar);
+    const fila = S.gosCargaFilas.find(f=>f.id===id); if (!fila) return;
+    fila.descartada = e.target.checked;
+    render();
+  }));
+
+  /* Carga: confirmar */
+  q('#gos-btn-confirmar-carga', el => el.addEventListener('click', async () => {
+    const filasValidas = S.gosCargaFilas.filter(f=>!f.descartada);
+    const faltantes = filasValidas.filter(f=>!f.iglesiaCod||!f.tipoMovimiento);
+    if (faltantes.length>0) { S.gosCargaError=`${faltantes.length} fila(s) no tienen iglesia o tipo de movimiento resueltos.`; render(); return; }
+    if (!filasValidas.length) { S.gosCargaError='No hay filas para cargar (todas descartadas).'; render(); return; }
+    S.gosConfirmando=true; S.gosCargaError=''; render();
+    try {
+      const filasParaInsertar = filasValidas.map(f => {
+        const igl = RAW.iglesias.find(i=>i.cod===f.iglesiaCod);
+        return {
+          asociacion_id: S.gosAsociacionId,
+          trimestre_id: S.gosCargaTrimestreId,
+          iglesia_cod: f.iglesiaCod,
+          iglesia_nombre_snapshot: igl?.nombre ?? f.iglesiaNombreResuelto ?? f.iglesiaNombreOriginal,
+          zona_snapshot: f.zonaOriginal ?? igl?.zona ?? null,
+          distrito_snapshot: f.distritoOriginal ?? igl?.distrito ?? null,
+          fecha_movimiento: f.fechaMovimiento,
+          tipo_movimiento: f.tipoMovimiento,
+          fecha_ceremonia: f.fechaCeremonia,
+          archivo_origen: S.gosCargaArchivoNombre,
+          subido_por: S.currentUser.id,
+        };
+      });
+      const LOTE = 500;
+      for (let i=0;i<filasParaInsertar.length;i+=LOTE) {
+        const lote = filasParaInsertar.slice(i,i+LOTE);
+        const { error } = await S.sbClient.from('gos_movimientos').insert(lote);
+        if (error) throw new Error('Error insertando movimientos: '+error.message);
+      }
+      const codsAfectados = Array.from(new Set(filasParaInsertar.map(f=>f.iglesia_cod)));
+      const recalculo = await gosRecalcularReporteIglesia(S.sbClient, S.gosCargaTrimestreId, codsAfectados);
+      if (!recalculo.ok) throw new Error('Movimientos insertados, pero fallo el recalculo: '+recalculo.error);
+      S.gosCargaResultado = { insertadas: filasParaInsertar.length, iglesiasAfectadas: codsAfectados.length };
+      S.gosCargaPaso = 'listo';
+      S._gosReporteTrimestreId = null; // forzar recarga si se visita el informe
+    } catch(err) {
+      S.gosCargaError = err.message || String(err);
+    }
+    S.gosConfirmando=false; render();
+  }));
+  q('#gos-btn-volver-archivo', el => el.addEventListener('click', () => { S.gosCargaPaso='archivo'; S.gosCargaFilas=[]; S.gosCargaResumen=null; S.gosCargaError=''; render(); }));
+  q('#gos-btn-nueva-carga', el => el.addEventListener('click', () => { S.gosCargaPaso='archivo'; S.gosCargaFilas=[]; S.gosCargaResumen=null; S.gosCargaResultado=null; S.gosCargaError=''; render(); }));
+
+  /* Trimestres: lista + drill-down */
+  document.querySelectorAll('[data-gos-ver-trimestre]').forEach(el => el.addEventListener('click', () => {
+    S.gosTrimestreSeleccionado = el.dataset.gosVerTrimestre; S._gosReporte=null; S._gosReporteTrimestreId=null; S.gosInformeError=''; render();
+  }));
+  q('#gos-btn-volver-trimestres', el => el.addEventListener('click', () => { S.gosTrimestreSeleccionado=null; render(); }));
+
+  /* Informe: membresia inicial (solo trimestre semilla) */
+  document.querySelectorAll('[data-gos-d]').forEach(el => el.addEventListener('blur', async e => {
+    const cod = el.dataset.gosD;
+    const valor = Number(e.target.value);
+    const t = S._gosTrimestres.find(x=>x.id===S.gosTrimestreSeleccionado);
+    if (!t || Number.isNaN(valor)) return;
+    const esSemilla = gosEsTrimestreSemilla(t, S._gosTrimestres);
+    S.gosInformeError='';
+    const res = await gosActualizarMembresiaInicial(t, esSemilla, cod, valor);
+    if (!res.ok) { S.gosInformeError=res.error; render(); return; }
+    S._gosReporteTrimestreId=null; render();
+  }));
+
+  /* Informe: cerrar / reabrir trimestre */
+  q('#gos-btn-cerrar-trimestre', el => el.addEventListener('click', () => { S.gosCerrarTrimestreId=S.gosTrimestreSeleccionado; S.showGosCerrarConfirm=true; render(); }));
+  q('#gos-btn-cerrar-cancel', el => el.addEventListener('click', () => { S.showGosCerrarConfirm=false; render(); }));
+  q('#gos-btn-cerrar-confirm', el => el.addEventListener('click', async () => {
+    const res = await gosCerrarTrimestre(S.gosCerrarTrimestreId);
+    S.showGosCerrarConfirm=false;
+    if (!res.ok) { S.gosInformeError=res.error; render(); return; }
+    S._gosTrimestres=null; S._gosReporteTrimestreId=null; render();
+  }));
+  q('#gos-btn-reabrir-trimestre', el => el.addEventListener('click', () => { S.gosReabrirTrimestreId=S.gosTrimestreSeleccionado; S.showGosReabrirConfirm=true; render(); }));
+  q('#gos-btn-reabrir-cancel', el => el.addEventListener('click', () => { S.showGosReabrirConfirm=false; render(); }));
+  q('#gos-btn-reabrir-confirm', el => el.addEventListener('click', async () => {
+    const res = await gosReabrirTrimestre(S.gosReabrirTrimestreId);
+    S.showGosReabrirConfirm=false;
+    if (!res.ok) { S.gosInformeError=res.error; render(); return; }
+    S._gosTrimestres=null; S._gosReporteTrimestreId=null; render();
+  }));
+
+  /* Informe: modal de ajuste */
+  document.querySelectorAll('[data-gos-ajustar]').forEach(el => el.addEventListener('click', () => {
+    S.showGosAjusteModal=true; S.gosAjusteIglesiaCod=el.dataset.gosAjustar; S.gosAjusteError=''; render();
+  }));
+  q('#gos-btn-ajuste-close',  el => el.addEventListener('click', () => { S.showGosAjusteModal=false; render(); }));
+  q('#gos-btn-ajuste-cancel', el => el.addEventListener('click', () => { S.showGosAjusteModal=false; render(); }));
+  q('#gos-ajuste-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el){S.showGosAjusteModal=false;render();} }));
+  q('#gos-btn-ajuste-guardar', el => el.addEventListener('click', async () => {
+    const cantidad = Number(document.getElementById('gos-ajuste-cantidad')?.value);
+    const nota = document.getElementById('gos-ajuste-nota')?.value || '';
+    const t = S._gosTrimestres.find(x=>x.id===S.gosTrimestreSeleccionado);
+    if (!t) return;
+    S.gosAjusteGuardando=true; S.gosAjusteError=''; render();
+    const res = await gosRegistrarAjuste(t, S.gosAjusteIglesiaCod, cantidad, nota);
+    S.gosAjusteGuardando=false;
+    if (!res.ok) { S.gosAjusteError=res.error; render(); return; }
+    S.showGosAjusteModal=false; S._gosReporteTrimestreId=null; render();
+  }));
 }
 
 function q(sel, fn) { const el=document.querySelector(sel); if(el) fn(el); }
@@ -2762,6 +2973,580 @@ async function executeImport(preview, mode='all') {
     S.importResult = { error: true, msg: e.message || String(e) };
   }
   S.importing = false; render();
+}
+
+/* =====================================================================
+   GOS — INFORMES TRIMESTRALES (movimientos de membresia)
+   ===================================================================== */
+const GOS_TIPOS_MOVIMIENTO = [
+  { value:'bautismo', label:'Bautismo' },
+  { value:'profesion_fe', label:'Profesión de Fe' },
+  { value:'transferencia_entrada', label:'Transferencia Entrada' },
+  { value:'transferencia_salida', label:'Transferencia Salida' },
+  { value:'apostasia', label:'Apostasía / Remoción' },
+  { value:'muerte', label:'Muerte / Fallecimiento' },
+  { value:'paradero_desconocido', label:'Paradero desconocido' },
+  { value:'rebautismo', label:'Rebautismo' },
+];
+
+function gosNormalizarTexto(s) {
+  return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase().replace(/\s+/g,' ');
+}
+
+/* Confirmado contra los valores reales de "Informe trimestral 1er trimestre
+   2026 UD.xlsx" -> hoja Report Data (2). "Remocion" -> apostasia no es un
+   mapeo literal por nombre: se confirmo cruzando la hoja de informe oficial
+   (columna "Apostasia"). "Ajuste" no aparece aqui a proposito: no llega como
+   valor crudo del archivo, se captura manualmente con cantidad+nota. */
+const GOS_MAPEO_TIPO_MOVIMIENTO = {
+  'bautismo': 'bautismo',
+  'profesion de fe': 'profesion_fe',
+  'transferencia entrada': 'transferencia_entrada',
+  'transferencia salida': 'transferencia_salida',
+  'remocion': 'apostasia',
+  'fallecimiento': 'muerte',
+  'desaparecido': 'paradero_desconocido',
+  'rebautismo': 'rebautismo',
+};
+function gosMapearTipoMovimiento(raw) {
+  if (!raw) return null;
+  return GOS_MAPEO_TIPO_MOVIMIENTO[gosNormalizarTexto(raw)] || null;
+}
+
+/* Distancia de Levenshtein simple (sin dependencias externas). */
+function gosLevenshtein(a, b) {
+  const m=a.length, n=b.length;
+  if (m===0) return n; if (n===0) return m;
+  let prev=new Array(n+1); let curr=new Array(n+1);
+  for (let j=0;j<=n;j++) prev[j]=j;
+  for (let i=1;i<=m;i++) {
+    curr[0]=i;
+    for (let j=1;j<=n;j++) {
+      const costo = a[i-1]===b[j-1] ? 0 : 1;
+      curr[j]=Math.min(prev[j]+1, curr[j-1]+1, prev[j-1]+costo);
+    }
+    [prev,curr]=[curr,prev];
+  }
+  return prev[n];
+}
+
+/* Catalogo de iglesias/grupos que participan del informe GOS: se excluyen
+   las "pendiente_revision" (aun no son congregaciones establecidas). */
+function gosCatalogoIglesias() {
+  return RAW.iglesias.filter(i => i.tipo !== 'pendiente_revision');
+}
+
+function gosMatchIglesia(nombreOriginal, catalogo) {
+  const objetivo = gosNormalizarTexto(nombreOriginal);
+  const exacto = catalogo.find(i => gosNormalizarTexto(i.nombre) === objetivo);
+  if (exacto) return { cod: exacto.cod, nombre: exacto.nombre, confianza: 'exacto' };
+  let mejor = null;
+  for (const ig of catalogo) {
+    const d = gosLevenshtein(objetivo, gosNormalizarTexto(ig.nombre));
+    if (!mejor || d < mejor.distancia) mejor = { iglesia: ig, distancia: d };
+  }
+  if (mejor) {
+    // Umbral: distancia <= 20% del largo del nombre objetivo (min 1, max 3).
+    const umbral = Math.min(3, Math.max(1, Math.round(objetivo.length*0.2)));
+    if (mejor.distancia <= umbral) return { cod: mejor.iglesia.cod, nombre: mejor.iglesia.nombre, confianza: 'similar' };
+  }
+  return { cod: null, nombre: null, confianza: 'ninguno' };
+}
+
+/* ---- Parseo del archivo "Report Data" (xlsx/csv), via SheetJS (ya cargado) ---- */
+function gosDetectarColumnas(headers) {
+  const norm = headers.map(h => h ? gosNormalizarTexto(String(h)) : '');
+  const buscar = pred => { const idx = norm.findIndex(pred); return idx===-1?null:idx; };
+  const iglesia = buscar(h=>h.includes('iglesia'));
+  const tipoMovimiento = buscar(h=>h.includes('tipo')&&h.includes('movimiento'));
+  const fechaCeremonia = buscar(h=>h.includes('ceremonia'));
+  const fechaMovimiento = buscar(h=>h.includes('fecha')&&h.includes('movimiento')&&!h.includes('ceremonia'));
+  const distrito = buscar(h=>h.includes('distrito'));
+  const zona = buscar(h=>h.includes('zona'));
+  if (iglesia===null) throw new Error('No se encontro una columna de "Nombre de la Iglesia" en el archivo.');
+  if (tipoMovimiento===null) throw new Error('No se encontro una columna de "Nombre del tipo de movimiento" en el archivo.');
+  return { iglesia, fechaMovimiento, tipoMovimiento, fechaCeremonia, distrito, zona };
+}
+function gosCeldaATexto(v) {
+  if (v===null||v===undefined) return null;
+  if (v instanceof Date) return gosFechaISO(v);
+  const t = String(v).trim();
+  return t===''?null:t;
+}
+function gosFechaISO(v) {
+  if (v===null||v===undefined) return null;
+  if (v instanceof Date) {
+    const y=v.getFullYear(), m=String(v.getMonth()+1).padStart(2,'0'), d=String(v.getDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+  }
+  const t = String(v).trim();
+  if (!t) return null;
+  // Formato dominicano DD/MM/YYYY primero (confirmado contra el Excel real).
+  let mm = t.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (mm) { const [,d,m,y]=mm; return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+  mm = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (mm) { const [,y,m,d]=mm; return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+  return null; // no critico: fecha_movimiento/fecha_ceremonia son solo historicas.
+}
+function gosParsearArchivo(file) {
+  return new Promise((resolve, reject) => {
+    const esCsv = /\.csv$/i.test(file.name);
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        // cellDates solo para xlsx/xls (fechas binarias sin ambiguedad). En
+        // CSV el texto de fecha es ambiguo (DD/MM vs MM/DD): SheetJS igual
+        // intenta adivinar el formato de fechas tipo "10/01/2026" (dia<=12)
+        // como MM/DD/YYYY y las convierte a numero de serie ANTES de que
+        // gosFechaISO() las vea -- `raw:true` a nivel de lectura desactiva
+        // por completo esa deteccion, dejando todo como texto crudo para
+        // que gosFechaISO() lo interprete con la convencion dominicana
+        // DD/MM/YYYY.
+        const wb = XLSX.read(e.target.result, esCsv ? { type:'string', raw:true } : { type:'array', cellDates:true });
+        let hoja = null;
+        for (const name of wb.SheetNames) {
+          const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header:1, raw:true, defval:null });
+          if (!rows.length) continue;
+          const headers = (rows[0]||[]).map(h=>h?gosNormalizarTexto(String(h)):'');
+          if (headers.some(h=>h.includes('iglesia')) && headers.some(h=>h.includes('tipo')&&h.includes('movimiento'))) { hoja=name; break; }
+        }
+        if (!hoja) hoja = wb.SheetNames[0];
+        const rowsAoA = XLSX.utils.sheet_to_json(wb.Sheets[hoja], { header:1, raw:true, defval:null });
+        if (!rowsAoA.length) { resolve([]); return; }
+        const columnas = gosDetectarColumnas(rowsAoA[0]);
+        const filas = [];
+        for (let i=1;i<rowsAoA.length;i++) {
+          const fila = rowsAoA[i];
+          const get = idx => idx===null?null:gosCeldaATexto(fila[idx]);
+          const getFecha = idx => idx===null?null:gosFechaISO(fila[idx]);
+          const iglesiaNombre = get(columnas.iglesia);
+          const tipoMovimientoRaw = get(columnas.tipoMovimiento);
+          if (!iglesiaNombre && !tipoMovimientoRaw) continue; // fila vacia
+          filas.push({
+            iglesiaNombre: iglesiaNombre || '',
+            fechaMovimiento: getFecha(columnas.fechaMovimiento),
+            tipoMovimientoRaw: tipoMovimientoRaw || '',
+            fechaCeremonia: getFecha(columnas.fechaCeremonia),
+            distrito: get(columnas.distrito),
+            zona: get(columnas.zona),
+          });
+        }
+        resolve(filas);
+      } catch(err) { reject(err); }
+    };
+    reader.onerror = reject;
+    if (esCsv) reader.readAsText(file); else reader.readAsArrayBuffer(file);
+  });
+}
+
+/* ---- Recalculo de gos_reporte_iglesia (desde cero, no incremental) ---- */
+const GOS_TIPOS_CON_COLUMNA = ['bautismo','profesion_fe','transferencia_entrada','transferencia_salida','apostasia','muerte','paradero_desconocido','ajuste'];
+const GOS_COLUMNA_POR_TIPO = {
+  bautismo:'bautismos', profesion_fe:'prof_fe', transferencia_entrada:'t_entrada', transferencia_salida:'t_salida',
+  apostasia:'apostasia', muerte:'muerte', paradero_desconocido:'paradero', ajuste:'ajuste',
+};
+async function gosRecalcularReporteIglesia(sb, trimestreId, cods) {
+  if (!cods.length) return { ok:true };
+  const { data: movimientos, error } = await sb.from('gos_movimientos')
+    .select('iglesia_cod, tipo_movimiento, cantidad').eq('trimestre_id', trimestreId).in('iglesia_cod', cods);
+  if (error) return { ok:false, error: error.message };
+  const conteos = new Map();
+  for (const cod of cods) { const ini={}; for (const t of GOS_TIPOS_CON_COLUMNA) ini[t]=0; conteos.set(cod, ini); }
+  for (const m of (movimientos||[])) {
+    const c = conteos.get(m.iglesia_cod);
+    // Tipos sin columna propia (rebautismo) se ignoran: quedan como
+    // historial en gos_movimientos pero no alimentan el reporte.
+    if (c && m.tipo_movimiento in c) c[m.tipo_movimiento] = (c[m.tipo_movimiento]||0) + m.cantidad;
+  }
+  const filas = cods.map(cod => {
+    const c = conteos.get(cod);
+    const fila = { trimestre_id: trimestreId, iglesia_cod: cod };
+    for (const t of GOS_TIPOS_CON_COLUMNA) fila[GOS_COLUMNA_POR_TIPO[t]] = c[t];
+    return fila;
+  });
+  const { error: errUp } = await sb.from('gos_reporte_iglesia').upsert(filas, { onConflict: 'trimestre_id,iglesia_cod' });
+  if (errUp) return { ok:false, error: errUp.message };
+  return { ok:true };
+}
+
+function gosEsTrimestreSemilla(trimestre, trimestres) {
+  return !trimestres.some(t => t.asociacion_id===trimestre.asociacion_id &&
+    (t.anio<trimestre.anio || (t.anio===trimestre.anio && t.numero_trimestre<trimestre.numero_trimestre)));
+}
+
+async function gosAbrirTrimestre(asociacionId, anio, numero) {
+  const { data, error } = await S.sbClient.rpc('fn_abrir_trimestre', { p_asociacion_id: asociacionId, p_anio: anio, p_numero_trimestre: numero });
+  if (error) return { ok:false, error: error.message };
+  return { ok:true, id: data };
+}
+async function gosCerrarTrimestre(trimestreId) {
+  const { error } = await S.sbClient.rpc('fn_cerrar_trimestre', { p_trimestre_id: trimestreId });
+  if (error) return { ok:false, error: error.message };
+  return { ok:true };
+}
+async function gosReabrirTrimestre(trimestreId) {
+  const { error } = await S.sbClient.rpc('fn_reabrir_trimestre', { p_trimestre_id: trimestreId });
+  if (error) return { ok:false, error: error.message };
+  return { ok:true };
+}
+async function gosRegistrarAjuste(trimestre, iglesiaCod, cantidad, nota) {
+  if (trimestre.estado !== 'abierto') return { ok:false, error:'Este trimestre esta cerrado, no se pueden registrar ajustes.' };
+  if (!Number.isInteger(cantidad) || cantidad===0) return { ok:false, error:'La cantidad del ajuste debe ser un entero distinto de cero.' };
+  if (!nota || !nota.trim()) return { ok:false, error:'El motivo del ajuste es obligatorio.' };
+  const iglesia = RAW.iglesias.find(i=>i.cod===iglesiaCod);
+  if (!iglesia) return { ok:false, error:'No se encontro la iglesia/grupo en el catalogo.' };
+  const { error: errInsert } = await S.sbClient.from('gos_movimientos').insert({
+    asociacion_id: trimestre.asociacion_id,
+    trimestre_id: trimestre.id,
+    iglesia_cod: iglesiaCod,
+    iglesia_nombre_snapshot: iglesia.nombre,
+    zona_snapshot: iglesia.zona,
+    distrito_snapshot: iglesia.distrito,
+    fecha_movimiento: new Date().toISOString().slice(0,10),
+    tipo_movimiento: 'ajuste',
+    cantidad,
+    nota: nota.trim(),
+    subido_por: S.currentUser.id,
+  });
+  if (errInsert) return { ok:false, error: 'No se pudo registrar el ajuste: '+errInsert.message };
+  return await gosRecalcularReporteIglesia(S.sbClient, trimestre.id, [iglesiaCod]);
+}
+async function gosActualizarMembresiaInicial(trimestre, esSemilla, iglesiaCod, valor) {
+  if (trimestre.estado !== 'abierto') return { ok:false, error:'Este trimestre esta cerrado, no se puede editar la membresia inicial.' };
+  if (!esSemilla) return { ok:false, error:'La membresia inicial solo es editable en el primer trimestre de la asociacion; en los siguientes se hereda automaticamente.' };
+  if (!Number.isInteger(valor) || valor<0) return { ok:false, error:'La membresia inicial debe ser un entero mayor o igual a cero.' };
+  const { error } = await S.sbClient.from('gos_reporte_iglesia').upsert(
+    { trimestre_id: trimestre.id, iglesia_cod: iglesiaCod, membresia_inicial: valor },
+    { onConflict: 'trimestre_id,iglesia_cod' }
+  );
+  if (error) return { ok:false, error: 'No se pudo guardar la membresia inicial: '+error.message };
+  return { ok:true };
+}
+
+/* ---- Carga de datos: builds ---- */
+async function gosCargarAsociaciones() {
+  const { data, error } = await S.sbClient.from('asociaciones').select('id, nombre').order('nombre');
+  S._gosAsociaciones = error ? [] : (data||[]);
+  S._gosAsociacionesLoading = false;
+  if (S._gosAsociaciones.length && !S.gosAsociacionId) S.gosAsociacionId = S._gosAsociaciones[0].id;
+  render();
+}
+async function gosCargarTrimestres() {
+  if (!S.gosAsociacionId) { S._gosTrimestres=[]; S._gosTrimestresLoading=false; render(); return; }
+  const { data, error } = await S.sbClient.from('gos_trimestres').select('*')
+    .eq('asociacion_id', S.gosAsociacionId).order('anio',{ascending:false}).order('numero_trimestre',{ascending:false});
+  S._gosTrimestres = error ? [] : (data||[]);
+  S._gosTrimestresLoading = false;
+  const abiertos = S._gosTrimestres.filter(t=>t.estado==='abierto');
+  if (!S.gosCargaTrimestreId && abiertos.length) S.gosCargaTrimestreId = abiertos[0].id;
+  render();
+}
+async function gosCargarReporte(trimestreId) {
+  const { data, error } = await S.sbClient.from('gos_reporte_iglesia').select('*').eq('trimestre_id', trimestreId);
+  S._gosReporte = error ? [] : (data||[]);
+  S._gosReporteTrimestreId = trimestreId;
+  S._gosReporteLoading = false;
+  render();
+}
+
+function buildGosCarga() {
+  if (S._gosAsociacionesLoading || !S._gosAsociaciones) return `<div style="text-align:center;padding:60px;color:#6b7280;">Cargando…</div>`;
+  if (!S._gosAsociaciones.length) return `<div style="text-align:center;padding:60px;color:#9ca3af;">No hay asociaciones configuradas.</div>`;
+  if (S._gosTrimestresLoading || !S._gosTrimestres) return `<div style="text-align:center;padding:60px;color:#6b7280;">Cargando trimestres…</div>`;
+
+  const abiertos = S._gosTrimestres.filter(t=>t.estado==='abierto');
+  const gestionar = canDo('gestionar_gos');
+  let contenidoPaso = '';
+
+  if (S.gosCargaPaso==='seleccion') {
+    contenidoPaso = `
+    <div style="background:white;border-radius:14px;border:1px solid #e8eaf2;padding:20px;">
+      <h3 style="font-size:14px;font-weight:700;color:#1a2340;margin-bottom:4px;">1. Trimestre destino</h3>
+      ${S._gosAsociaciones.length>1 ? `
+      <div style="margin-top:10px;">
+        <label style="display:block;font-size:12px;font-weight:500;color:#6b7280;margin-bottom:4px;">Asociación</label>
+        <select id="gos-sel-asociacion" style="width:100%;padding:8px 10px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:13px;">
+          ${S._gosAsociaciones.map(a=>`<option value="${escHtml(a.id)}" ${a.id===S.gosAsociacionId?'selected':''}>${escHtml(a.nombre)}</option>`).join('')}
+        </select>
+      </div>` : ''}
+      ${abiertos.length ? `
+      <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+        <div style="flex:1;min-width:200px;">
+          <label style="display:block;font-size:12px;font-weight:500;color:#6b7280;margin-bottom:4px;">Trimestre abierto</label>
+          <select id="gos-sel-trimestre" style="width:100%;padding:8px 10px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:13px;">
+            ${abiertos.map(t=>`<option value="${t.id}" ${t.id===S.gosCargaTrimestreId?'selected':''}>T${t.numero_trimestre} ${t.anio}</option>`).join('')}
+          </select>
+        </div>
+        ${gestionar ? `<button id="gos-btn-mostrar-nuevo" style="padding:8px 14px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#374151;font-size:12px;cursor:pointer;font-weight:500;">+ Abrir otro trimestre</button>` : ''}
+      </div>` : (gestionar ? '' : `<div style="margin-top:16px;color:#9ca3af;font-size:13px;">No hay trimestres abiertos.</div>`)}
+      ${(gestionar && (!abiertos.length || S.gosMostrarNuevoTrimestre)) ? `
+      <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+        <div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px;">Año</label><input id="gos-anio-nuevo" type="number" value="${S.gosCargaAnioNuevo}" style="width:90px;padding:8px 10px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:13px;" /></div>
+        <div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px;">Trimestre</label>
+          <select id="gos-numero-nuevo" style="padding:8px 10px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:13px;">
+            <option value="1" ${S.gosCargaNumeroNuevo===1?'selected':''}>T1 (ene-mar)</option>
+            <option value="2" ${S.gosCargaNumeroNuevo===2?'selected':''}>T2 (abr-jun)</option>
+            <option value="3" ${S.gosCargaNumeroNuevo===3?'selected':''}>T3 (jul-sep)</option>
+            <option value="4" ${S.gosCargaNumeroNuevo===4?'selected':''}>T4 (oct-dic)</option>
+          </select>
+        </div>
+        <button id="gos-btn-abrir-trimestre" style="padding:9px 16px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:13px;font-weight:600;cursor:pointer;">Abrir trimestre</button>
+      </div>` : ''}
+      ${S.gosCargaError ? `<p style="margin-top:10px;font-size:12px;color:#b91c1c;">${escHtml(S.gosCargaError)}</p>` : ''}
+      ${S.gosCargaTrimestreId && gestionar ? `<button id="gos-btn-ir-archivo" style="margin-top:16px;padding:9px 18px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:13px;font-weight:600;cursor:pointer;">Continuar →</button>` : ''}
+    </div>`;
+  } else if (S.gosCargaPaso==='archivo') {
+    const t = S._gosTrimestres.find(x=>x.id===S.gosCargaTrimestreId);
+    contenidoPaso = `
+    <div style="background:white;border-radius:14px;border:1px solid #e8eaf2;padding:20px;">
+      <h3 style="font-size:14px;font-weight:700;color:#1a2340;margin-bottom:4px;">2. Subir archivo de movimientos</h3>
+      <p style="font-size:12px;color:#9ca3af;margin-bottom:14px;">Trimestre destino: T${t?.numero_trimestre||''} ${t?.anio||''}. Todas las filas se asignarán a este trimestre.</p>
+      ${gestionar ? `
+      <input id="gos-archivo-input" type="file" accept=".xlsx,.xls,.csv" style="font-size:13px;" />
+      <button id="gos-btn-procesar" style="margin-left:10px;padding:8px 16px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:13px;font-weight:600;cursor:pointer;">${S.gosCargando?'Procesando...':'Procesar archivo'}</button>
+      ` : `<p style="color:#9ca3af;font-size:13px;">No tienes permiso para cargar datos.</p>`}
+      ${S.gosCargaError ? `<p style="margin-top:10px;font-size:12px;color:#b91c1c;">${escHtml(S.gosCargaError)}</p>` : ''}
+    </div>`;
+  } else if (S.gosCargaPaso==='revision') {
+    const filas = S.gosCargaFilas;
+    const activas = filas.filter(f=>!f.descartada);
+    const excepciones = activas.filter(f=>!f.iglesiaCod||!f.tipoMovimiento);
+    const limpias = activas.length - excepciones.length;
+    contenidoPaso = `
+    <div style="background:white;border-radius:14px;border:1px solid #e8eaf2;padding:20px;">
+      <h3 style="font-size:14px;font-weight:700;color:#1a2340;margin-bottom:8px;">3. Revisión antes de confirmar</h3>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#6b7280;margin-bottom:12px;">
+        <span>Total filas: ${S.gosCargaResumen?.totalFilas||0}</span>
+        <span style="color:#15803d;">Limpias: ${limpias}</span>
+        <span style="color:${excepciones.length?'#b45309':'#9ca3af'};">Excepciones: ${excepciones.length}</span>
+      </div>
+      ${excepciones.length ? `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr style="background:#f8f9fc;">${thCell('Iglesia (archivo)')}${thCell('Iglesia resuelta')}${thCell('Tipo (archivo)')}${thCell('Tipo resuelto')}${thCell('Descartar')}</tr></thead>
+        <tbody>${excepciones.map(f=>`
+          <tr style="border-bottom:1px solid #f0f2f7;">
+            <td style="padding:8px 10px;">${escHtml(f.iglesiaNombreOriginal)}</td>
+            <td style="padding:8px 10px;">
+              <select data-gos-fix-iglesia="${f.id}" style="width:100%;padding:5px;border:1px solid #e8eaf2;border-radius:6px;font-size:12px;">
+                <option value="">— sin resolver —</option>
+                ${gosCatalogoIglesias().map(i=>`<option value="${escHtml(i.cod)}" ${f.iglesiaCod===i.cod?'selected':''}>${escHtml(i.nombre)}</option>`).join('')}
+              </select>
+            </td>
+            <td style="padding:8px 10px;color:#9ca3af;">${escHtml(f.tipoMovimientoOriginal)}</td>
+            <td style="padding:8px 10px;">
+              <select data-gos-fix-tipo="${f.id}" style="width:100%;padding:5px;border:1px solid #e8eaf2;border-radius:6px;font-size:12px;">
+                <option value="">— sin resolver —</option>
+                ${GOS_TIPOS_MOVIMIENTO.map(tm=>`<option value="${tm.value}" ${f.tipoMovimiento===tm.value?'selected':''}>${tm.label}</option>`).join('')}
+              </select>
+            </td>
+            <td style="padding:8px 10px;text-align:center;"><input type="checkbox" data-gos-descartar="${f.id}" ${f.descartada?'checked':''} /></td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>` : ''}
+      ${S.gosCargaError ? `<p style="margin-top:10px;font-size:12px;color:#b91c1c;">${escHtml(S.gosCargaError)}</p>` : ''}
+      <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+        ${gestionar ? `<button id="gos-btn-confirmar-carga" ${(activas.length===0||excepciones.length>0)?'disabled':''} style="padding:9px 18px;border-radius:8px;border:none;background:#15803d;color:white;font-size:13px;font-weight:600;cursor:pointer;opacity:${(activas.length===0||excepciones.length>0)?'.5':'1'};">${S.gosConfirmando?'Confirmando...':'Confirmar carga ('+activas.length+' filas)'}</button>` : ''}
+        <button id="gos-btn-volver-archivo" style="padding:9px 18px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:13px;font-weight:500;cursor:pointer;">← Volver a subir otro archivo</button>
+      </div>
+    </div>`;
+  } else if (S.gosCargaPaso==='listo') {
+    contenidoPaso = `
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;padding:20px;">
+      <h3 style="font-size:14px;font-weight:700;color:#166534;">Carga confirmada</h3>
+      <p style="margin-top:6px;font-size:13px;color:#15803d;">Se insertaron ${S.gosCargaResultado?.insertadas||0} movimiento(s) y se recalculó el reporte de ${S.gosCargaResultado?.iglesiasAfectadas||0} iglesia(s)/grupo(s).</p>
+      <button id="gos-btn-nueva-carga" style="margin-top:12px;padding:9px 18px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:13px;font-weight:600;cursor:pointer;">Subir otro archivo</button>
+    </div>`;
+  }
+
+  return `<div style="display:flex;flex-direction:column;gap:16px;max-width:900px;">
+    <p style="font-size:13px;color:#6b7280;">Sube el archivo de movimientos (formato Report Data: Nombre de la Iglesia, Fecha de Movimiento, Nombre del tipo de movimiento, Fecha de la ceremonia, Distrito, Zona) para el trimestre destino.</p>
+    ${contenidoPaso}
+  </div>`;
+}
+
+/* ---- Trimestres + Informe: builds ---- */
+function buildGosTrimestres() {
+  if (S._gosTrimestresLoading || !S._gosTrimestres) return `<div style="text-align:center;padding:60px;color:#6b7280;">Cargando…</div>`;
+  if (S.gosTrimestreSeleccionado) {
+    const t = S._gosTrimestres.find(x=>x.id===S.gosTrimestreSeleccionado);
+    if (t) return buildGosInformeDetalle(t);
+  }
+  if (!S._gosTrimestres.length) return `<div style="text-align:center;padding:60px;color:#9ca3af;">
+    <div style="font-size:40px;margin-bottom:12px;">📊</div>
+    No hay trimestres abiertos todavía. Usa "Carga de Datos GOS" para abrir el primero.
+  </div>`;
+  return `<div style="background:white;border-radius:14px;border:1px solid #e8eaf2;overflow:hidden;">
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+      <thead><tr style="background:#f8f9fc;">${thCell('Trimestre')}${thCell('Corte')}${thCell('Estado')}</tr></thead>
+      <tbody>${S._gosTrimestres.map(t=>`
+        <tr data-gos-ver-trimestre="${t.id}" style="border-bottom:1px solid #f0f2f7;cursor:pointer;">
+          <td style="padding:12px 16px;font-weight:600;color:#1e3564;">T${t.numero_trimestre} ${t.anio}</td>
+          <td style="padding:12px 16px;color:#6b7280;">${t.fecha_corte}</td>
+          <td style="padding:12px 16px;"><span style="background:${t.estado==='abierto'?'#dcfce7':'#f3f4f6'};color:${t.estado==='abierto'?'#166534':'#6b7280'};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">${t.estado}</span></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function buildGosInformeDetalle(t) {
+  if (S._gosReporteLoading || S._gosReporteTrimestreId!==t.id || !S._gosReporte) return `<div style="text-align:center;padding:60px;color:#6b7280;">Cargando informe…</div>`;
+
+  const catalogo = gosCatalogoIglesias().filter(i=>i.asociacion_id===t.asociacion_id);
+  const reportePorCod = new Map(S._gosReporte.map(r=>[r.iglesia_cod, r]));
+  const esSemilla = gosEsTrimestreSemilla(t, S._gosTrimestres);
+  const abierto = t.estado==='abierto';
+  const gestionar = canDo('gestionar_gos');
+
+  const filas = catalogo.map(igl => {
+    const r = reportePorCod.get(igl.cod);
+    const membresiaInicial = r?.membresia_inicial ?? 0;
+    const total = r?.total ?? membresiaInicial;
+    return {
+      cod: igl.cod, nombre: igl.nombre, tipo: igl.tipo||'iglesia',
+      zona: igl.zona, codZona: igl.codZona, distrito: igl.distrito, codDistrito: igl.codDistrito,
+      membresiaInicial,
+      bautismos: r?.bautismos ?? 0, profFe: r?.prof_fe ?? 0, tEntrada: r?.t_entrada ?? 0, tSalida: r?.t_salida ?? 0,
+      apostasia: r?.apostasia ?? 0, muerte: r?.muerte ?? 0, paradero: r?.paradero ?? 0, ajuste: r?.ajuste ?? 0,
+      total, sinDatos: total===membresiaInicial,
+    };
+  }).sort((a,b) => (a.codZona||'').localeCompare(b.codZona||'') || (a.codDistrito||'').localeCompare(b.codDistrito||'') || a.nombre.localeCompare(b.nombre));
+
+  const zonasMap = new Map();
+  for (const f of filas) {
+    const claveZona = f.codZona || f.zona || '—';
+    if (!zonasMap.has(claveZona)) zonasMap.set(claveZona, { codZona:f.codZona, nombreZona:f.zona, distritos: new Map() });
+    const zg = zonasMap.get(claveZona);
+    const claveDist = f.codDistrito || f.distrito || '—';
+    if (!zg.distritos.has(claveDist)) zg.distritos.set(claveDist, { codDistrito:f.codDistrito, nombreDistrito:f.distrito, filas: [] });
+    zg.distritos.get(claveDist).filas.push(f);
+  }
+
+  const sumar = list => list.reduce((acc,f) => ({
+    membresiaInicial: acc.membresiaInicial+f.membresiaInicial, bautismos: acc.bautismos+f.bautismos, profFe: acc.profFe+f.profFe,
+    tEntrada: acc.tEntrada+f.tEntrada, tSalida: acc.tSalida+f.tSalida, apostasia: acc.apostasia+f.apostasia, muerte: acc.muerte+f.muerte,
+    paradero: acc.paradero+f.paradero, ajuste: acc.ajuste+f.ajuste, total: acc.total+f.total,
+  }), {membresiaInicial:0,bautismos:0,profFe:0,tEntrada:0,tSalida:0,apostasia:0,muerte:0,paradero:0,ajuste:0,total:0});
+
+  const colCell = v => `<td style="padding:8px 10px;text-align:right;">${v}</td>`;
+  const rowTotales = (etiqueta, tot, estilo) => `<tr style="${estilo}">
+    <td></td><td style="padding:8px 10px;font-weight:600;">${etiqueta}</td>
+    ${colCell(tot.membresiaInicial)}${colCell(tot.bautismos)}${colCell(tot.profFe)}${colCell(tot.tEntrada)}${colCell(tot.tSalida)}${colCell(tot.apostasia)}${colCell(tot.muerte)}${colCell(tot.paradero)}${colCell(tot.ajuste)}${colCell(tot.total)}<td></td>
+  </tr>`;
+
+  let filasHtml = '';
+  for (const [, zg] of zonasMap) {
+    filasHtml += `<tr style="background:#1e3564;color:white;"><td colspan="13" style="padding:8px 10px;font-weight:600;">Zona ${escHtml(zg.codZona||'—')} ${escHtml(zg.nombreZona||'')}</td></tr>`;
+    let filasZona = [];
+    for (const [, dg] of zg.distritos) {
+      filasHtml += `<tr style="background:#f1f5f9;"><td colspan="13" style="padding:6px 10px;font-weight:500;color:#374151;">Distrito ${escHtml(dg.codDistrito||'—')} ${escHtml(dg.nombreDistrito||'')}</td></tr>`;
+      for (const f of dg.filas) {
+        const dEditable = abierto && esSemilla && gestionar;
+        filasHtml += `<tr style="border-bottom:1px solid #f0f2f7;">
+          <td style="padding:8px 10px;color:#9ca3af;">${escHtml(f.codDistrito||'—')}</td>
+          <td style="padding:8px 10px;">${escHtml(f.nombre)}${f.tipo==='grupo'?' <span style="color:#9ca3af;">(grupo)</span>':''}</td>
+          <td style="padding:8px 10px;text-align:right;">${dEditable ? `<input type="number" data-gos-d="${escHtml(f.cod)}" value="${f.membresiaInicial}" style="width:70px;padding:4px 6px;border:1px solid #e8eaf2;border-radius:6px;text-align:right;" />` : f.membresiaInicial}</td>
+          ${colCell(f.bautismos)}${colCell(f.profFe)}${colCell(f.tEntrada)}${colCell(f.tSalida)}${colCell(f.apostasia)}${colCell(f.muerte)}${colCell(f.paradero)}${colCell(f.ajuste)}
+          <td style="padding:8px 10px;text-align:right;font-weight:600;">${f.total}</td>
+          <td style="padding:8px 10px;text-align:right;">${(abierto&&gestionar)?`<button data-gos-ajustar="${escHtml(f.cod)}" style="background:transparent;border:none;color:#6b7280;font-size:12px;cursor:pointer;text-decoration:underline;">Ajustar</button>`:''}</td>
+        </tr>`;
+        filasZona.push(f);
+      }
+      filasHtml += rowTotales('Subtotal distrito '+(dg.codDistrito||''), sumar(dg.filas), 'background:#f8f9fc;color:#6b7280;');
+    }
+    filasHtml += rowTotales('Subtotal zona '+(zg.codZona||''), sumar(filasZona), 'background:#e2e8f0;font-weight:600;color:#1a2340;');
+  }
+  const totalGeneral = sumar(filas);
+  filasHtml += rowTotales('Total general', totalGeneral, 'background:#1a2340;color:white;font-weight:700;');
+
+  const sinDatos = filas.filter(f=>f.sinDatos);
+
+  return `<div style="display:flex;flex-direction:column;gap:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div>
+        <button id="gos-btn-volver-trimestres" style="background:transparent;border:none;color:#6b7280;font-size:12px;cursor:pointer;margin-bottom:4px;padding:0;">← Volver a trimestres</button>
+        <h3 style="font-size:16px;font-weight:700;color:#1a2340;">Informe T${t.numero_trimestre} ${t.anio}</h3>
+        <p style="font-size:12px;color:#9ca3af;">Corte: ${t.fecha_corte} · Estado: <strong style="color:${abierto?'#166534':'#6b7280'};">${t.estado}</strong></p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${abierto && gestionar ? `<button id="gos-btn-cerrar-trimestre" style="padding:8px 16px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:13px;font-weight:600;cursor:pointer;">Cerrar trimestre</button>` : ''}
+        ${!abierto && S.currentProfile?.permisos?.rol==='superadmin' ? `<button id="gos-btn-reabrir-trimestre" style="padding:8px 16px;border-radius:8px;border:1.5px solid #f59e0b;background:#fffbeb;color:#92650a;font-size:13px;font-weight:600;cursor:pointer;">Reabrir trimestre</button>` : ''}
+      </div>
+    </div>
+    ${esSemilla ? `<div style="font-size:12px;color:#6b7280;background:#eef2ff;border-radius:8px;padding:8px 12px;">Trimestre semilla: la columna D (membresía inicial) es editable por iglesia/grupo.</div>` : ''}
+    ${S.gosInformeError ? `<p style="font-size:12px;color:#b91c1c;">${escHtml(S.gosInformeError)}</p>` : ''}
+    <div style="overflow-x:auto;background:white;border-radius:14px;border:1px solid #e8eaf2;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:1100px;">
+        <thead><tr style="background:#f8f9fc;">
+          ${thCell('Cód. distrito')}${thCell('Iglesia / Grupo')}
+          ${thCell('D · Membresía inicial','right')}${thCell('E · Bautismos','right')}${thCell('F · Prof. Fe','right')}${thCell('G · T. Entrada','right')}${thCell('H · T. Salida','right')}${thCell('I · Apostasía','right')}${thCell('J · Muerte','right')}${thCell('K · Paradero','right')}${thCell('L · Ajuste','right')}${thCell('M · Total','right')}${thCell('')}
+        </tr></thead>
+        <tbody>${filasHtml}</tbody>
+      </table>
+    </div>
+    <div style="background:white;border-radius:14px;border:1px solid #e8eaf2;padding:18px;">
+      <h4 style="font-size:13px;font-weight:700;color:#1a2340;">Sin datos (${sinDatos.length})</h4>
+      <p style="font-size:12px;color:#9ca3af;margin-top:2px;">Iglesias/grupos sin ningún movimiento este trimestre (membresía inicial = total).</p>
+      ${sinDatos.length ? `<div style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px;font-size:12px;color:#6b7280;">
+        ${sinDatos.map(f=>`<div>${escHtml(f.nombre)} <span style="color:#c5cbe0;">(${escHtml(f.zona||'—')}/${escHtml(f.distrito||'—')})</span></div>`).join('')}
+      </div>` : ''}
+    </div>
+  </div>`;
+}
+
+function buildGosAjusteModal() {
+  const f = RAW.iglesias.find(i=>i.cod===S.gosAjusteIglesiaCod);
+  const nombre = f?.nombre || S.gosAjusteIglesiaCod || '';
+  return `<div id="gos-ajuste-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:modalIn .2s ease;">
+      <div style="padding:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <h2 style="font-size:16px;font-weight:700;color:#1a2340;">Ajuste — ${escHtml(nombre)}</h2>
+          <button id="gos-btn-ajuste-close" style="background:transparent;border:none;cursor:pointer;padding:6px;color:#9ca3af;">${icons.x}</button>
+        </div>
+        <p style="font-size:12px;color:#9ca3af;margin-bottom:16px;">Un ajuste positivo suma a la membresía, uno negativo resta.</p>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Cantidad (con signo)</label>
+            <input id="gos-ajuste-cantidad" type="number" placeholder="ej. -2 o 3" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;" />
+          </div>
+          <div>
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Motivo (obligatorio)</label>
+            <textarea id="gos-ajuste-nota" rows="3" style="width:100%;padding:10px 12px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;"></textarea>
+          </div>
+        </div>
+        ${S.gosAjusteError ? `<p style="margin-top:10px;font-size:12px;color:#b91c1c;">${escHtml(S.gosAjusteError)}</p>` : ''}
+      </div>
+      <div style="padding:16px 24px;border-top:1px solid #f0f2f7;display:flex;gap:10px;justify-content:flex-end;">
+        <button id="gos-btn-ajuste-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
+        <button id="gos-btn-ajuste-guardar" style="padding:10px 20px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;">${S.gosAjusteGuardando?'Guardando...':'Guardar ajuste'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildGosCerrarConfirm() {
+  return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;padding:28px;">
+      <h3 style="font-size:17px;font-weight:700;color:#1a2340;margin-bottom:8px;">Cerrar trimestre</h3>
+      <p style="font-size:14px;color:#6b7280;margin-bottom:22px;">Después de cerrarlo no se podrán registrar más ajustes ni cargas para este trimestre. ¿Continuar?</p>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button id="gos-btn-cerrar-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
+        <button id="gos-btn-cerrar-confirm" style="padding:10px 20px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;">Cerrar trimestre</button>
+      </div>
+    </div>
+  </div>`;
+}
+function buildGosReabrirConfirm() {
+  return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;padding:28px;">
+      <h3 style="font-size:17px;font-weight:700;color:#1a2340;margin-bottom:8px;">Reabrir trimestre</h3>
+      <p style="font-size:14px;color:#6b7280;margin-bottom:22px;">¿Reabrir este trimestre cerrado para permitir más ediciones?</p>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button id="gos-btn-reabrir-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
+        <button id="gos-btn-reabrir-confirm" style="padding:10px 20px;border-radius:8px;border:none;background:#d97706;color:white;font-size:14px;cursor:pointer;font-weight:500;">Reabrir</button>
+      </div>
+    </div>
+  </div>`;
 }
 
 /* =====================================================================

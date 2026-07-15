@@ -101,7 +101,7 @@ let S = {
   _allProfiles: null, _allProfilesLoading: false,
   showNewUserModal: false, editingProfileId: null,
   newUserForm: { email:'', nombre:'', permisos:{ gestionar_usuarios:false, ver_dashboard:true, ver_iglesias:true, ver_pastores:true, ver_distritos:true, ver_zonas:true, ver_solicitudes:false, ver_historial:false, ver_configuracion:false, editar_iglesias:false, editar_pastores:false, editar_distritos:false, editar_zonas:false, eliminar_iglesias:false, eliminar_pastores:false, ver_permisos:false, gestionar_permisos:false, ver_organizacion:false, gestionar_organizacion:false, ver_gos:false, gestionar_gos:false, zonas:[] } },
-  // GOS — Informes Trimestrales
+  // Informe Trimestral (movimientos de membresia)
   gosView: 'carga', // 'carga' | 'trimestres'
   _gosAsociaciones: null, _gosAsociacionesLoading: false,
   gosAsociacionId: null,
@@ -513,8 +513,8 @@ function buildSidebar() {
       ${canDo('ver_historial')     ? navItem('historial','Historial',icons.clock) : ''}
       ${canDo('ver_configuracion') ? navItem('configuracion','Configuración',icons.settings) : ''}
       <div style="color:rgba(255,255,255,.3);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:10px 10px 4px;">Informes</div>
-      ${canDo('ver_gos') ? navItem('gos_carga','Carga de Datos GOS',icons.upload) : ''}
-      ${canDo('ver_gos') ? navItem('gos_trimestres','Informes GOS',icons.barchart) : ''}
+      ${canDo('ver_gos') ? navItem('gos_carga','Carga de Movimientos',icons.upload) : ''}
+      ${canDo('ver_gos') ? navItem('gos_trimestres','Informe Trimestral',icons.barchart) : ''}
     </nav>
     <div style="padding:10px 12px 14px;border-top:1px solid rgba(255,255,255,.08);">
       <button id="btn-import-excel" style="display:flex;align-items:center;gap:8px;width:100%;background:rgba(212,168,32,.12);border:none;cursor:pointer;padding:8px;border-radius:8px;margin-bottom:6px;">
@@ -545,7 +545,7 @@ function buildSidebar() {
 
 /* ---- HEADER ---- */
 function buildHeader() {
-  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Pastores', solicitudes:'Solicitudes de Congregación', permisos:'Permisos de Ausencia', organizacion:'Organización de Iglesias', configuracion:'Configuracion', gos_carga:'Carga de Datos GOS', gos_trimestres:'Informes GOS' };
+  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Pastores', solicitudes:'Solicitudes de Congregación', permisos:'Permisos de Ausencia', organizacion:'Organización de Iglesias', configuracion:'Configuracion', gos_carga:'Carga de Movimientos', gos_trimestres:'Informe Trimestral' };
   const needsSearch = ['iglesias','distritos','pastores'].includes(S.view);
   const addBtn = (id,label) => `<button id="${id}" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;">${icons.plus.replace('currentColor','white')} ${label}</button>`;
   const searchBtn = `<button id="btn-global-search" title="Ctrl+K" style="background:#f0f2f7;border:none;border-radius:8px;padding:8px;cursor:pointer;color:#6b7280;display:flex;align-items:center;">${icons.search}</button>`;
@@ -1382,8 +1382,8 @@ function buildUsuariosSection() {
     { key:'gestionar_permisos', label:'Gestionar Permisos de Ausencia' },
     { key:'ver_organizacion', label:'Ver Organización de Iglesias' },
     { key:'gestionar_organizacion', label:'Gestionar Organización de Iglesias' },
-    { key:'ver_gos',          label:'Ver Informes GOS' },
-    { key:'gestionar_gos',    label:'Gestionar Informes GOS (cargar, ajustar, cerrar trimestre)' },
+    { key:'ver_gos',          label:'Ver Informe Trimestral' },
+    { key:'gestionar_gos',    label:'Gestionar Informe Trimestral (cargar, ajustar, cerrar trimestre)' },
     { key:'ver_historial',    label:'Ver Historial' },
     { key:'ver_configuracion',label:'Ver Configuración' },
     { key:'editar_iglesias',  label:'Editar Iglesias' },
@@ -1835,7 +1835,7 @@ function buildDeletePastorConfirm() {
 }
 
 /* Eliminacion masiva (Iglesias/Pastores): antes de borrar, revisa si algun
-   codigo seleccionado tiene historial en GOS/Organizacion de Iglesias (para
+   codigo seleccionado tiene historial en el Informe Trimestral/Organizacion de Iglesias (para
    iglesias -- pastores no tienen esa dependencia) y separa lo que SI se
    puede borrar de lo que no, mostrando nombres concretos en vez de solo un
    numero. */
@@ -1857,7 +1857,7 @@ function buildBulkDeleteConfirmModal() {
           ${S.bulkDeleteSeguros.map(c => `<div>${escHtml(nombreDe(c))}</div>`).join('')}
         </div>` : `<p style="font-size:13px;color:#9ca3af;margin-bottom:12px;">Ninguno de los seleccionados se puede eliminar.</p>`}
         ${S.bulkDeleteBloqueados.length ? `
-        <div style="font-size:12px;color:#b45309;font-weight:600;margin-bottom:4px;">No se pueden eliminar (${S.bulkDeleteBloqueados.length}) — tienen historial en Informes GOS u Organización de Iglesias:</div>
+        <div style="font-size:12px;color:#b45309;font-weight:600;margin-bottom:4px;">No se pueden eliminar (${S.bulkDeleteBloqueados.length}) — tienen historial en el Informe Trimestral u Organización de Iglesias:</div>
         <div style="max-height:100px;overflow-y:auto;font-size:12px;color:#b45309;background:#fffbeb;border-radius:8px;padding:8px 12px;margin-bottom:12px;">
           ${S.bulkDeleteBloqueados.map(c => `<div>${escHtml(nombreDe(c))}</div>`).join('')}
         </div>` : ''}
@@ -2585,7 +2585,7 @@ function bindEvents() {
     catch(e){S.sbErr='Error: '+e.message;render();}
   }));
 
-  /* ===================== GOS — INFORMES TRIMESTRALES ===================== */
+  /* ===================== INFORME TRIMESTRAL ===================== */
   if ((S.view==='gos_carga'||S.view==='gos_trimestres') && !S._gosAsociaciones && !S._gosAsociacionesLoading) { S._gosAsociacionesLoading=true; gosCargarAsociaciones(); }
   if ((S.view==='gos_carga'||S.view==='gos_trimestres') && S.gosAsociacionId && !S._gosTrimestres && !S._gosTrimestresLoading) { S._gosTrimestresLoading=true; gosCargarTrimestres(); }
   if (S.view==='gos_trimestres' && S.gosTrimestreSeleccionado && S._gosReporteTrimestreId!==S.gosTrimestreSeleccionado && !S._gosReporteLoading) { S._gosReporteLoading=true; gosCargarReporte(S.gosTrimestreSeleccionado); }
@@ -2734,7 +2734,7 @@ function bindEvents() {
       const blob = await resp.blob();
       const cd = resp.headers.get('Content-Disposition') || '';
       const match = cd.match(/filename="([^"]+)"/);
-      const nombreArchivo = match ? match[1] : 'Informe_GOS.xlsx';
+      const nombreArchivo = match ? match[1] : 'Informe_Trimestral.xlsx';
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = nombreArchivo; document.body.appendChild(a); a.click();
@@ -3204,7 +3204,7 @@ async function executeImport(preview, mode='all') {
 }
 
 /* =====================================================================
-   GOS — INFORMES TRIMESTRALES (movimientos de membresia)
+   INFORME TRIMESTRAL (movimientos de membresia)
    ===================================================================== */
 const GOS_TIPOS_MOVIMIENTO = [
   { value:'bautismo', label:'Bautismo' },
@@ -3258,7 +3258,7 @@ function gosLevenshtein(a, b) {
   return prev[n];
 }
 
-/* Catalogo de iglesias/grupos que participan del informe GOS: se excluyen
+/* Catalogo de iglesias/grupos que participan del Informe Trimestral: se excluyen
    las "pendiente_revision" (aun no son congregaciones establecidas). */
 function gosCatalogoIglesias() {
   return RAW.iglesias.filter(i => i.tipo !== 'pendiente_revision');
@@ -3399,7 +3399,7 @@ function gosDescargarPlantilla() {
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(tipos), 'Tipos válidos');
 
-  XLSX.writeFile(wb, 'Plantilla_Carga_GOS.xlsx');
+  XLSX.writeFile(wb, 'Plantilla_Carga_Movimientos.xlsx');
 }
 
 /* ---- Recalculo de gos_reporte_iglesia (desde cero, no incremental) ---- */
@@ -3745,7 +3745,7 @@ function buildGosTrimestres() {
   }
   if (!S._gosTrimestres.length) return `<div style="text-align:center;padding:60px;color:#9ca3af;">
     <div style="font-size:40px;margin-bottom:12px;">📊</div>
-    No hay trimestres abiertos todavía. Usa "Carga de Datos GOS" para abrir el primero.
+    No hay trimestres abiertos todavía. Usa "Carga de Movimientos" para abrir el primero.
   </div>`;
   return `<div style="background:white;border-radius:14px;border:1px solid #e8eaf2;overflow:hidden;">
     <table style="width:100%;border-collapse:collapse;font-size:14px;">

@@ -1,4 +1,4 @@
-// Construye el workbook ExcelJS del Informe Estadistico GOS (formato oficial
+// Construye el workbook ExcelJS del Informe Estadistico Trimestral (formato oficial
 // con colores/negritas, numeracion secuencial de distritos, IGLESIAS/GRUPOS
 // separados). Separado de exportar-informe-gos.js para poder probarlo con
 // datos de ejemplo sin depender de Supabase ni de una petición HTTP real.

@@ -114,7 +114,7 @@ let S = {
   gosCargando: false, gosConfirmando: false,
   showGosAjusteModal: false, gosAjusteIglesiaCod: null, gosAjusteError: '', gosAjusteGuardando: false,
   _gosReporte: null, _gosReporteLoading: false, _gosReporteTrimestreId: null,
-  gosInformeError: '',
+  gosInformeError: '', gosExportando: false,
   showGosCerrarConfirm: false, gosCerrarTrimestreId: null,
   showGosReabrirConfirm: false, gosReabrirTrimestreId: null,
 };
@@ -2619,6 +2619,34 @@ function bindEvents() {
     S.gosTrimestreSeleccionado = el.dataset.gosVerTrimestre; S._gosReporte=null; S._gosReporteTrimestreId=null; S.gosInformeError=''; render();
   }));
   q('#gos-btn-volver-trimestres', el => el.addEventListener('click', () => { S.gosTrimestreSeleccionado=null; render(); }));
+  q('#gos-btn-exportar', el => el.addEventListener('click', async () => {
+    S.gosExportando=true; S.gosInformeError=''; render();
+    try {
+      const { data: { session } } = await S.sbClient.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error('Sesion no disponible, vuelve a iniciar sesion.');
+      const resp = await fetch(`/api/exportar-informe-gos?trimestre_id=${S.gosTrimestreSeleccionado}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resp.ok) {
+        let msg = `Error ${resp.status}`;
+        try { msg = (await resp.json()).error || msg; } catch {}
+        throw new Error(msg);
+      }
+      const blob = await resp.blob();
+      const cd = resp.headers.get('Content-Disposition') || '';
+      const match = cd.match(/filename="([^"]+)"/);
+      const nombreArchivo = match ? match[1] : 'Informe_GOS.xlsx';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = nombreArchivo; document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+      showToast('Informe exportado', 'success');
+    } catch (err) {
+      S.gosInformeError = 'No se pudo exportar: ' + (err.message || String(err));
+    }
+    S.gosExportando=false; render();
+  }));
 
   /* Informe: membresia inicial (solo trimestre semilla) */
   document.querySelectorAll('[data-gos-d]').forEach(el => el.addEventListener('blur', async e => {
@@ -3516,6 +3544,7 @@ function buildGosInformeDetalle(t) {
         <p style="font-size:12px;color:#9ca3af;">Corte: ${t.fecha_corte} · Estado: <strong style="color:${abierto?'#166534':'#6b7280'};">${t.estado}</strong></p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button id="gos-btn-exportar" ${S.gosExportando?'disabled':''} style="padding:8px 16px;border-radius:8px;border:1.5px solid #15803d;background:white;color:#15803d;font-size:13px;font-weight:600;cursor:pointer;">${S.gosExportando?'Generando...':'⬇ Exportar Excel'}</button>
         ${abierto && gestionar ? `<button id="gos-btn-cerrar-trimestre" style="padding:8px 16px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:13px;font-weight:600;cursor:pointer;">Cerrar trimestre</button>` : ''}
         ${!abierto && S.currentProfile?.permisos?.rol==='superadmin' ? `<button id="gos-btn-reabrir-trimestre" style="padding:8px 16px;border-radius:8px;border:1.5px solid #f59e0b;background:#fffbeb;color:#92650a;font-size:13px;font-weight:600;cursor:pointer;">Reabrir trimestre</button>` : ''}
       </div>

@@ -54,6 +54,8 @@ let S = {
   showVacacionModal: false, vacacionModalMode: 'add', editVacacionId: null,
   formVacacion: { pastor_cod:'', nombre:'', email:'', fecha_solicitud:'', fecha_inicio:'', fecha_fin:'', estado:'pendiente', observaciones:'' },
   showDeleteVacacionConfirm: false, deleteVacacionId: null, deleteVacacionNombre: null,
+  // Calendario de Ausencias
+  calMonth: new Date().getMonth(), calYear: new Date().getFullYear(),
   // Organización de Iglesias
   _organizaciones: null, _organizacionesLoading: false,
   showOrganizacionModal: false, organizacionModalMode: 'add', editOrganizacionId: null,
@@ -490,6 +492,7 @@ function buildSidebar() {
       ${canDo('ver_solicitudes')   ? navItem('solicitudes','Solicitudes',icons.plus) : ''}
       ${canDo('ver_permisos')      ? navItem('permisos','Permisos de Ausencia',icons.calendar) : ''}
       ${canDo('ver_vacaciones')    ? navItem('vacaciones','Vacaciones',icons.sun) : ''}
+      ${(canDo('ver_permisos')||canDo('ver_vacaciones')) ? navItem('calendario','Calendario de Ausencias',icons.calendar) : ''}
       ${canDo('ver_organizacion')  ? navItem('organizacion','Organización de Iglesias',icons.shield,(S._organizaciones||[]).filter(o=>!o.completado).length||undefined) : ''}
       ${canDo('ver_historial')     ? navItem('historial','Historial',icons.clock) : ''}
       ${canDo('ver_configuracion') ? navItem('configuracion','Configuración',icons.settings) : ''}
@@ -523,7 +526,7 @@ function buildSidebar() {
 
 /* ---- HEADER ---- */
 function buildHeader() {
-  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Pastores', solicitudes:'Solicitudes de Congregación', permisos:'Permisos de Ausencia', vacaciones:'Vacaciones', organizacion:'Organización de Iglesias', configuracion:'Configuracion' };
+  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Pastores', solicitudes:'Solicitudes de Congregación', permisos:'Permisos de Ausencia', vacaciones:'Vacaciones', calendario:'Calendario de Ausencias', organizacion:'Organización de Iglesias', configuracion:'Configuracion' };
   const needsSearch = ['iglesias','distritos','pastores'].includes(S.view);
   const addBtn = (id,label) => `<button id="${id}" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;">${icons.plus.replace('currentColor','white')} ${label}</button>`;
   const searchBtn = `<button id="btn-global-search" title="Ctrl+K" style="background:#f0f2f7;border:none;border-radius:8px;padding:8px;cursor:pointer;color:#6b7280;display:flex;align-items:center;">${icons.search}</button>`;
@@ -564,6 +567,7 @@ function buildContent() {
     case 'solicitudes':   return buildSolicitudes();
     case 'permisos':      return buildPermisos();
     case 'vacaciones':    return buildVacaciones();
+    case 'calendario':    return buildCalendarioAusencias();
     case 'organizacion':  return buildOrganizacion();
     case 'configuracion': return buildConfiguracion();
     default:              return buildDashboard();
@@ -1266,6 +1270,72 @@ function buildVacacionModal() {
 
 function buildDeleteVacacionConfirm() {
   return confirmModal('Eliminar solicitud', `Se eliminará la solicitud de vacaciones de <strong>${escHtml(S.deleteVacacionNombre||'')}</strong> permanentemente.`, 'btn-del-vacacion-cancel', 'btn-del-vacacion-confirm');
+}
+
+/* ---- CALENDARIO DE AUSENCIAS (Permisos + Vacaciones) ---- */
+const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DIAS_SEMANA_ES = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+
+function calPillHtml(nombre, tipo, estado) {
+  const colores = { permiso: { bg:'#eef2ff', color:'#1e3564' }, vacacion: { bg:'#fef3c7', color:'#92400e' } };
+  const c = colores[tipo];
+  let extra = '';
+  if (estado === 'rechazado') extra = 'opacity:.45;text-decoration:line-through;';
+  else if (estado === 'pendiente') extra = `opacity:.8;box-shadow:inset 0 0 0 1px ${c.color}66;`;
+  const icono = tipo === 'permiso' ? '🗓️' : '☀️';
+  const primerNombre = escHtml((nombre||'').split(',')[0]);
+  return `<div title="${escHtml(nombre||'')}" style="background:${c.bg};color:${c.color};${extra}font-size:10px;line-height:1.4;padding:1px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${icono} ${primerNombre}</div>`;
+}
+
+function buildCalendarioAusencias() {
+  if (!canDo('ver_permisos') && !canDo('ver_vacaciones')) return NO_ACCESO;
+  const year = S.calYear, month = S.calMonth;
+  const diasEnMes = new Date(year, month+1, 0).getDate();
+  const offset = new Date(year, month, 1).getDay();
+  const hoyStr = new Date().toISOString().slice(0,10);
+
+  const permisos = canDo('ver_permisos') ? (S._permisos||[]) : [];
+  const vacaciones = canDo('ver_vacaciones') ? (S._vacaciones||[]) : [];
+  const cargando = (canDo('ver_permisos') && S._permisosLoading) || (canDo('ver_vacaciones') && S._vacacionesLoading);
+
+  const celdas = [];
+  for (let i=0;i<offset;i++) celdas.push(`<div style="background:#fafbff;border-radius:8px;min-height:90px;"></div>`);
+  for (let d=1; d<=diasEnMes; d++) {
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const evP = permisos.filter(p => p.fecha_ausencia === dateStr);
+    const evV = vacaciones.filter(v => v.fecha_inicio && v.fecha_fin && v.fecha_inicio <= dateStr && dateStr <= v.fecha_fin);
+    const esHoy = dateStr === hoyStr;
+    const pills = evP.map(p => calPillHtml(p.nombre,'permiso',p.estado)).join('') + evV.map(v => calPillHtml(v.nombre,'vacacion',v.estado)).join('');
+    celdas.push(`<div style="background:white;border:1px solid ${esHoy?'#1e3564':'#e8eaf2'};border-radius:8px;min-height:90px;padding:6px;overflow-y:auto;">
+      <div style="font-size:11px;font-weight:700;color:${esHoy?'#1e3564':'#9ca3af'};margin-bottom:4px;">${d}</div>
+      ${pills}
+    </div>`);
+  }
+
+  return `<div style="padding:24px;display:flex;flex-direction:column;gap:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h2 style="font-size:18px;font-weight:700;color:#1a2340;margin-bottom:4px;">Calendario de Ausencias</h2>
+        <p style="font-size:13px;color:#6b7280;">Permisos de Ausencia y Vacaciones combinados, vista mensual.</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button id="btn-cal-prev" style="background:#f0f2f7;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;color:#374151;font-weight:600;">←</button>
+        <div style="font-size:14px;font-weight:700;color:#1a2340;min-width:160px;text-align:center;">${MESES_ES[month]} ${year}</div>
+        <button id="btn-cal-next" style="background:#f0f2f7;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;color:#374151;font-weight:600;">→</button>
+        <button id="btn-cal-hoy" style="background:#eef2ff;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;color:#1e3564;font-weight:600;font-size:13px;">Hoy</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:16px;font-size:12px;color:#374151;">
+      <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:3px;background:#eef2ff;border:1px solid #1e3564;display:inline-block;"></span> 🗓️ Permiso de Ausencia</div>
+      <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:3px;background:#fef3c7;border:1px solid #92400e;display:inline-block;"></span> ☀️ Vacaciones</div>
+      <div style="color:#9ca3af;">(atenuado = pendiente · tachado = rechazado)</div>
+    </div>
+    ${cargando ? `<div style="text-align:center;padding:20px;color:#6b7280;">Cargando…</div>` : ''}
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;">
+      ${DIAS_SEMANA_ES.map(d=>`<div style="text-align:center;font-size:11px;font-weight:700;color:#6b7280;padding:4px;">${d}</div>`).join('')}
+      ${celdas.join('')}
+    </div>
+  </div>`;
 }
 
 /* ---- ORGANIZACIÓN DE IGLESIAS ---- */
@@ -2495,6 +2565,21 @@ function bindEvents() {
     S._vacaciones = (S._vacaciones||[]).filter(v => v.id!==S.deleteVacacionId);
     S.showDeleteVacacionConfirm=false; S.deleteVacacionId=null; S.deleteVacacionNombre=null;
     showToast('Solicitud eliminada','success'); render();
+  }));
+
+  /* CALENDARIO DE AUSENCIAS */
+  if (S.view==='calendario') {
+    if (canDo('ver_permisos') && !S._permisos && !S._permisosLoading) { S._permisosLoading=true; loadPermisos(); }
+    if (canDo('ver_vacaciones') && !S._vacaciones && !S._vacacionesLoading) { S._vacacionesLoading=true; loadVacaciones(); }
+  }
+  q('#btn-cal-prev', el => el.addEventListener('click', () => {
+    S.calMonth--; if (S.calMonth < 0) { S.calMonth = 11; S.calYear--; } render();
+  }));
+  q('#btn-cal-next', el => el.addEventListener('click', () => {
+    S.calMonth++; if (S.calMonth > 11) { S.calMonth = 0; S.calYear++; } render();
+  }));
+  q('#btn-cal-hoy', el => el.addEventListener('click', () => {
+    S.calMonth = new Date().getMonth(); S.calYear = new Date().getFullYear(); render();
   }));
 
   /* ORGANIZACIÓN DE IGLESIAS */

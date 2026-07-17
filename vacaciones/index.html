@@ -103,7 +103,8 @@ textarea{resize:vertical;min-height:70px}
       </div>
       <div>
         <label>Fecha de entrada <span class="required">*</span></label>
-        <input id="fecha_fin" type="date" />
+        <input id="fecha_fin" type="date" readonly />
+        <p class="hint">Se calcula automáticamente: fecha de salida + semanas seleccionadas.</p>
       </div>
     </div>
 
@@ -261,8 +262,18 @@ function calcularDias() {
   info.innerHTML = `Días a descontar de su balance: <strong>${dias}</strong> (${semanas} semanas${feriados ? ' menos ' + feriados + ' feriado(s)' : ''}).`;
   return dias;
 }
-document.getElementById('semanas').addEventListener('change', calcularDias);
+function actualizarFechaEntrada() {
+  const semanas = parseInt(document.getElementById('semanas').value) || 0;
+  const inicio = document.getElementById('fecha_inicio').value;
+  const fechaFinEl = document.getElementById('fecha_fin');
+  if (!semanas || !inicio) { fechaFinEl.value = ''; return; }
+  const d = new Date(inicio + 'T12:00:00');
+  d.setDate(d.getDate() + semanas * 7);
+  fechaFinEl.value = d.toISOString().slice(0, 10);
+}
+document.getElementById('semanas').addEventListener('change', () => { calcularDias(); actualizarFechaEntrada(); });
 document.getElementById('feriados').addEventListener('input', calcularDias);
+document.getElementById('fecha_inicio').addEventListener('change', actualizarFechaEntrada);
 
 document.querySelectorAll('input[name=confirmacion]').forEach(r => {
   r.addEventListener('change', () => {

@@ -52,7 +52,7 @@ let S = {
   // Vacaciones
   _vacaciones: null, _vacacionesLoading: false, _vacBalance: null,
   showVacacionModal: false, vacacionModalMode: 'add', editVacacionId: null,
-  formVacacion: { pastor_cod:'', nombre:'', email:'', fecha_solicitud:'', fecha_inicio:'', fecha_fin:'', lugar:'', estado:'pendiente', observaciones:'' },
+  formVacacion: { pastor_cod:'', nombre:'', email:'', fecha_solicitud:'', fecha_inicio:'', fecha_fin:'', estado:'pendiente', observaciones:'' },
   showDeleteVacacionConfirm: false, deleteVacacionId: null, deleteVacacionNombre: null,
   // Organización de Iglesias
   _organizaciones: null, _organizacionesLoading: false,
@@ -1249,8 +1249,6 @@ function buildVacacionModal() {
             <input id="vacacion-fecha-fin" type="date" value="${escHtml(f.fecha_fin)}" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
         </div>
         <div style="font-size:13px;color:#6b7280;">Días solicitados: <strong style="color:#1a2340;">${dias > 0 ? dias : '—'}</strong></div>
-        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Lugar donde pasará las vacaciones</label>
-          <input id="vacacion-lugar" type="text" value="${escHtml(f.lugar||'')}" placeholder="Lugar (opcional)" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
         <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Estado</label>
           <select id="vacacion-estado" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;">
             ${estadoOpts.map(o=>`<option value="${o.val}" ${(f.estado||'pendiente')===o.val?'selected':''}>${o.label}</option>`).join('')}
@@ -2405,7 +2403,7 @@ function bindEvents() {
   q('#btn-reload-vacaciones', el => el.addEventListener('click', () => { S._vacaciones=null; S._vacacionesLoading=true; render(); loadVacaciones(); }));
   q('#btn-add-vacacion', el => el.addEventListener('click', () => {
     S.showVacacionModal=true; S.vacacionModalMode='add'; S.editVacacionId=null;
-    S.formVacacion={ pastor_cod:'', nombre:'', email:'', fecha_solicitud:new Date().toISOString().slice(0,10), fecha_inicio:'', fecha_fin:'', lugar:'', estado:'pendiente', observaciones:'' };
+    S.formVacacion={ pastor_cod:'', nombre:'', email:'', fecha_solicitud:new Date().toISOString().slice(0,10), fecha_inicio:'', fecha_fin:'', estado:'pendiente', observaciones:'' };
     render();
   }));
   q('#btn-vacacion-close',  el => el.addEventListener('click', () => { S.showVacacionModal=false; render(); }));
@@ -2427,14 +2425,13 @@ function bindEvents() {
     const email           = document.getElementById('vacacion-email')?.value.trim()||'';
     const fecha_inicio    = document.getElementById('vacacion-fecha-inicio')?.value||'';
     const fecha_fin       = document.getElementById('vacacion-fecha-fin')?.value||'';
-    const lugar           = document.getElementById('vacacion-lugar')?.value.trim()||'';
     const estado          = document.getElementById('vacacion-estado')?.value||'pendiente';
     const observaciones   = document.getElementById('vacacion-observaciones')?.value.trim()||'';
     if (!pastor_cod) { showToast('Selecciona un pastor','error'); return; }
     if (!fecha_inicio || !fecha_fin) { showToast('Las fechas de inicio y fin son requeridas','error'); return; }
     const dias_solicitados = diasEntre(fecha_inicio, fecha_fin);
     if (dias_solicitados < 1) { showToast('La fecha fin debe ser posterior o igual a la fecha inicio','error'); return; }
-    const payload = { pastor_cod, nombre, email: email||null, fecha_inicio, fecha_fin, dias_solicitados, lugar: lugar||null, estado, observaciones: observaciones||null };
+    const payload = { pastor_cod, nombre, email: email||null, fecha_inicio, fecha_fin, dias_solicitados, estado, observaciones: observaciones||null };
     if (S.vacacionModalMode==='add') {
       const { data, error } = await S.sbClient.from('vacaciones_solicitudes').insert([payload]).select();
       if (error) { showToast('Error: '+error.message,'error'); return; }
@@ -2485,7 +2482,7 @@ function bindEvents() {
   document.querySelectorAll('[data-edit-vacacion]').forEach(el => el.addEventListener('click', () => {
     const v = (S._vacaciones||[]).find(v=>v.id===el.dataset.editVacacion); if(!v) return;
     S.showVacacionModal=true; S.vacacionModalMode='edit'; S.editVacacionId=v.id;
-    S.formVacacion={ pastor_cod:v.pastor_cod||'', nombre:v.nombre, email:v.email||'', fecha_inicio:v.fecha_inicio||'', fecha_fin:v.fecha_fin||'', lugar:v.lugar||'', estado:v.estado||'pendiente', observaciones:v.observaciones||'' };
+    S.formVacacion={ pastor_cod:v.pastor_cod||'', nombre:v.nombre, email:v.email||'', fecha_inicio:v.fecha_inicio||'', fecha_fin:v.fecha_fin||'', estado:v.estado||'pendiente', observaciones:v.observaciones||'' };
     render();
   }));
   document.querySelectorAll('[data-del-vacacion]').forEach(el => el.addEventListener('click', () => {
@@ -2969,11 +2966,6 @@ function imprimirVacacion(id) {
           ${v.celular ? `<div class="field">
             <div class="label">Celular del Solicitante</div>
             <div class="value">${escHtml(v.celular)}</div>
-          </div>` : ''}
-
-          ${v.lugar ? `<div class="field">
-            <div class="label">Lugar</div>
-            <div class="value">${escHtml(v.lugar)}</div>
           </div>` : ''}
 
           ${v.confirmo_autorizacion_presidente ? `<div class="field">

@@ -110,11 +110,6 @@ textarea{resize:vertical;min-height:70px}
     <div class="info-box" id="dias-info" style="display:none;"></div>
 
     <div>
-      <label>Lugar donde pasará las vacaciones</label>
-      <input id="lugar" type="text" placeholder="Lugar (opcional)" />
-    </div>
-
-    <div>
       <label>Observaciones</label>
       <textarea id="observaciones" placeholder="Información adicional…"></textarea>
     </div>
@@ -312,7 +307,6 @@ async function enviar() {
   const feriados     = parseInt(document.getElementById('feriados').value) || 0;
   const fecha_inicio = document.getElementById('fecha_inicio').value;
   const fecha_fin    = document.getElementById('fecha_fin').value;
-  const lugar        = document.getElementById('lugar').value.trim();
   const observaciones = document.getElementById('observaciones').value.trim();
   const confirmacion = document.querySelector('input[name=confirmacion]:checked')?.value || '';
 
@@ -345,7 +339,7 @@ async function enviar() {
         semanas_solicitadas: semanas, feriados_periodo: feriados,
         confirmo_autorizacion_presidente: true,
         firma_data_url,
-        lugar: lugar || null, observaciones: observaciones || null,
+        observaciones: observaciones || null,
         estado: 'pendiente'
       })
     });

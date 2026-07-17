@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Sistema de Iglesias — Asoc. Dom. Sureste</title>
+<title>SIGA — Asoc. Dom. Sureste</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
@@ -40,16 +40,40 @@ let RAW = { zonas: [], distritos: [], iglesias: [], pastores: [] };
    STATE
    ===================================================================== */
 let S = {
-  view: 'dashboard',
+  view: location.hash.replace('#','') || 'dashboard',
   sidebarOpen: window.innerWidth >= 768,
-  search: '', fZona: 'all', fDistrito: 'all', fPastor: 'all', sortCol: 'nombre', sortDir: 'asc',
+  search: '', fZona: 'all', fDistrito: 'all', fPastor: 'all', fEstado: 'all', fRol: 'all', fTipoIg: 'all', sortCol: 'nombre', sortDir: 'asc',
   showSearch: false, searchQuery: '', loadError: '', _historialData: null, _historialLoading: false,
   _solicitudes: null, _solicitudesLoading: false, _flujoCfg: null,
+  _permisos: null, _permisosLoading: false,
+  showPermisoModal: false, permisoModalMode: 'add', editPermisoId: null,
+  formPermiso: { nombre:'', email:'', fecha_solicitud:'', motivo:'enfermedad', lugar:'', fecha_ausencia:'', estado:'pendiente', observaciones:'' },
+  showDeletePermisoConfirm: false, deletePermisoId: null, deletePermisoNombre: null,
+  // Vacaciones
+  _vacaciones: null, _vacacionesLoading: false, _vacBalance: null,
+  showVacacionModal: false, vacacionModalMode: 'add', editVacacionId: null,
+  formVacacion: { pastor_cod:'', nombre:'', email:'', fecha_solicitud:'', fecha_inicio:'', fecha_fin:'', lugar:'', estado:'pendiente', observaciones:'' },
+  showDeleteVacacionConfirm: false, deleteVacacionId: null, deleteVacacionNombre: null,
+  // Organización de Iglesias
+  _organizaciones: null, _organizacionesLoading: false,
+  showOrganizacionModal: false, organizacionModalMode: 'add', editOrganizacionId: null,
+  formOrganizacion: {
+    iglesia_cod:'', iglesia_nombre:'', zona:'', distrito:'',
+    pastor_asignado:'', pastor_telefono:'', pastor_confirmado:false, fase1_completada:false,
+    fecha_ceremonia:'', req_min_miembros:false, req_lideres:false, req_solvencia:false, instructivo_enviado_junta:false, fase2_completada:false,
+    fecha_ceremonia_realizada:'', acta_firmada:false, checklist_materiales:{}, fase3_completada:false,
+    acms_actualizado:false, acms_fecha:'', oficiales_electos:'', fase4_completada:false,
+    plataformas:{}, fase5_completada:false,
+    notas:''
+  },
+  showDeleteOrganizacionConfirm: false, deleteOrganizacionId: null, deleteOrganizacionNombre: null,
+  selectedPastores: new Set(), selectedIglesias: new Set(),
   page: 1, pageSize: 25,
   // Iglesia modal
   showModal: false, modalMode: 'add', editId: null,
   form: { nombre:'', cod:'', codZona:'', codDistrito:'', distrito:'', zona:'', pastor:'', carpetaDrive:'', datosExtra:{} },
   saving: false, showDeleteConfirm: false, deleteTarget: null,
+  showDeleteSolicitudConfirm: false, deleteSolicitudId: null, deleteSolicitudNombre: null,
   // Zona modal
   showZonaModal: false, zonaModalMode: 'add', editZonaCod: null,
   formZona: { cod:'', nombre:'' },
@@ -60,7 +84,7 @@ let S = {
   showDeleteDistritoConfirm: false, deleteDistritoCod: null,
   // Pastor modal
   showPastorModal: false, pastorModalMode: 'add', editPastorCod: null,
-  formPastor: { cod:'', nombre:'', telefono:'', email:'', codZona:'', zona:'', codDistrito:'', distrito:'' },
+  formPastor: { cod:'', nombre:'', telefono:'', email:'', codZona:'', zona:'', codDistrito:'', distrito:'', fecha_ingreso:'' },
   showDeletePastorConfirm: false, deletePastorCod: null,
   // Campo modal
   showCampoModal: false, campoModalMode: 'add', editCampoIdx: null,
@@ -81,7 +105,7 @@ let S = {
   // Gestión de usuarios
   _allProfiles: null, _allProfilesLoading: false,
   showNewUserModal: false, editingProfileId: null,
-  newUserForm: { email:'', nombre:'', permisos:{ gestionar_usuarios:false, ver_dashboard:true, ver_iglesias:true, ver_pastores:true, ver_distritos:true, ver_zonas:true, ver_solicitudes:false, ver_historial:false, ver_configuracion:false, editar_iglesias:false, editar_pastores:false, editar_distritos:false, editar_zonas:false, eliminar_iglesias:false, eliminar_pastores:false, zonas:[] } },
+  newUserForm: { email:'', nombre:'', permisos:{ gestionar_usuarios:false, ver_dashboard:true, ver_iglesias:true, ver_pastores:true, ver_distritos:true, ver_zonas:true, ver_solicitudes:false, ver_historial:false, ver_configuracion:false, editar_iglesias:false, editar_pastores:false, editar_distritos:false, editar_zonas:false, eliminar_iglesias:false, eliminar_pastores:false, ver_permisos:false, gestionar_permisos:false, ver_vacaciones:false, gestionar_vacaciones:false, ver_organizacion:false, gestionar_organizacion:false, zonas:[] } },
 };
 
 /* =====================================================================
@@ -110,6 +134,8 @@ const icons = {
   phone:   ic('<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.7A2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.27 7.91a16 16 0 006.72 6.72l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>',15),
   mail:    ic('<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',15),
   lock:    ic('<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>'),
+  calendar:ic('<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'),
+  sun:     ic('<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>'),
   logout:  ic('<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>'),
   shield:  ic('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
 };
@@ -138,6 +164,7 @@ function getFilteredIglesias() {
   if (S.fZona !== 'all') list = list.filter(i => i.codZona === S.fZona);
   if (S.fDistrito !== 'all') list = list.filter(i => i.codDistrito === S.fDistrito);
   if (S.fPastor !== 'all') list = list.filter(i => (S.fPastor === '__sin_pastor__' ? (!i.pastor||!i.pastor.trim()) : (i.pastor||'') === S.fPastor));
+  if (S.fTipoIg && S.fTipoIg !== 'all') list = list.filter(i => (i.tipo||'iglesia') === S.fTipoIg);
   if (S.search.trim()) {
     const q = S.search.toLowerCase();
     list = list.filter(i =>
@@ -174,6 +201,8 @@ function getFilteredPastores() {
       (p.email||'').toLowerCase().includes(q)
     );
   }
+  if (S.fEstado && S.fEstado !== 'all') list = list.filter(p => (p.estado||'ordenado') === S.fEstado);
+  if (S.fRol    && S.fRol    !== 'all') list = list.filter(p => (p.rol||'pastor') === S.fRol);
   return [...list].sort((a,b) => a.nombre.localeCompare(b.nombre));
 }
 
@@ -258,7 +287,7 @@ function buildLoginScreen() {
       <div style="text-align:center;margin-bottom:32px;">
         <div style="width:60px;height:60px;background:#1e3564;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">${icons.home.replace('currentColor','white')}</div>
         <div style="font-size:20px;font-weight:700;color:#1a2340;">Asoc. Dom. Sureste</div>
-        <div style="font-size:13px;color:#9ca3af;margin-top:4px;">Sistema de Gestión de Iglesias</div>
+        <div style="font-size:13px;color:#9ca3af;margin-top:4px;">SIGA — Sistema de Gestión de Iglesias</div>
       </div>
       ${S.loginError ? `<div style="background:#fee2e2;color:#b91c1c;border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px;">${escHtml(S.loginError)}</div>` : ''}
       <div style="display:flex;flex-direction:column;gap:14px;">
@@ -370,6 +399,12 @@ async function loadAllProfiles() {
 /* =====================================================================
    RENDER
    ===================================================================== */
+function renderKeepScroll() {
+  const sy = (document.getElementById('main-content') || document.getElementById('app'))?.scrollTop ?? window.scrollY;
+  render();
+  const newMain = document.getElementById('main-content');
+  if (newMain) newMain.scrollTop = sy; else window.scrollTo(0, sy);
+}
 function render() {
   const app = document.getElementById('app');
   if (!app) return;
@@ -393,7 +428,7 @@ function buildHTML() {
     ${buildSidebar()}
     <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;">
       ${buildHeader()}
-      <main style="flex:1;overflow-y:auto;padding:24px;">${buildContent()}</main>
+      <main id="main-content" style="flex:1;overflow-y:auto;padding:24px;">${buildContent()}</main>
     </div>
   </div>
   ${S.showModal                 ? buildChurchModal()           : ''}
@@ -406,6 +441,13 @@ function buildHTML() {
   ${S.showDeleteZonaConfirm     ? buildDeleteZonaConfirm()     : ''}
   ${S.showDeleteDistritoConfirm ? buildDeleteDistritoConfirm() : ''}
   ${S.showDeletePastorConfirm   ? buildDeletePastorConfirm()   : ''}
+  ${S.showDeleteSolicitudConfirm ? buildDeleteSolicitudConfirm() : ''}
+  ${S.showPermisoModal ? buildPermisoModal() : ''}
+  ${S.showDeletePermisoConfirm ? buildDeletePermisoConfirm() : ''}
+  ${S.showVacacionModal ? buildVacacionModal() : ''}
+  ${S.showDeleteVacacionConfirm ? buildDeleteVacacionConfirm() : ''}
+  ${S.showOrganizacionModal ? buildOrganizacionModal() : ''}
+  ${S.showDeleteOrganizacionConfirm ? buildDeleteOrganizacionConfirm() : ''}
   ${S.showSearch                  ? buildSearchModal()           : ''}
   ${S.showImportModal            ? buildImportModal()           : ''}
   ${S.toast                     ? buildToast()                 : ''}
@@ -432,7 +474,7 @@ function buildSidebar() {
         </div>
         <div style="overflow:hidden;">
           <div style="color:white;font-weight:700;font-size:13px;line-height:1.2;white-space:nowrap;">Asoc. Dom. Sureste</div>
-          <div style="color:rgba(255,255,255,.45);font-size:11px;white-space:nowrap;">Sistema de Gestión</div>
+          <div style="color:rgba(255,255,255,.45);font-size:11px;white-space:nowrap;">SIGA</div>
         </div>
       </div>
     </div>
@@ -442,10 +484,13 @@ function buildSidebar() {
       <div style="color:rgba(255,255,255,.3);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:10px 10px 4px;">Estructura</div>
       ${canDo('ver_zonas')     ? navItem('zonas','Zonas',icons.globe,RAW.zonas.length) : ''}
       ${canDo('ver_distritos') ? navItem('distritos','Distritos',icons.users,RAW.distritos.length) : ''}
-      ${canDo('ver_iglesias')  ? navItem('iglesias','Iglesias',icons.home,RAW.iglesias.length) : ''}
+      ${canDo('ver_iglesias')  ? navItem('iglesias','Iglesias',icons.home,RAW.iglesias.filter(i=>i.tipo!=='pendiente_revision'&&i.pastor&&i.pastor.trim()).length) : ''}
       ${canDo('ver_pastores')  ? navItem('pastores','Pastores',icons.user,RAW.pastores.length) : ''}
       <div style="color:rgba(255,255,255,.3);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:10px 10px 4px;">Sistema</div>
       ${canDo('ver_solicitudes')   ? navItem('solicitudes','Solicitudes',icons.plus) : ''}
+      ${canDo('ver_permisos')      ? navItem('permisos','Permisos de Ausencia',icons.calendar) : ''}
+      ${canDo('ver_vacaciones')    ? navItem('vacaciones','Vacaciones',icons.sun) : ''}
+      ${canDo('ver_organizacion')  ? navItem('organizacion','Organización de Iglesias',icons.shield,(S._organizaciones||[]).filter(o=>!o.completado).length||undefined) : ''}
       ${canDo('ver_historial')     ? navItem('historial','Historial',icons.clock) : ''}
       ${canDo('ver_configuracion') ? navItem('configuracion','Configuración',icons.settings) : ''}
     </nav>
@@ -478,7 +523,7 @@ function buildSidebar() {
 
 /* ---- HEADER ---- */
 function buildHeader() {
-  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Pastores', solicitudes:'Solicitudes de Congregación', configuracion:'Configuracion' };
+  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Pastores', solicitudes:'Solicitudes de Congregación', permisos:'Permisos de Ausencia', vacaciones:'Vacaciones', organizacion:'Organización de Iglesias', configuracion:'Configuracion' };
   const needsSearch = ['iglesias','distritos','pastores'].includes(S.view);
   const addBtn = (id,label) => `<button id="${id}" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;">${icons.plus.replace('currentColor','white')} ${label}</button>`;
   const searchBtn = `<button id="btn-global-search" title="Ctrl+K" style="background:#f0f2f7;border:none;border-radius:8px;padding:8px;cursor:pointer;color:#6b7280;display:flex;align-items:center;">${icons.search}</button>`;
@@ -488,6 +533,7 @@ function buildHeader() {
     distritos: canDo('editar_distritos') ? addBtn('btn-add-distrito','Nuevo Distrito') : '',
     iglesias:  (canDo('editar_iglesias') ? exportBtn : '') + `<a href="/nueva-congregacion" target="_blank" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;text-decoration:none;">+ Nueva Congregación</a>`,
     pastores:  (canDo('editar_pastores') ? exportBtn+addBtn('btn-add-pastor','Nuevo Pastor') : ''),
+    organizacion: canDo('gestionar_organizacion') ? addBtn('btn-add-organizacion','Agregar Grupo en Proceso') : '',
   };
   return `
   <header style="background:white;padding:0 22px;height:60px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #e8eaf2;flex-shrink:0;z-index:50;">
@@ -500,7 +546,7 @@ function buildHeader() {
 }
 
 /* ---- CONTENT ROUTER ---- */
-const PERM_MAP = { dashboard:'ver_dashboard', zonas:'ver_zonas', distritos:'ver_distritos', iglesias:'ver_iglesias', pastores:'ver_pastores', historial:'ver_historial', solicitudes:'ver_solicitudes', configuracion:'ver_configuracion' };
+const PERM_MAP = { dashboard:'ver_dashboard', zonas:'ver_zonas', distritos:'ver_distritos', iglesias:'ver_iglesias', pastores:'ver_pastores', historial:'ver_historial', solicitudes:'ver_solicitudes', permisos:'ver_permisos', vacaciones:'ver_vacaciones', organizacion:'ver_organizacion', configuracion:'ver_configuracion' };
 const NO_ACCESO = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;color:#9ca3af;gap:12px;"><span style="font-size:40px;">${icons.lock.replace('currentColor','#cbd5e1')}</span><div style="font-size:15px;font-weight:600;color:#6b7280;">Sin acceso</div><div style="font-size:13px;text-align:center;">No tienes permiso para ver esta sección.<br>Contacta al administrador.</div></div>`;
 
 function buildContent() {
@@ -516,6 +562,9 @@ function buildContent() {
     case 'pastores':      return buildPastores();
     case 'historial':     return buildHistorialView();
     case 'solicitudes':   return buildSolicitudes();
+    case 'permisos':      return buildPermisos();
+    case 'vacaciones':    return buildVacaciones();
+    case 'organizacion':  return buildOrganizacion();
     case 'configuracion': return buildConfiguracion();
     default:              return buildDashboard();
   }
@@ -523,17 +572,20 @@ function buildContent() {
 
 /* ---- DASHBOARD ---- */
 function buildDashboard() {
-  const stat = (num, label, bg, color, iconHtml) => `
-  <div style="background:white;border-radius:14px;padding:22px;box-shadow:0 1px 4px rgba(30,53,100,.07);display:flex;align-items:center;gap:16px;border:1px solid #e8eaf2;">
+  const stat = (num, label, bg, color, iconHtml, nav='') => `
+  <div data-nav-dash="${nav}" style="background:white;border-radius:14px;padding:22px;box-shadow:0 1px 4px rgba(30,53,100,.07);display:flex;align-items:center;gap:16px;border:1px solid #e8eaf2;${nav?'cursor:pointer;':''}transition:box-shadow .15s;" onmouseover="${nav?"this.style.boxShadow='0 4px 12px rgba(30,53,100,.15)'":''}" onmouseout="${nav?"this.style.boxShadow='0 1px 4px rgba(30,53,100,.07)'":""}">
     <div style="width:52px;height:52px;background:${bg};border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconHtml.replace('currentColor',color)}</div>
-    <div><div style="font-size:32px;font-weight:700;color:#1e3564;line-height:1;">${num}</div><div style="font-size:13px;color:#6b7280;margin-top:2px;">${label}</div></div>
+    <div style="flex:1;"><div style="font-size:32px;font-weight:700;color:#1e3564;line-height:1;">${num}</div><div style="font-size:13px;color:#6b7280;margin-top:2px;">${label}</div></div>
+    ${nav?`<span style="font-size:18px;color:#c5cbe0;">›</span>`:''}
   </div>`;
 
   // Estadísticas de iglesias vs grupos y pastores ordenados vs licenciados
-  const iglesias = RAW.iglesias.filter(i=>i.tipo==='iglesia'||!i.tipo).length;
-  const grupos = RAW.iglesias.filter(i=>i.tipo==='grupo').length;
-  const ordenados = RAW.pastores.filter(p=>p.estado==='ordenado'||!p.estado).length;
-  const licenciados = RAW.pastores.filter(p=>p.estado==='licenciado').length;
+  const igActivas = RAW.iglesias.filter(i=>i.tipo!=='pendiente_revision'&&i.pastor&&i.pastor.trim());
+  const iglesias = igActivas.filter(i=>i.tipo==='iglesia'||!i.tipo).length;
+  const grupos = igActivas.filter(i=>i.tipo==='grupo').length;
+  const pastoresCampo = RAW.pastores.filter(p=>!p.rol||p.rol==='pastor'||p.rol==='asociado'||p.rol==='plantador');
+  const ordenados = pastoresCampo.filter(p=>p.estado==='ordenado'||!p.estado).length;
+  const licenciados = pastoresCampo.filter(p=>p.estado==='licenciado').length;
 
   const maxIg = Math.max(...RAW.zonas.map(z => z._igCount||0), 1);
   const colors = ['#1e3564','#2d5090','#d4a820','#3a6ab0','#e8c040','#4a7ac0','#f0d060'];
@@ -546,14 +598,16 @@ function buildDashboard() {
   }).join('');
   const topD = [...RAW.distritos].sort((a,b)=>b.iglesias-a.iglesias).slice(0,8);
   const topRows = topD.map((d,i) => `
-  <div style="display:flex;align-items:center;gap:12px;padding:10px 0;${i<topD.length-1?'border-bottom:1px solid #f0f2f7;':''}">
+  <div data-nav-dash="iglesias|distrito=${d.cod}" style="display:flex;align-items:center;gap:12px;padding:10px 0;${i<topD.length-1?'border-bottom:1px solid #f0f2f7;':''}cursor:pointer;" onmouseover="this.style.background='#f8f9fc'" onmouseout="this.style.background=''">
     <div style="width:24px;height:24px;border-radius:50%;background:${i<3?'#d4a820':'#e8eaf2'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${i<3?'white':'#9ca3af'};flex-shrink:0;">${i+1}</div>
     <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:500;color:#1a2340;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(d.nombre)}</div><div style="font-size:12px;color:#9ca3af;">${escHtml(d.zona)}</div></div>
     <span style="background:#fff8e6;color:#d4a820;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600;">${d.iglesias||0}</span>
   </div>`).join('');
-  const igSinPastor = RAW.iglesias.filter(i=>!i.pastor||!i.pastor.trim());
+  const igSinPastor = RAW.iglesias.filter(i=>i.tipo!=='pendiente_revision'&&(!i.pastor||!i.pastor.trim()));
   const sinPastor = igSinPastor.length;
-  const pastSinDistrito = RAW.pastores.filter(p=>!p.codDistrito);
+  const igPendientes = RAW.iglesias.filter(i=>i.tipo==='pendiente_revision');
+  const sinRevision = igPendientes.length;
+  const pastSinDistrito = RAW.pastores.filter(p=>!p.codDistrito&&p.rol!=='departamental'&&p.rol!=='administrador'&&p.rol!=='asociado'&&p.rol!=='plantador');
   const sinDistrito = pastSinDistrito.length;
   const distsSinIg = RAW.distritos.filter(d=>!d.iglesias||d.iglesias===0);
   const distSinIg = distsSinIg.length;
@@ -576,83 +630,92 @@ function buildDashboard() {
   }
 
   const alertItems = [];
+  if (sinRevision>0) alertItems.push(buildAlertCard('⚠',sinRevision+' iglesia'+(sinRevision!==1?'s':'')+' pendiente'+(sinRevision!==1?'s':'')+' de revisión','#991b1b','#fee2e2','iglesias',igPendientes.map(i=>i.nombre)));
   if (sinPastor>0) alertItems.push(buildAlertCard('!',sinPastor+' iglesia'+(sinPastor!==1?'s':'')+' sin pastor asignado','#854d0e','#fef9c3','iglesias-sin-pastor',igSinPastor.map(i=>i.nombre)));
   if (sinDistrito>0) alertItems.push(buildAlertCard('!',sinDistrito+' pastor'+(sinDistrito!==1?'es':'')+' sin distrito asignado','#9a3412','#ffedd5','pastores',pastSinDistrito.map(p=>p.nombre)));
   if (distSinIg>0) alertItems.push(buildAlertCard('i',distSinIg+' distrito'+(distSinIg!==1?'s':'')+' sin iglesias registradas','#1e40af','#dbeafe','distritos',distsSinIg.map(d=>d.nombre)));
-  const alertSection = alertItems.length ? '<div style="background:white;border-radius:14px;padding:20px 22px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;"><div style="font-size:15px;font-weight:600;color:#1a2340;margin-bottom:14px;">Alertas</div><div style="display:flex;flex-direction:column;gap:10px;">'+alertItems.join('')+'</div></div>' : '';
+  const asociados  = pastoresCampo.filter(p=>p.rol==='asociado'||p.rol==='plantador').length;
+  const oficina    = RAW.pastores.filter(p=>p.rol==='departamental'||p.rol==='administrador').length;
+  const totalPastoresCampo = pastoresCampo.length;
+
+  function secTitle(t) { return `<div style="font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;">${t}</div>`; }
+  function miniBar(label,val,total,color,nav='') {
+    const pct = total>0?Math.max((val/total)*100,0):0;
+    return `<div data-nav-dash="${nav}" style="display:flex;align-items:center;gap:10px;${nav?'cursor:pointer;border-radius:6px;padding:3px 4px;':'padding:3px 4px;'}transition:background .12s;" onmouseover="${nav?"this.style.background='#f0f2f7'":''}" onmouseout="${nav?"this.style.background=''":""}">
+      <span style="font-size:12px;color:#6b7280;width:80px;flex-shrink:0;">${label}</span>
+      <div style="flex:1;height:10px;background:#f0f2f7;border-radius:5px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};border-radius:5px;"></div></div>
+      <span style="font-size:13px;font-weight:600;color:#1a2340;width:28px;text-align:right;">${val}</span>
+    </div>`;
+  }
+
+  const alertSection = alertItems.length
+    ? `<div style="background:white;border-radius:14px;padding:18px 20px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1.5px solid #fca5a5;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;"></span>
+          <span style="font-size:14px;font-weight:700;color:#1a2340;">Alertas (${alertItems.length})</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">${alertItems.join('')}</div>
+      </div>` : '';
+
   return `
-  <div style="display:flex;flex-direction:column;gap:20px;">
+  <div style="display:flex;flex-direction:column;gap:22px;">
+
     ${alertSection}
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;">
-      ${stat(RAW.zonas.length,'Zonas','#eef2ff','#1e3564',icons.globe)}
-      ${stat(RAW.distritos.length,'Distritos','#fff8e6','#d4a820',icons.users)}
-      ${stat(RAW.iglesias.length,'Iglesias','#eef2ff','#1e3564',icons.home)}
-      ${stat(RAW.pastores.length,'Pastores','#fff8e6','#d4a820',icons.user)}
+
+    <!-- RESUMEN GENERAL -->
+    <div>
+      ${secTitle('Resumen general')}
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;">
+        ${stat(RAW.zonas.length,'Zonas','#eef2ff','#1e3564',icons.globe,'zonas')}
+        ${stat(RAW.distritos.length,'Distritos','#fff8e6','#d4a820',icons.users,'distritos')}
+        ${stat(iglesias,'Iglesias','#dbeafe','#1e40af',icons.home,'iglesias')}
+        ${stat(grupos,'Grupos','#fef3c7','#92400e',icons.users,'iglesias|tipo=grupo')}
+      </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;">
-      ${stat(iglesias,'Iglesias','#dbeafe','#1e40af',icons.home)}
-      ${stat(grupos,'Grupos','#fef3c7','#92400e',icons.users)}
-      ${stat(ordenados,'Pastores Ordenados','#dcfce7','#166534',icons.user)}
-      ${stat(licenciados,'Pastores Licenciados','#fed7aa','#92400e',icons.user)}
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;">
-      <div style="background:white;border-radius:14px;padding:22px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;">
-        <h3 style="font-size:15px;font-weight:600;color:#1a2340;margin-bottom:16px;">Distribución de Iglesias</h3>
-        <div style="display:flex;flex-direction:column;gap:14px;">
-          <div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-              <span style="font-size:13px;color:#6b7280;">Iglesias</span>
-              <span style="font-size:14px;font-weight:600;color:#1e40af;">${iglesias}</span>
-            </div>
-            <div style="height:12px;background:#f0f2f7;border-radius:6px;overflow:hidden;">
-              <div style="height:100%;width:${iglesias===0?'0':(iglesias/(iglesias+grupos)*100)}%;background:#1e40af;border-radius:6px;"></div>
-            </div>
+
+    <!-- PERSONAL MINISTERIAL -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
+      <div>
+        ${secTitle('Pastores de campo')}
+        <div style="background:white;border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;">
+          <div data-nav-dash="pastores" style="display:flex;align-items:baseline;gap:6px;margin-bottom:16px;cursor:pointer;" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
+            <span style="font-size:36px;font-weight:800;color:#1e3564;line-height:1;">${totalPastoresCampo}</span>
+            <span style="font-size:13px;color:#9ca3af;">en total ›</span>
           </div>
-          <div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-              <span style="font-size:13px;color:#6b7280;">Grupos</span>
-              <span style="font-size:14px;font-weight:600;color:#92400e;">${grupos}</span>
-            </div>
-            <div style="height:12px;background:#f0f2f7;border-radius:6px;overflow:hidden;">
-              <div style="height:100%;width:${grupos===0?'0':(grupos/(iglesias+grupos)*100)}%;background:#92400e;border-radius:6px;"></div>
-            </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            ${miniBar('Ordenados', ordenados, totalPastoresCampo, '#166534', 'pastores|estado=ordenado')}
+            ${miniBar('Licenciados', licenciados, totalPastoresCampo, '#b45309', 'pastores|estado=licenciado')}
+            ${miniBar('Asociados', asociados, totalPastoresCampo, '#0369a1', 'pastores|rol=asociado')}
           </div>
         </div>
       </div>
-      <div style="background:white;border-radius:14px;padding:22px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;">
-        <h3 style="font-size:15px;font-weight:600;color:#1a2340;margin-bottom:16px;">Estado de Pastores</h3>
-        <div style="display:flex;flex-direction:column;gap:14px;">
-          <div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-              <span style="font-size:13px;color:#6b7280;">Ordenados</span>
-              <span style="font-size:14px;font-weight:600;color:#166534;">${ordenados}</span>
-            </div>
-            <div style="height:12px;background:#f0f2f7;border-radius:6px;overflow:hidden;">
-              <div style="height:100%;width:${ordenados===0?'0':(ordenados/(ordenados+licenciados)*100)}%;background:#166534;border-radius:6px;"></div>
-            </div>
+      <div>
+        ${secTitle('Personal de oficina')}
+        <div style="background:white;border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;">
+          <div data-nav-dash="pastores|rol=departamental" style="display:flex;align-items:baseline;gap:6px;margin-bottom:16px;cursor:pointer;" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
+            <span style="font-size:36px;font-weight:800;color:#5b21b6;line-height:1;">${oficina}</span>
+            <span style="font-size:13px;color:#9ca3af;">en total ›</span>
           </div>
-          <div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-              <span style="font-size:13px;color:#6b7280;">Licenciados</span>
-              <span style="font-size:14px;font-weight:600;color:#b45309;">${licenciados}</span>
-            </div>
-            <div style="height:12px;background:#f0f2f7;border-radius:6px;overflow:hidden;">
-              <div style="height:100%;width:${licenciados===0?'0':(licenciados/(ordenados+licenciados)*100)}%;background:#b45309;border-radius:6px;"></div>
-            </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            ${miniBar('Departamental', RAW.pastores.filter(p=>p.rol==='departamental').length, oficina||1, '#7c3aed', 'pastores|rol=departamental')}
+            ${miniBar('Administrador', RAW.pastores.filter(p=>p.rol==='administrador').length, oficina||1, '#a855f7', 'pastores|rol=administrador')}
           </div>
         </div>
       </div>
     </div>
+
+    <!-- DISTRIBUCIÓN GEOGRÁFICA -->
     <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:20px;align-items:start;">
       <div style="background:white;border-radius:14px;padding:22px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;">
-        <h3 style="font-size:15px;font-weight:600;color:#1a2340;margin-bottom:16px;">Iglesias por Zona</h3>
+        <h3 style="font-size:14px;font-weight:600;color:#1a2340;margin-bottom:14px;">Iglesias por zona</h3>
         <div style="display:flex;flex-direction:column;gap:9px;">${bars}</div>
       </div>
       <div style="background:white;border-radius:14px;padding:22px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;">
-        <h3 style="font-size:15px;font-weight:600;color:#1a2340;margin-bottom:16px;">Distritos con mas iglesias</h3>
+        <h3 style="font-size:14px;font-weight:600;color:#1a2340;margin-bottom:14px;">Distritos con más iglesias</h3>
         ${topRows}
       </div>
     </div>
+
   </div>`;
 }
 
@@ -731,15 +794,31 @@ function buildIglesias() {
   const pages = Math.max(1, Math.ceil(total / S.pageSize));
   const page  = Math.min(S.page, pages);
   const slice = filtered.slice((page-1)*S.pageSize, page*S.pageSize);
+  const selIg = S.selectedIglesias;
+  const allIgChecked = slice.length > 0 && slice.every(ig => selIg.has(ig.cod));
+  const selIgCount = filtered.filter(ig => selIg.has(ig.cod)).length;
+  const bulkIgBar = selIgCount > 0 ? `
+    <div style="background:#1e3564;color:white;border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span style="font-size:13px;font-weight:600;">${selIgCount} iglesia${selIgCount!==1?'s':''} seleccionada${selIgCount!==1?'s':''}</span>
+      <span style="flex:1;"></span>
+      <span style="font-size:12px;opacity:.7;">Cambiar tipo a:</span>
+      <button id="btn-bulk-ig-iglesia" style="background:#1e40af;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Iglesia</button>
+      <button id="btn-bulk-ig-grupo" style="background:#92400e;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Grupo</button>
+      <button id="btn-bulk-ig-clear" style="background:rgba(255,255,255,.15);color:white;border:none;border-radius:7px;padding:7px 12px;font-size:13px;cursor:pointer;">✕ Cancelar</button>
+    </div>` : '';
+
   const rows = slice.map(ig => {
     const realIdx = RAW.iglesias.indexOf(ig);
     const driveLink = ig.carpeta_drive ? `<a href="${escHtml(ig.carpeta_drive)}" target="_blank" title="Abrir carpeta Drive" style="color:#1a73e8;display:flex;align-items:center;">${icons.link}</a>` : '';
-    const tipoColor = ig.tipo==='grupo'?'#fef3c7':'#dbeafe';
-    const tipoTextColor = ig.tipo==='grupo'?'#92400e':'#1e40af';
-    return `<tr style="border-bottom:1px solid #f0f2f7;" onmouseover="this.style.background='#f8f9fc'" onmouseout="this.style.background=''">
+    const tipoColor = ig.tipo==='grupo'?'#fef3c7':ig.tipo==='pendiente_revision'?'#fee2e2':'#dbeafe';
+    const tipoTextColor = ig.tipo==='grupo'?'#92400e':ig.tipo==='pendiente_revision'?'#991b1b':'#1e40af';
+    const tipoLabel = ig.tipo==='pendiente_revision'?'⚠ Revisar':ig.tipo||'iglesia';
+    const igChecked = selIg.has(ig.cod);
+return `<tr style="border-bottom:1px solid #f0f2f7;background:${igChecked?'#eef2ff':''}" onmouseover="this.style.background='${igChecked?'#e0e7ff':'#f8f9fc'}'" onmouseout="this.style.background='${igChecked?'#eef2ff':''}'">
+      <td style="padding:8px 8px 8px 16px;"><input type="checkbox" data-chk-iglesia="${escHtml(ig.cod)}" ${igChecked?'checked':''} style="width:15px;height:15px;cursor:pointer;accent-color:#1e3564;" /></td>
       <td style="padding:13px 20px;font-weight:500;color:#1a2340;">${escHtml(ig.nombre)}</td>
       <td style="padding:13px 20px;color:#9ca3af;font-family:monospace;font-size:12px;">${ig.cod}</td>
-      <td style="padding:13px 20px;"><span style="background:${tipoColor};color:${tipoTextColor};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;text-transform:capitalize;">${ig.tipo||'iglesia'}</span></td>
+      <td style="padding:13px 20px;"><span style="background:${tipoColor};color:${tipoTextColor};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;text-transform:capitalize;">${tipoLabel}</span></td>
       <td style="padding:13px 20px;color:#6b7280;font-size:13px;">${escHtml(ig.distrito||'')}</td>
       <td style="padding:13px 20px;"><span style="background:#eef2ff;color:#1e3564;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:500;">${escHtml(ig.zona||'')}</span></td>
       <td style="padding:13px 20px;color:#6b7280;font-size:13px;">${escHtml(ig.pastor||'—')}</td>
@@ -752,11 +831,12 @@ function buildIglesias() {
   }).join('');
   return `
   <div style="display:flex;flex-direction:column;gap:16px;">
+    ${bulkIgBar}
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">${selectZona}${selectDistrito}${selectPastor}<span style="margin-left:auto;font-size:13px;color:#9ca3af;">${total} iglesia${total!==1?'s':''}</span></div>
     <div style="background:white;border-radius:14px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;overflow:hidden;">
-      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:820px;">
-        <thead><tr style="background:#f8f9fc;">${thSort('Iglesia','nombre')}${thSort('Codigo','cod')}${thSort('Tipo','tipo')}${thSort('Distrito','distrito')}${thSort('Zona','zona')}${thSort('Pastor','pastor')}${thCell('Drive','center')}${thCell('')}</tr></thead>
-        <tbody>${rows||emptyRow(7,'No se encontraron iglesias')}</tbody>
+      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:860px;">
+        <thead><tr style="background:#f8f9fc;"><th style="padding:8px 8px 8px 16px;"><input id="chk-ig-all" type="checkbox" ${allIgChecked?'checked':''} style="accent-color:#1e3564;width:15px;height:15px;cursor:pointer;" title="Seleccionar todos" /></th>${thSort('Iglesia','nombre')}${thSort('Codigo','cod')}${thSort('Tipo','tipo')}${thSort('Distrito','distrito')}${thSort('Zona','zona')}${thSort('Pastor','pastor')}${thCell('Drive','center')}${thCell('')}</tr></thead>
+        <tbody>${rows||emptyRow(8,'No se encontraron iglesias')}</tbody>
       </table></div>
       <div style="padding:14px 20px;border-top:1px solid #f0f2f7;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
         <span style="font-size:13px;color:#9ca3af;">Pagina ${page} de ${pages}</span>
@@ -773,15 +853,60 @@ function buildIglesias() {
 function buildPastores() {
   const igByPastor = {}; RAW.iglesias.forEach(i => { if(i.pastor) igByPastor[i.pastor] = (igByPastor[i.pastor]||0)+1; });
   const list = getFilteredPastores();
-  const cards = list.map(p => {
+  const sel = S.selectedPastores;
+  const allChecked = list.length > 0 && list.every(p => sel.has(p.cod));
+  const selCount = list.filter(p => sel.has(p.cod)).length;
+
+  const filtrosActivos = [];
+  if (S.fEstado && S.fEstado !== 'all') filtrosActivos.push({label: `Estado: ${S.fEstado}`, clear: 'fEstado'});
+  if (S.fRol    && S.fRol    !== 'all') filtrosActivos.push({label: `Rol: ${S.fRol}`,       clear: 'fRol'});
+  const filtroBar = filtrosActivos.length ? `
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:12px;color:#6b7280;">Filtros activos:</span>
+      ${filtrosActivos.map(f=>`<span style="background:#eef2ff;color:#1e3564;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;">${f.label} <button data-clear-filter="${f.clear}" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:14px;line-height:1;padding:0;">×</button></span>`).join('')}
+      <button id="btn-clear-all-filters" style="font-size:12px;color:#ef4444;background:none;border:none;cursor:pointer;text-decoration:underline;">Limpiar todo</button>
+    </div>` : '';
+
+  const bulkBar = selCount > 0 ? `
+    <div style="position:sticky;top:0;z-index:10;background:#1e3564;color:white;border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span style="font-size:13px;font-weight:600;">${selCount} pastor${selCount!==1?'es':''} seleccionado${selCount!==1?'s':''}</span>
+      <span style="flex:1;"></span>
+      <span style="font-size:12px;opacity:.7;">Cambiar estado a:</span>
+      <button id="btn-bulk-pastor-ordenado" style="background:#166534;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Ordenado</button>
+      <button id="btn-bulk-pastor-licenciado" style="background:#991b1b;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Licenciado</button>
+      <button id="btn-bulk-pastor-clear" style="background:rgba(255,255,255,.15);color:white;border:none;border-radius:7px;padding:7px 12px;font-size:13px;cursor:pointer;">✕ Cancelar</button>
+    </div>` : '';
+
+  const rolCfg = {
+    pastor:        { label:'Pastor',        bg:'#dbeafe', color:'#1e40af' },
+    asociado:      { label:'Asociado',      bg:'#dcfce7', color:'#166534' },
+    plantador:     { label:'Plantador',     bg:'#d1fae5', color:'#065f46' },
+    departamental: { label:'Departamental', bg:'#fef3c7', color:'#92400e' },
+    administrador: { label:'Administrador', bg:'#ede9fe', color:'#5b21b6' },
+  };
+
+  function pastorCard(p) {
     const parts = p.nombre.split(/[\s,]+/).filter(Boolean);
     const initials = parts.slice(0,2).map(w=>w[0].toUpperCase()).join('');
-    return `<div style="background:white;border-radius:12px;padding:16px 18px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;display:flex;align-items:flex-start;gap:14px;animation:fadeUp .15s ease;">
-      <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#1e3564,#2d5090);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:white;flex-shrink:0;">${initials||'?'}</div>
+    const checked = sel.has(p.cod);
+    const rc = rolCfg[p.rol||'pastor'] || rolCfg.pastor;
+    const esOficina = p.rol==='departamental'||p.rol==='administrador';
+    const ppNombre = p.rol==='asociado' && p.pastor_principal_cod ? RAW.pastores.find(x=>x.cod===p.pastor_principal_cod)?.nombre : null;
+    const igNombre = p.rol==='plantador' && p.iglesia_asignada_cod ? RAW.iglesias.find(x=>x.cod===p.iglesia_asignada_cod)?.nombre : null;
+    return `<div style="background:white;border-radius:12px;padding:16px 18px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:${checked?'2px solid #1e3564':'1px solid #e8eaf2'};display:flex;align-items:flex-start;gap:14px;">
+      <input type="checkbox" data-chk-pastor="${escHtml(p.cod)}" ${checked?'checked':''} style="width:16px;height:16px;margin-top:14px;cursor:pointer;accent-color:#1e3564;flex-shrink:0;" />
+      <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,${esOficina?'#92400e,#d4a820':'#1e3564,#2d5090'});display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:white;flex-shrink:0;">${initials||'?'}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-weight:600;font-size:14px;color:#1a2340;">${escHtml(p.nombre)}</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">${p.distrito?`<span style="font-size:12px;color:#6b7280;">${escHtml(p.distrito)}</span>`:''}<span style="background:#eef2ff;color:#1e3564;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:600;">${igByPastor[p.nombre]||0} iglesia${(igByPastor[p.nombre]||0)!==1?'s':''}</span><span style="background:${(p.estado||'ordenado')==='licenciado'?'#fecaca':'#dbeafe'};color:${(p.estado||'ordenado')==='licenciado'?'#991b1b':'#1e40af'};border-radius:20px;padding:1px 8px;font-size:11px;font-weight:600;text-transform:capitalize;">${p.estado||'ordenado'}</span></div>
-        ${p.telefono?`<div style="font-size:12px;color:#9ca3af;margin-top:2px;display:flex;align-items:center;gap:4px;">${icons.phone} ${escHtml(p.telefono)}</div>`:''}
+        <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;">
+          <span style="background:${rc.bg};color:${rc.color};border-radius:20px;padding:1px 8px;font-size:11px;font-weight:600;">${rc.label}</span>
+          <span style="background:${(p.estado||'ordenado')==='licenciado'?'#fecaca':'#e0e7ef'};color:${(p.estado||'ordenado')==='licenciado'?'#991b1b':'#374151'};border-radius:20px;padding:1px 8px;font-size:11px;font-weight:600;text-transform:capitalize;">${p.estado||'ordenado'}</span>
+          ${!esOficina&&p.distrito?`<span style="font-size:11px;color:#9ca3af;">${escHtml(p.distrito)}</span>`:''}
+          ${!esOficina?`<span style="background:#eef2ff;color:#1e3564;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:600;">${igByPastor[p.nombre]||0} igl.</span>`:''}
+          ${ppNombre?`<span style="font-size:11px;color:#6b7280;">→ ${escHtml(ppNombre)}</span>`:''}
+          ${igNombre?`<span style="font-size:11px;color:#6b7280;">⛪ ${escHtml(igNombre)}</span>`:''}
+        </div>
+        ${p.telefono?`<div style="font-size:12px;color:#9ca3af;margin-top:3px;display:flex;align-items:center;gap:4px;">${icons.phone} ${escHtml(p.telefono)}</div>`:''}
         ${p.email?`<div style="font-size:12px;color:#9ca3af;margin-top:1px;display:flex;align-items:center;gap:4px;">${icons.mail} ${escHtml(p.email)}</div>`:''}
       </div>
       <div style="display:flex;gap:5px;flex-shrink:0;">
@@ -789,9 +914,21 @@ function buildPastores() {
         <button data-del-pastor="${escHtml(p.cod)}" style="background:transparent;border:1px solid #fee2e2;border-radius:6px;padding:5px 8px;cursor:pointer;color:#ef4444;display:flex;align-items:center;">${icons.trash}</button>
       </div>
     </div>`;
-  }).join('');
-  return list.length
-    ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;">${cards}</div>`
+  }
+
+  const campo     = list.filter(p=>!p.rol||p.rol==='pastor'||p.rol==='asociado'||p.rol==='plantador');
+  const oficina   = list.filter(p=>p.rol==='departamental'||p.rol==='administrador');
+
+  const selectAll = list.length ? `<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#6b7280;cursor:pointer;"><input id="chk-pastor-all" type="checkbox" ${allChecked?'checked':''} style="accent-color:#1e3564;width:15px;height:15px;" /> Seleccionar todos</label>` : '';
+
+  const seccion = (titulo, items) => items.length ? `
+    <div>
+      <div style="font-size:12px;font-weight:600;color:#9ca3af;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;">${titulo}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;">${items.map(pastorCard).join('')}</div>
+    </div>` : '';
+
+  return list.length || filtrosActivos.length
+    ? `<div style="display:flex;flex-direction:column;gap:20px;">${bulkBar}${filtroBar}<div style="display:flex;justify-content:flex-end;">${selectAll}</div>${seccion('Campo',campo)}${seccion('Oficina',oficina)}${!list.length?`<div style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">Sin resultados para los filtros activos</div>`:''}</div>`
     : `<div style="padding:60px;text-align:center;color:#9ca3af;font-size:14px;">No se encontraron pastores</div>`;
 }
 
@@ -827,11 +964,22 @@ function buildSolicitudes() {
           <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Código</th>
           <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Estado</th>
           <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Fecha</th>
+          <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Acción</th>
         </tr></thead>
         <tbody>
           ${items.map(s => {
             const est = estadoInfo[s.estado] || { label: s.estado, bg:'#f3f4f6', color:'#374151' };
             const fecha = new Date(s.created_at).toLocaleDateString('es-DO', {day:'2-digit',month:'short',year:'numeric'});
+            const enlaceMap = {
+              pendiente_cesar:  s.token_cesar  ? `/paso-cesar.html?token=${s.token_cesar}`  : null,
+              pendiente_carlos: s.token_carlos ? `/paso-carlos.html?token=${s.token_carlos}` : null,
+              pendiente_noemi:  s.token_noemi  ? `/paso-noemi.html?token=${s.token_noemi}`  : null,
+            };
+            const enlace = enlaceMap[s.estado];
+            const btnCopiar = enlace
+              ? `<button onclick="navigator.clipboard.writeText(location.origin+'${enlace}').then(()=>{ this.textContent='✓ Copiado'; setTimeout(()=>this.textContent='🔗 Copiar enlace',2000) })" style="background:#eef2ff;color:#1e3564;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;">🔗 Copiar enlace</button>`
+              : '';
+            const btnEliminar = `<button data-del-sol="${escHtml(s.id)}" data-del-sol-nombre="${escHtml(s.nombre_congregacion)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-left:4px;">✕</button>`;
             return `<tr style="border-bottom:1px solid #f0f2f7;">
               <td style="padding:12px 16px;font-weight:600;color:#1e3564;">${escHtml(s.nombre_congregacion)}</td>
               <td style="padding:12px 16px;color:#374151;">${escHtml(s.nombre_pastor)}</td>
@@ -839,6 +987,7 @@ function buildSolicitudes() {
               <td style="padding:12px 16px;"><span style="font-family:monospace;background:#f0f2f7;padding:2px 8px;border-radius:4px;">${escHtml(s.codigo_asignado||'—')}</span></td>
               <td style="padding:12px 16px;"><span style="background:${est.bg};color:${est.color};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">${est.label}</span></td>
               <td style="padding:12px 16px;color:#6b7280;font-size:13px;">${fecha}</td>
+              <td style="padding:12px 16px;">${btnCopiar}${btnEliminar}</td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -866,6 +1015,472 @@ function buildSolicitudes() {
   </div>`;
 }
 
+/* ---- PERMISOS DE AUSENCIA ---- */
+function buildPermisos() {
+  if (!canDo('ver_permisos')) return NO_ACCESO;
+  const items = S._permisos || [];
+  const loading = S._permisosLoading;
+  const motivoLabel = { enfermedad:'Enfermedad', cita_medica:'Cita Médica', asuntos_familiares:'Asuntos Familiares', asuntos_oficiales:'Asuntos Oficiales', asuntos_personales:'Asuntos Personales' };
+  const estadoInfo = { pendiente:{ label:'Pendiente', bg:'#fef9c3', color:'#854d0e' }, aprobado:{ label:'Aprobado', bg:'#dcfce7', color:'#166534' }, rechazado:{ label:'Rechazado', bg:'#fee2e2', color:'#991b1b' } };
+  let contenido;
+  if (loading) {
+    contenido = `<div style="text-align:center;padding:60px;color:#6b7280;">Cargando permisos…</div>`;
+  } else if (!items.length) {
+    contenido = `<div style="text-align:center;padding:60px;"><div style="font-size:40px;margin-bottom:12px;">📋</div><div style="color:#6b7280;font-size:15px;">No hay permisos registrados.</div></div>`;
+  } else {
+    contenido = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;">
+      <thead><tr style="background:#f8f9fc;">
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Nombre</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Motivo</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Lugar</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Fecha Ausencia</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Estado</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Acción</th>
+      </tr></thead>
+      <tbody>${items.map(p => {
+        const est = estadoInfo[p.estado] || { label:p.estado, bg:'#f3f4f6', color:'#374151' };
+        const fechaAus = p.fecha_ausencia ? new Date(p.fecha_ausencia+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+        const canGest = canDo('gestionar_permisos');
+        const btnAprobar  = canGest && p.estado !== 'aprobado'  ? `<button data-aprobar-permiso="${escHtml(p.id)}" style="background:#dcfce7;color:#166534;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">✓ Aprobar</button>` : '';
+        const btnRechazar = canGest && p.estado !== 'rechazado' ? `<button data-rechazar-permiso="${escHtml(p.id)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">✕ Rechazar</button>` : '';
+        const btnPrint = `<button data-print-permiso="${escHtml(p.id)}" style="background:#eef2ff;color:#1e3564;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">🖨️ Imprimir</button>`;
+        const btnEdit = canGest ? `<button data-edit-permiso="${escHtml(p.id)}" style="background:#f3f4f6;color:#374151;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">✎</button>` : '';
+        const btnDel  = canGest ? `<button data-del-permiso="${escHtml(p.id)}" data-del-permiso-nombre="${escHtml(p.nombre)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;">✕</button>` : '';
+        return `<tr style="border-bottom:1px solid #f0f2f7;">
+          <td style="padding:12px 16px;font-weight:600;color:#1e3564;">${escHtml(p.nombre)}</td>
+          <td style="padding:12px 16px;color:#374151;">${motivoLabel[p.motivo]||p.motivo}</td>
+          <td style="padding:12px 16px;color:#6b7280;">${escHtml(p.lugar||'—')}</td>
+          <td style="padding:12px 16px;color:#6b7280;">${fechaAus}</td>
+          <td style="padding:12px 16px;"><span style="background:${est.bg};color:${est.color};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">${est.label}</span></td>
+          <td style="padding:12px 16px;">${btnAprobar}${btnRechazar}${btnPrint}${btnEdit}${btnDel}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+  }
+  return `<div style="padding:24px;display:flex;flex-direction:column;gap:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h2 style="font-size:18px;font-weight:700;color:#1a2340;margin-bottom:4px;">Permisos de Ausencia</h2>
+        <p style="font-size:13px;color:#6b7280;">Registro de permisos de ausencia del personal.</p>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <a href="/permiso-ausencia" target="_blank" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;text-decoration:none;">🔗 Compartir enlace al pastor</a>
+        ${canDo('gestionar_permisos') ? `<button id="btn-add-permiso" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">${icons.plus} Registrar manualmente</button>` : ''}
+        <button id="btn-reload-permisos" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">↻ Actualizar</button>
+      </div>
+    </div>
+    <div style="background:white;border-radius:14px;border:1px solid #e8eaf2;overflow:hidden;">${contenido}</div>
+  </div>`;
+}
+
+function buildPermisoModal() {
+  const editing = S.permisoModalMode === 'edit';
+  const f = S.formPermiso;
+  const motivoOpts = [
+    { val:'enfermedad', label:'Enfermedad' },
+    { val:'cita_medica', label:'Cita Médica' },
+    { val:'asuntos_familiares', label:'Asuntos Familiares' },
+    { val:'asuntos_oficiales', label:'Asuntos Oficiales' },
+    { val:'asuntos_personales', label:'Asuntos Personales' },
+  ];
+  const estadoOpts = [
+    { val:'pendiente', label:'Pendiente' },
+    { val:'aprobado', label:'Aprobado' },
+    { val:'rechazado', label:'Rechazado' },
+  ];
+  return `<div id="permiso-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:22px 24px 0;">
+        <h3 style="font-size:17px;font-weight:700;color:#1a2340;">${editing?'Editar Permiso':'Nuevo Permiso de Ausencia'}</h3>
+        <button id="btn-permiso-close" style="background:transparent;border:none;cursor:pointer;color:#9ca3af;font-size:20px;line-height:1;">×</button>
+      </div>
+      <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Nombre <span style="color:#ef4444;">*</span></label>
+            <input id="permiso-nombre" type="text" value="${escHtml(f.nombre)}" placeholder="Nombre del empleado" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Correo electrónico</label>
+            <input id="permiso-email" type="email" value="${escHtml(f.email||'')}" placeholder="correo@ejemplo.com" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Fecha Solicitud <span style="color:#ef4444;">*</span></label>
+            <input id="permiso-fecha-solicitud" type="date" value="${escHtml(f.fecha_solicitud)}" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Fecha Ausencia <span style="color:#ef4444;">*</span></label>
+            <input id="permiso-fecha-ausencia" type="date" value="${escHtml(f.fecha_ausencia)}" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+        </div>
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Motivo <span style="color:#ef4444;">*</span></label>
+          <select id="permiso-motivo" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;">
+            ${motivoOpts.map(o=>`<option value="${o.val}" ${f.motivo===o.val?'selected':''}>${o.label}</option>`).join('')}
+          </select></div>
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Lugar donde irá</label>
+          <input id="permiso-lugar" type="text" value="${escHtml(f.lugar)}" placeholder="Lugar de destino" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Estado</label>
+          <select id="permiso-estado" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;">
+            ${estadoOpts.map(o=>`<option value="${o.val}" ${(f.estado||'pendiente')===o.val?'selected':''}>${o.label}</option>`).join('')}
+          </select></div>
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Observaciones</label>
+          <textarea id="permiso-observaciones" placeholder="Observaciones adicionales…" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;resize:vertical;min-height:70px;box-sizing:border-box;">${escHtml(f.observaciones||'')}</textarea></div>
+      </div>
+      <div style="padding:0 24px 24px;display:flex;gap:10px;justify-content:flex-end;">
+        <button id="btn-permiso-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
+        <button id="btn-permiso-save" style="padding:10px 20px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;">${editing?'Guardar cambios':'Registrar'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildDeletePermisoConfirm() {
+  return confirmModal('Eliminar permiso', `Se eliminará el permiso de <strong>${escHtml(S.deletePermisoNombre||'')}</strong> permanentemente.`, 'btn-del-permiso-cancel', 'btn-del-permiso-confirm');
+}
+
+/* ---- VACACIONES ---- */
+function diasEntre(inicio, fin) {
+  if (!inicio || !fin) return 0;
+  const a = new Date(inicio+'T12:00:00'), b = new Date(fin+'T12:00:00');
+  return Math.round((b-a)/86400000) + 1;
+}
+function getVacBalance(pastor_cod) {
+  return (S._vacBalance||[]).find(b => b.pastor_cod === pastor_cod) || null;
+}
+function fmtDisponible(b) {
+  if (!b || b.dias_asignados_anio == null) return '<span style="color:#9ca3af;">Falta fecha de ingreso</span>';
+  const disp = b.dias_asignados_anio - b.dias_tomados_anio;
+  return `${disp} de ${b.dias_asignados_anio} días (${b.dias_tomados_anio} tomados este año)`;
+}
+function buildVacaciones() {
+  if (!canDo('ver_vacaciones')) return NO_ACCESO;
+  const items = S._vacaciones || [];
+  const loading = S._vacacionesLoading;
+  const estadoInfo = { pendiente:{ label:'Pendiente', bg:'#fef9c3', color:'#854d0e' }, aprobado:{ label:'Aprobado', bg:'#dcfce7', color:'#166534' }, rechazado:{ label:'Rechazado', bg:'#fee2e2', color:'#991b1b' } };
+  let contenido;
+  if (loading) {
+    contenido = `<div style="text-align:center;padding:60px;color:#6b7280;">Cargando vacaciones…</div>`;
+  } else if (!items.length) {
+    contenido = `<div style="text-align:center;padding:60px;"><div style="font-size:40px;margin-bottom:12px;">☀️</div><div style="color:#6b7280;font-size:15px;">No hay solicitudes de vacaciones registradas.</div></div>`;
+  } else {
+    contenido = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;">
+      <thead><tr style="background:#f8f9fc;">
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Nombre</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Período</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Días</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Disponibles (año)</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Estado</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Acción</th>
+      </tr></thead>
+      <tbody>${items.map(v => {
+        const est = estadoInfo[v.estado] || { label:v.estado, bg:'#f3f4f6', color:'#374151' };
+        const fFmt = d => d ? new Date(d+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+        const canGest = canDo('gestionar_vacaciones');
+        const bal = getVacBalance(v.pastor_cod);
+        const btnAprobar  = canGest && v.estado !== 'aprobado'  ? `<button data-aprobar-vacacion="${escHtml(v.id)}" style="background:#dcfce7;color:#166534;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">✓ Aprobar</button>` : '';
+        const btnRechazar = canGest && v.estado !== 'rechazado' ? `<button data-rechazar-vacacion="${escHtml(v.id)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">✕ Rechazar</button>` : '';
+        const btnPrint = `<button data-print-vacacion="${escHtml(v.id)}" style="background:#eef2ff;color:#1e3564;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">🖨️ Imprimir</button>`;
+        const btnEdit = canGest ? `<button data-edit-vacacion="${escHtml(v.id)}" style="background:#f3f4f6;color:#374151;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">✎</button>` : '';
+        const btnDel  = canGest ? `<button data-del-vacacion="${escHtml(v.id)}" data-del-vacacion-nombre="${escHtml(v.nombre)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;">✕</button>` : '';
+        return `<tr style="border-bottom:1px solid #f0f2f7;">
+          <td style="padding:12px 16px;font-weight:600;color:#1e3564;">${escHtml(v.nombre)}</td>
+          <td style="padding:12px 16px;color:#6b7280;">${fFmt(v.fecha_inicio)} — ${fFmt(v.fecha_fin)}</td>
+          <td style="padding:12px 16px;color:#374151;">${v.dias_solicitados}</td>
+          <td style="padding:12px 16px;color:#6b7280;font-size:12px;">${fmtDisponible(bal)}</td>
+          <td style="padding:12px 16px;"><span style="background:${est.bg};color:${est.color};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">${est.label}</span></td>
+          <td style="padding:12px 16px;">${btnAprobar}${btnRechazar}${btnPrint}${btnEdit}${btnDel}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+  }
+  return `<div style="padding:24px;display:flex;flex-direction:column;gap:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h2 style="font-size:18px;font-weight:700;color:#1a2340;margin-bottom:4px;">Vacaciones</h2>
+        <p style="font-size:13px;color:#6b7280;">Solicitudes de vacaciones del personal, sujetas a aprobación de Presidencia y Secretaría Ejecutiva. Acumulación anual según antigüedad (Reglamento CB 20 05): 14 días (0-5 años) · 21 días (6-9 años) · 28 días (+9 años). No aplica arrastre de un año a otro.</p>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <a href="/vacaciones" target="_blank" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;text-decoration:none;">🔗 Compartir enlace al pastor</a>
+        ${canDo('gestionar_vacaciones') ? `<button id="btn-add-vacacion" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">${icons.plus} Registrar manualmente</button>` : ''}
+        <button id="btn-reload-vacaciones" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">↻ Actualizar</button>
+      </div>
+    </div>
+    <div style="background:white;border-radius:14px;border:1px solid #e8eaf2;overflow:hidden;">${contenido}</div>
+  </div>`;
+}
+
+function buildVacacionModal() {
+  const editing = S.vacacionModalMode === 'edit';
+  const f = S.formVacacion;
+  const dias = diasEntre(f.fecha_inicio, f.fecha_fin);
+  const bal = getVacBalance(f.pastor_cod);
+  const estadoOpts = [
+    { val:'pendiente', label:'Pendiente' },
+    { val:'aprobado', label:'Aprobado' },
+    { val:'rechazado', label:'Rechazado' },
+  ];
+  const pastoresSorted = [...RAW.pastores].sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
+  let balanceLine = '';
+  if (f.pastor_cod) {
+    if (!bal || bal.dias_asignados_anio == null) {
+      balanceLine = `<div style="font-size:13px;color:#ca8a04;background:#fef9c3;border-radius:8px;padding:10px 14px;">⚠️ Este pastor no tiene fecha de ingreso registrada — no se puede calcular su balance de vacaciones. Agrégala en la ficha del pastor.</div>`;
+    } else {
+      const disp = bal.dias_asignados_anio - bal.dias_tomados_anio;
+      const excede = dias > 0 && dias > disp;
+      balanceLine = `<div style="font-size:13px;color:${excede?'#991b1b':'#374151'};background:${excede?'#fee2e2':'#f8f9fc'};border-radius:8px;padding:10px 14px;">
+        Disponibles este año: <strong>${disp}</strong> de ${bal.dias_asignados_anio} días (${bal.dias_tomados_anio} ya tomados).
+        ${excede ? '<br>⚠️ Esta solicitud excede los días disponibles.' : ''}
+      </div>`;
+    }
+  }
+  return `<div id="vacacion-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;max-height:92vh;overflow-y:auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:22px 24px 0;">
+        <h3 style="font-size:17px;font-weight:700;color:#1a2340;">${editing?'Editar Solicitud':'Nueva Solicitud de Vacaciones'}</h3>
+        <button id="btn-vacacion-close" style="background:transparent;border:none;cursor:pointer;color:#9ca3af;font-size:20px;line-height:1;">×</button>
+      </div>
+      <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px;">
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Pastor <span style="color:#ef4444;">*</span></label>
+          <select id="vacacion-pastor-cod" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;">
+            <option value="">Selecciona un pastor…</option>
+            ${pastoresSorted.map(p=>`<option value="${escHtml(p.cod)}" ${f.pastor_cod===p.cod?'selected':''}>${escHtml(p.nombre)}</option>`).join('')}
+          </select></div>
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Correo electrónico</label>
+          <input id="vacacion-email" type="email" value="${escHtml(f.email||'')}" placeholder="correo@ejemplo.com" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+        ${balanceLine}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Fecha Inicio <span style="color:#ef4444;">*</span></label>
+            <input id="vacacion-fecha-inicio" type="date" value="${escHtml(f.fecha_inicio)}" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Fecha Fin <span style="color:#ef4444;">*</span></label>
+            <input id="vacacion-fecha-fin" type="date" value="${escHtml(f.fecha_fin)}" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+        </div>
+        <div style="font-size:13px;color:#6b7280;">Días solicitados: <strong style="color:#1a2340;">${dias > 0 ? dias : '—'}</strong></div>
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Lugar donde pasará las vacaciones</label>
+          <input id="vacacion-lugar" type="text" value="${escHtml(f.lugar||'')}" placeholder="Lugar (opcional)" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Estado</label>
+          <select id="vacacion-estado" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;">
+            ${estadoOpts.map(o=>`<option value="${o.val}" ${(f.estado||'pendiente')===o.val?'selected':''}>${o.label}</option>`).join('')}
+          </select></div>
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Observaciones</label>
+          <textarea id="vacacion-observaciones" placeholder="Observaciones adicionales…" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;resize:vertical;min-height:70px;box-sizing:border-box;">${escHtml(f.observaciones||'')}</textarea></div>
+      </div>
+      <div style="padding:0 24px 24px;display:flex;gap:10px;justify-content:flex-end;">
+        <button id="btn-vacacion-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
+        <button id="btn-vacacion-save" style="padding:10px 20px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;">${editing?'Guardar cambios':'Registrar'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildDeleteVacacionConfirm() {
+  return confirmModal('Eliminar solicitud', `Se eliminará la solicitud de vacaciones de <strong>${escHtml(S.deleteVacacionNombre||'')}</strong> permanentemente.`, 'btn-del-vacacion-cancel', 'btn-del-vacacion-confirm');
+}
+
+/* ---- ORGANIZACIÓN DE IGLESIAS ---- */
+const MATERIALES_ORG = [
+  { id:'listado_acms', cat:'El Oficial Llevará', label:'Listado de Miembros ACMS' },
+  { id:'copias_programa', cat:'El Oficial Llevará', label:'25 copias del programa de ordenación de iglesia + 1 original' },
+  { id:'instructivo_programa', cat:'El Oficial Llevará', label:'Instructivo del programa (incluye teléfono del pastor titular)' },
+  { id:'formulario_actualizacion', cat:'El Oficial Llevará', label:'Formulario de Actualización de Datos' },
+  { id:'carta_modelo', cat:'El Oficial Llevará', label:'Carta modelo para la incorporación de iglesias' },
+  { id:'talonarios_remesas', cat:'El Oficial Llevará', label:'Talonarios de remesas' },
+  { id:'orden_culto', cat:'El Oficial Llevará', label:'Orden de Culto' },
+  { id:'lista_feligresia', cat:'El Oficial Requerirá', label:'Lista de feligresía' },
+  { id:'cartas_solicitud', cat:'El Oficial Requerirá', label:'Cartas de solicitud' },
+  { id:'lista_dirigentes', cat:'El Oficial Requerirá', label:'Lista de Dirigentes' },
+  { id:'utensilios_santa_cena', cat:'El Oficial Requerirá', label:'Utensilios de Ceremonia de Santa Cena (sólo para verlo)' },
+];
+const PLATAFORMAS_ORG = [
+  { id:'padron', label:'SIGA (Padrón de Iglesias)', resp:'Secretaría' },
+  { id:'reportes', label:'Sistema de Reportes Estadísticos', resp:'Secretaría' },
+];
+const PROGRAMA_CEREMONIA_ORG = [
+  ['Bienvenida',3], ['Himno de Apertura',3], ['Lectura Bíblica',3], ['Oración Inicial',3],
+  ['Breve Historia de la Iglesia',10], ['Parte Especial',3], ['Devocional y repaso de las doctrinas',30],
+  ['Himno Congregacional',3], ['Formación del Núcleo',10], ['Aceptación de la Feligresía',15],
+  ['Comisión de Nombramientos',15], ['Cantos Congregacionales y música especial',15],
+  ['Votación de nuevos oficiales',10], ['Ordenación Nuevos Ancianos',10], ['Ordenación Nuevos Diáconos',10],
+  ['Ordenación Nuevas Diaconisas',10], ['Desafío a la Nueva Iglesia',10], ['Respuestas de la Iglesia',10],
+  ['Oración de Dedicación',3], ['Solicitud de la Nueva Iglesia para ser recibida',3],
+  ['Himno Final (A Dios sea Gloria)',3], ['Oración Final',3],
+];
+function orgFases(o) {
+  return [
+    { n:1, label:'Pastor Asignado', done:!!o.fase1_completada },
+    { n:2, label:'Fecha Coordinada', done:!!o.fase2_completada },
+    { n:3, label:'Ceremonia Realizada', done:!!o.fase3_completada },
+    { n:4, label:'ACMS Actualizado', done:!!o.fase4_completada },
+    { n:5, label:'Plataformas Actualizadas', done:!!o.fase5_completada },
+  ];
+}
+function orgFaseActual(o) {
+  const f = orgFases(o).find(x => !x.done);
+  return f ? f.n : 5;
+}
+function buildOrganizacionCard(o, canGest) {
+  const fases = orgFases(o);
+  const doneCount = fases.filter(f => f.done).length;
+  const completado = doneCount === 5;
+  const actual = fases.find(f => !f.done);
+  const badge = completado
+    ? `<span style="background:#dcfce7;color:#166534;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:600;">✓ Completado</span>`
+    : `<span style="background:#fef9c3;color:#854d0e;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:600;">Fase ${actual.n}: ${actual.label}</span>`;
+  const barSegs = fases.map(f => `<div style="flex:1;height:6px;border-radius:3px;background:${f.done?'#1e3564':'#e8eaf2'};"></div>`).join('');
+  const quickBtn = (!completado && canGest) ? `<button data-org-avanzar="${escHtml(o.id)}" style="background:#1e3564;color:white;border:none;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:500;">Marcar Fase ${actual.n} completada →</button>` : '';
+  const gestBtn = `<button data-org-edit="${escHtml(o.id)}" style="background:#f3f4f6;color:#374151;border:none;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:500;">${canGest?'Gestionar':'Ver'}</button>`;
+  const delBtn = canGest ? `<button data-org-del="${escHtml(o.id)}" data-org-del-nombre="${escHtml(o.iglesia_nombre)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;font-weight:500;">✕</button>` : '';
+  const fechaCer = o.fecha_ceremonia ? new Date(o.fecha_ceremonia+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'}) : '';
+  return `<div style="background:white;border-radius:14px;padding:18px 20px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:1px solid #e8eaf2;display:flex;flex-direction:column;gap:10px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div style="font-weight:700;color:#1e3564;font-size:15px;">${escHtml(o.iglesia_nombre)}</div>
+        <div style="font-size:12px;color:#9ca3af;">${escHtml(o.distrito||'—')} · ${escHtml(o.zona||'—')}${o.pastor_asignado?' · Pastor: '+escHtml(o.pastor_asignado):''}</div>
+      </div>
+      ${badge}
+    </div>
+    <div style="display:flex;gap:4px;">${barSegs}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div style="font-size:12px;color:#6b7280;">${doneCount}/5 fases completadas${fechaCer?' · Ceremonia: '+fechaCer:''}</div>
+      <div style="display:flex;gap:8px;">${quickBtn}${gestBtn}${delBtn}</div>
+    </div>
+  </div>`;
+}
+function buildOrganizacion() {
+  if (!canDo('ver_organizacion')) return NO_ACCESO;
+  const items = S._organizaciones || [];
+  const loading = S._organizacionesLoading;
+  const canGest = canDo('gestionar_organizacion');
+  let list = items;
+  const fFase = S.fOrgFase || 'all';
+  if (fFase !== 'all') {
+    list = fFase === 'completado' ? list.filter(o => orgFaseActual(o)===5 && orgFases(o).every(f=>f.done)) : list.filter(o => !orgFases(o).every(f=>f.done) && orgFaseActual(o)===Number(fFase));
+  }
+  let contenido;
+  if (loading) {
+    contenido = `<div style="text-align:center;padding:60px;color:#6b7280;">Cargando…</div>`;
+  } else if (!list.length) {
+    contenido = `<div style="text-align:center;padding:60px;"><div style="font-size:40px;margin-bottom:12px;">⛪</div><div style="color:#6b7280;font-size:15px;">No hay grupos en proceso de organización.</div></div>`;
+  } else {
+    contenido = `<div style="display:flex;flex-direction:column;gap:14px;">${list.map(o => buildOrganizacionCard(o, canGest)).join('')}</div>`;
+  }
+  const filtros = [
+    { v:'all', label:'Todos' }, { v:'1', label:'Fase 1' }, { v:'2', label:'Fase 2' },
+    { v:'3', label:'Fase 3' }, { v:'4', label:'Fase 4' }, { v:'5', label:'Fase 5' }, { v:'completado', label:'Completados' },
+  ];
+  return `<div style="padding:24px;display:flex;flex-direction:column;gap:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h2 style="font-size:18px;font-weight:700;color:#1a2340;margin-bottom:4px;">Organización de Iglesias</h2>
+        <p style="font-size:13px;color:#6b7280;">Seguimiento del proceso de organización de un grupo/misión como iglesia (5 fases).</p>
+      </div>
+      <button id="btn-reload-organizacion" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">↻ Actualizar</button>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      ${filtros.map(o => `<button data-org-filter="${o.v}" style="padding:6px 14px;border-radius:20px;border:1.5px solid ${fFase===o.v?'#1e3564':'#e8eaf2'};background:${fFase===o.v?'#1e3564':'white'};color:${fFase===o.v?'white':'#374151'};font-size:12px;font-weight:500;cursor:pointer;">${o.label}</button>`).join('')}
+    </div>
+    ${contenido}
+  </div>`;
+}
+function buildOrganizacionModal() {
+  const editing = S.organizacionModalMode === 'edit';
+  const f = S.formOrganizacion;
+  const canGest = canDo('gestionar_organizacion');
+  const gruposDisponibles = RAW.iglesias
+    .filter(i => i.tipo === 'grupo' && (i.cod === f.iglesia_cod || !(S._organizaciones||[]).some(o => o.iglesia_cod === i.cod)))
+    .sort((a,b) => a.nombre.localeCompare(b.nombre,'es'));
+
+  const fld = (label, id, value, type='text') => `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">${label}</label>
+    <input id="${id}" type="${type}" value="${escHtml(value||'')}" ${canGest?'':'disabled'} style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;background:${canGest?'white':'#f8f9fc'};" /></div>`;
+  const chk = (label, id, checked) => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#374151;cursor:pointer;">
+    <input type="checkbox" id="${id}" ${checked?'checked':''} ${canGest?'':'disabled'} style="width:16px;height:16px;cursor:pointer;accent-color:#1e3564;flex-shrink:0;" /> ${label}</label>`;
+  const section = (num, title, bodyHtml, doneKey) => `
+    <div style="border:1px solid #e8eaf2;border-radius:12px;overflow:hidden;flex-shrink:0;">
+      <div style="background:${f[doneKey]?'#f0fdf4':'#f8f9fc'};padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="width:22px;height:22px;border-radius:50%;background:${f[doneKey]?'#166534':'#1e3564'};color:white;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${f[doneKey]?'✓':num}</span>
+          <span style="font-weight:600;font-size:14px;color:#1a2340;">${title}</span>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;">
+          <input type="checkbox" id="org-${doneKey}" ${f[doneKey]?'checked':''} ${canGest?'':'disabled'} style="width:15px;height:15px;cursor:pointer;accent-color:#166534;" /> Fase completada
+        </label>
+      </div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">${bodyHtml}</div>
+    </div>`;
+
+  const fase1Body = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      ${fld('Pastor asignado','org-pastor-asignado',f.pastor_asignado)}
+      ${fld('Teléfono del pastor','org-pastor-telefono',f.pastor_telefono,'tel')}
+    </div>
+    ${chk('Pastor confirmó disponibilidad','org-pastor-confirmado',f.pastor_confirmado)}`;
+
+  const fase2Body = `
+    ${fld('Fecha de ceremonia coordinada','org-fecha-ceremonia',f.fecha_ceremonia,'date')}
+    <div style="font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-top:4px;">Requisitos mínimos</div>
+    ${chk('Mínimo 25 miembros','org-req-miembros',f.req_min_miembros)}
+    ${chk('Líderes dispuestos a asumir compromisos','org-req-lideres',f.req_lideres)}
+    ${chk('Solvencia financiera','org-req-solvencia',f.req_solvencia)}
+    ${chk('Instructivo de organización enviado a la junta','org-instructivo-enviado',f.instructivo_enviado_junta)}`;
+
+  const fase3Body = `
+    ${fld('Fecha en que se realizó la ceremonia','org-fecha-ceremonia-realizada',f.fecha_ceremonia_realizada,'date')}
+    ${chk('Solicitud de recepción oficial firmada','org-acta-firmada',f.acta_firmada)}
+    <div style="font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-top:4px;">Checklist de materiales</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;">
+      ${MATERIALES_ORG.map(m => chk(m.label, 'org-mat-'+m.id, !!(f.checklist_materiales||{})[m.id])).join('')}
+    </div>
+    <details style="margin-top:6px;">
+      <summary style="cursor:pointer;font-size:12px;color:#1e3564;font-weight:600;">Ver programa sugerido de la ceremonia (~185 min)</summary>
+      <div style="margin-top:8px;max-height:180px;overflow-y:auto;font-size:12px;color:#374151;">
+        ${PROGRAMA_CEREMONIA_ORG.map(([a,m]) => `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f2f7;"><span>${escHtml(a)}</span><span style="color:#9ca3af;">${m} min</span></div>`).join('')}
+      </div>
+    </details>`;
+
+  const fase4Body = `
+    ${fld('Fecha de actualización en ACMS','org-acms-fecha',f.acms_fecha,'date')}
+    ${chk('Estado cambiado en ACMS a "Iglesia Organizada"','org-acms-actualizado',f.acms_actualizado)}
+    <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Primeros oficiales electos</label>
+      <textarea id="org-oficiales-electos" placeholder="Ancianos, diáconos, diaconisas…" ${canGest?'':'disabled'} style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;resize:vertical;min-height:60px;box-sizing:border-box;">${escHtml(f.oficiales_electos||'')}</textarea></div>
+    <div style="font-size:12px;color:#9ca3af;">Al marcar esta fase como completada, el sistema cambiará automáticamente el tipo de esta iglesia de "Grupo" a "Iglesia" en el padrón.</div>`;
+
+  const fase5Body = `
+    <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">Marcar cada plataforma una vez actualizada.</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${PLATAFORMAS_ORG.map(p => `<label style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;color:#374151;padding:6px 10px;background:#f8f9fc;border-radius:8px;">
+        <span style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="org-plat-${p.id}" ${!!(f.plataformas||{})[p.id]?'checked':''} ${canGest?'':'disabled'} style="width:16px;height:16px;cursor:pointer;accent-color:#1e3564;" /> ${escHtml(p.label)}</span>
+        <span style="color:#9ca3af;font-size:11px;">${escHtml(p.resp)}</span>
+      </label>`).join('')}
+    </div>`;
+
+  const iglesiaSelector = editing
+    ? `<div style="padding:12px 16px;background:#f8f9fc;border-radius:10px;font-size:14px;flex-shrink:0;"><strong>${escHtml(f.iglesia_nombre)}</strong><div style="font-size:12px;color:#9ca3af;margin-top:2px;">${escHtml(f.distrito||'—')} · ${escHtml(f.zona||'—')}</div></div>`
+    : `<div style="flex-shrink:0;"><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Grupo a organizar <span style="color:#ef4444;">*</span></label>
+        <select id="org-iglesia-select" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;">
+          <option value="">Seleccione un grupo…</option>
+          ${gruposDisponibles.map(i => `<option value="${escHtml(i.cod)}" ${f.iglesia_cod===i.cod?'selected':''}>${escHtml(i.nombre)} — ${escHtml(i.distrito||'')}</option>`).join('')}
+        </select></div>`;
+
+  return `<div id="organizacion-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:22px 24px 0;flex-shrink:0;">
+        <h3 style="font-size:17px;font-weight:700;color:#1a2340;">${editing?'Gestionar Organización de Iglesia':'Nuevo Grupo en Proceso de Organización'}</h3>
+        <button id="btn-organizacion-close" style="background:transparent;border:none;cursor:pointer;color:#9ca3af;font-size:20px;line-height:1;">×</button>
+      </div>
+      <div id="organizacion-modal-scroll" style="padding:20px 24px;display:flex;flex-direction:column;gap:16px;overflow-y:auto;flex:1;">
+        ${iglesiaSelector}
+        ${section(1,'Asignar Pastor Oficial', fase1Body, 'fase1_completada')}
+        ${section(2,'Asignar Fecha de Organización', fase2Body, 'fase2_completada')}
+        ${section(3,'Realizar Ceremonia de Organización', fase3Body, 'fase3_completada')}
+        ${section(4,'Actualizar ACMS', fase4Body, 'fase4_completada')}
+        ${section(5,'Actualizar Demás Plataformas', fase5Body, 'fase5_completada')}
+        <div style="flex-shrink:0;"><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Notas generales</label>
+          <textarea id="org-notas" placeholder="Notas adicionales…" ${canGest?'':'disabled'} style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;resize:vertical;min-height:60px;box-sizing:border-box;">${escHtml(f.notas||'')}</textarea></div>
+      </div>
+      <div style="padding:16px 24px 24px;display:flex;gap:10px;justify-content:flex-end;flex-shrink:0;border-top:1px solid #f0f2f7;">
+        <button id="btn-organizacion-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">${canGest?'Cancelar':'Cerrar'}</button>
+        ${canGest?`<button id="btn-organizacion-save" style="padding:10px 20px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;">${editing?'Guardar cambios':'Crear'}</button>`:''}
+      </div>
+    </div>
+  </div>`;
+}
+function buildDeleteOrganizacionConfirm() {
+  return confirmModal('Eliminar seguimiento', `Se eliminará el seguimiento de organización de <strong>${escHtml(S.deleteOrganizacionNombre||'')}</strong> permanentemente. Esto no afecta el registro de la iglesia en el padrón.`, 'btn-del-organizacion-cancel', 'btn-del-organizacion-confirm');
+}
+
 /* ---- CONFIGURACION ---- */
 function buildUsuariosSection() {
   if (!isAdmin()) return '';
@@ -876,6 +1491,12 @@ function buildUsuariosSection() {
     { key:'ver_iglesias',     label:'Ver Iglesias' },
     { key:'ver_pastores',     label:'Ver Pastores' },
     { key:'ver_solicitudes',  label:'Ver Solicitudes' },
+    { key:'ver_permisos',     label:'Ver Permisos de Ausencia' },
+    { key:'gestionar_permisos', label:'Gestionar Permisos de Ausencia' },
+    { key:'ver_vacaciones',     label:'Ver Vacaciones' },
+    { key:'gestionar_vacaciones', label:'Gestionar Vacaciones' },
+    { key:'ver_organizacion', label:'Ver Organización de Iglesias' },
+    { key:'gestionar_organizacion', label:'Gestionar Organización de Iglesias' },
     { key:'ver_historial',    label:'Ver Historial' },
     { key:'ver_configuracion',label:'Ver Configuración' },
     { key:'editar_iglesias',  label:'Editar Iglesias' },
@@ -907,7 +1528,7 @@ function buildUsuariosSection() {
         </div>
         ${S.editingProfileId ? '' : `
         ${formField('Correo electrónico','nu-email',nuf.email,'email','usuario@correo.com','',true)}
-        ${S.editingProfileId ? '' : '<p style="font-size:12px;color:#6b7280;margin:0 0 12px;">Se enviará una invitación por correo para que el usuario establezca su contraseña.</p>'}
+        ${S.editingProfileId ? '' : '<p style="font-size:12px;color:#6b7280;margin:0 0 12px;">Se generará una contraseña temporal y se enviará por correo al usuario.</p>'}
         `}
         ${formField('Nombre completo','nu-nombre',nuf.nombre,'text','Nombre del usuario')}
         <div style="margin-top:16px;">
@@ -1111,17 +1732,43 @@ function buildDistritoModal() {
 
 function buildPastorModal() {
   const f = S.formPastor;
+  const rol = f.rol || 'pastor';
+  const esOficina = rol === 'departamental' || rol === 'administrador';
+  const esAsociado = rol === 'asociado';
+  const esPlantador = rol === 'plantador';
   const distritoOpts = f.codZona ? RAW.distritos.filter(d=>d.codZona===f.codZona) : RAW.distritos;
+  const pastoresPrincipales = RAW.pastores.filter(p => p.cod !== f.cod && (p.rol==='pastor'||!p.rol));
+  const iglesiasSorted = [...RAW.iglesias].filter(i=>i.tipo!=='pendiente_revision').sort((a,b)=>a.nombre.localeCompare(b.nombre));
   return `<div id="pastor-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;">
     <div style="background:white;border-radius:16px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;max-height:92vh;overflow-y:auto;">
       <div style="padding:24px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;"><h2 style="font-size:18px;font-weight:700;color:#1a2340;">${S.pastorModalMode==='add'?'Nuevo Pastor':'Editar Pastor'}</h2><button id="btn-pastor-close" style="background:transparent;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#9ca3af;">${icons.x}</button></div>
         <div style="display:flex;flex-direction:column;gap:14px;">
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Rol</label>
+            <select id="pastor-rol" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
+              <option value="pastor" ${rol==='pastor'?'selected':''}>Pastor</option>
+              <option value="asociado" ${rol==='asociado'?'selected':''}>Asociado</option>
+              <option value="plantador" ${rol==='plantador'?'selected':''}>Plantador</option>
+              <option value="departamental" ${rol==='departamental'?'selected':''}>Departamental (Oficina)</option>
+              <option value="administrador" ${rol==='administrador'?'selected':''}>Administrador (Oficina)</option>
+            </select></div>
           ${formField('Codigo','pastor-cod',f.cod,'text','P001','monospace')}
           ${formField('Nombre completo','pastor-nombre',f.nombre,'text','Apellido, Nombre','',true)}
           ${formField('Telefono','pastor-telefono',f.telefono||'','tel','809-000-0000')}
           ${formField('Correo electronico','pastor-email',f.email||'','email','pastor@iglesia.org')}
-          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Zona</label>
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Fecha de ingreso <span style="font-weight:400;color:#9ca3af;">(para calcular vacaciones por antigüedad)</span></label>
+            <input id="pastor-fecha-ingreso" type="date" value="${escHtml(f.fecha_ingreso||'')}" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+          ${esAsociado ? `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Pastor principal</label>
+            <select id="pastor-principal-cod" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
+              <option value="">Sin asignar</option>
+              ${pastoresPrincipales.map(p=>`<option value="${escHtml(p.cod)}" ${f.pastor_principal_cod===p.cod?'selected':''}>${escHtml(p.nombre)}</option>`).join('')}
+            </select></div>` : ''}
+          ${esPlantador ? `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Iglesia donde está plantando</label>
+            <select id="pastor-iglesia-cod" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
+              <option value="">Sin asignar</option>
+              ${iglesiasSorted.map(i=>`<option value="${escHtml(i.cod)}" ${f.iglesia_asignada_cod===i.cod?'selected':''}>${escHtml(i.nombre)}</option>`).join('')}
+            </select></div>` : ''}
+          ${(!esOficina && !esPlantador) ? `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Zona</label>
             <select id="pastor-zona" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
               <option value="">Sin zona</option>
               ${RAW.zonas.map(z=>`<option value="${z.cod}" ${f.codZona===z.cod?'selected':''}>${escHtml(z.nombre)}</option>`).join('')}
@@ -1130,7 +1777,7 @@ function buildPastorModal() {
             <select id="pastor-distrito" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
               <option value="">Sin distrito</option>
               ${distritoOpts.map(d=>`<option value="${d.cod}" ${f.codDistrito===d.cod?'selected':''}>${escHtml(d.nombre)}</option>`).join('')}
-            </select></div>
+            </select></div>` : ''}
           <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Estado</label>
             <select id="pastor-estado" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
               <option value="ordenado" ${f.estado==='ordenado'||!f.estado?'selected':''}>Ordenado</option>
@@ -1280,6 +1927,10 @@ function confirmModal(title, body, cancelId, confirmId) {
     </div>
   </div>`;
 }
+function buildDeleteSolicitudConfirm() {
+  const nom = S.deleteSolicitudNombre || '';
+  return confirmModal('Eliminar solicitud', `Se eliminará la solicitud de <strong>${escHtml(nom)}</strong> permanentemente.`, 'btn-del-sol-cancel', 'btn-del-sol-confirm');
+}
 function buildDeleteIglesiaConfirm() { const ig=S.deleteTarget!==null?RAW.iglesias[S.deleteTarget]:null; return ig?confirmModal('Eliminar iglesia',`Se eliminara <strong>${escHtml(ig.nombre)}</strong> permanentemente.`,'btn-del-cancel','btn-del-confirm'):''; }
 function buildDeleteZonaConfirm()    { const z=RAW.zonas.find(z=>z.cod===S.deleteZonaCod); return z?confirmModal('Eliminar zona',`Se eliminara la zona <strong>${escHtml(z.nombre)}</strong>.`,'btn-del-zona-cancel','btn-del-zona-confirm'):''; }
 function buildDeleteDistritoConfirm(){ const d=RAW.distritos.find(d=>d.cod===S.deleteDistritoCod); return d?confirmModal('Eliminar distrito',`Se eliminara el distrito <strong>${escHtml(d.nombre)}</strong>.`,'btn-del-distrito-cancel','btn-del-distrito-confirm'):''; }
@@ -1324,9 +1975,22 @@ function formField(label, id, value, type='text', placeholder='', fontFamily='',
    ===================================================================== */
 function bindEvents() {
   q('#btn-sidebar-toggle', el => el.addEventListener('click', () => { S.sidebarOpen=!S.sidebarOpen; render(); }));
-  document.querySelectorAll('[data-nav]').forEach(el => el.addEventListener('click', () => { S.view=el.dataset.nav; S.search=''; S.fZona='all'; S.fDistrito='all'; S.fPastor='all'; S.page=1; if(el.dataset.nav==='historial')S._historialData=null; render(); }));
+  document.querySelectorAll('[data-nav]').forEach(el => el.addEventListener('click', () => { S.view=el.dataset.nav; location.hash=S.view; S.search=''; S.fZona='all'; S.fDistrito='all'; S.fPastor='all'; S.fEstado='all'; S.fRol='all'; S.fTipoIg='all'; S.fOrgFase='all'; S.page=1; if(el.dataset.nav==='historial')S._historialData=null; render(); }));
   document.querySelectorAll('[data-nav-zona]').forEach(el => el.addEventListener('click', () => { S.view='distritos'; S.fZona=el.dataset.navZona; S.search=''; S.page=1; render(); }));
   document.querySelectorAll('[data-nav-zona-ig]').forEach(el => el.addEventListener('click', () => { S.view='iglesias'; S.fZona=el.dataset.navZonaIg; S.fDistrito='all'; S.search=''; S.page=1; render(); }));
+  document.querySelectorAll('[data-nav-dash]').forEach(el => el.addEventListener('click', () => {
+    const val = el.dataset.navDash; if (!val) return;
+    const [vista, param] = val.split('|');
+    S.view=vista; S.search=''; S.page=1; S.fZona='all'; S.fDistrito='all'; S.fPastor='all'; S.fEstado='all'; S.fRol='all'; S.fTipoIg='all'; S.fOrgFase='all';
+    if (param) {
+      const [key,v] = param.split('=');
+      if (key==='estado') S.fEstado=v;
+      else if (key==='rol') S.fRol=v;
+      else if (key==='distrito') S.fDistrito=v;
+      else if (key==='tipo' && v==='grupo') S.fTipoIg='grupo';
+    }
+    render();
+  }));
   document.querySelectorAll('[data-filter-zona]').forEach(el => el.addEventListener('click', () => { S.fZona=el.dataset.filterZona; S.page=1; render(); }));
   document.querySelectorAll('[data-ver-distrito]').forEach(el => el.addEventListener('click', () => { S.view='iglesias'; S.fZona=el.dataset.verZona; S.fDistrito=el.dataset.verDistrito; S.search=''; S.page=1; render(); }));
   q('#main-search', el => el.addEventListener('input', e => { S.search=e.target.value; S.page=1; debouncedRender(); }));
@@ -1425,19 +2089,21 @@ function bindEvents() {
   q('#btn-del-confirm', el => el.addEventListener('click', async () => { const ig=RAW.iglesias[S.deleteTarget];if(S.sbClient)await S.sbClient.from(S.sbTable).delete().eq('cod',ig.cod);registrarHistorial('Elimino','Iglesia',ig.cod,ig.nombre);RAW.iglesias.splice(S.deleteTarget,1);recomputeCounts();S.showDeleteConfirm=false;S.deleteTarget=null;showToast('Iglesia eliminada','success');render(); }));
 
   /* PASTORES */
-  q('#btn-add-pastor', el => el.addEventListener('click', () => { S.showPastorModal=true;S.pastorModalMode='add';S.editPastorCod=null;S.formPastor={cod:nextPastorCod(),nombre:'',telefono:'',email:'',codZona:'',zona:'',codDistrito:'',distrito:'',estado:'ordenado'};render(); }));
-  document.querySelectorAll('[data-edit-pastor]').forEach(el => el.addEventListener('click', () => { const p=RAW.pastores.find(p=>p.cod===el.dataset.editPastor);if(!p)return;S.showPastorModal=true;S.pastorModalMode='edit';S.editPastorCod=p.cod;S.formPastor={cod:p.cod,nombre:p.nombre,telefono:p.telefono||'',email:p.email||'',codZona:p.codZona||'',zona:p.zona||'',codDistrito:p.codDistrito||'',distrito:p.distrito||'',estado:p.estado||'ordenado'};render(); }));
+  q('#btn-add-pastor', el => el.addEventListener('click', () => { S.showPastorModal=true;S.pastorModalMode='add';S.editPastorCod=null;S.formPastor={cod:nextPastorCod(),nombre:'',telefono:'',email:'',codZona:'',zona:'',codDistrito:'',distrito:'',estado:'ordenado',rol:'pastor',pastor_principal_cod:'',iglesia_asignada_cod:'',fecha_ingreso:''};render(); }));
+  document.querySelectorAll('[data-edit-pastor]').forEach(el => el.addEventListener('click', () => { const p=RAW.pastores.find(p=>p.cod===el.dataset.editPastor);if(!p)return;S.showPastorModal=true;S.pastorModalMode='edit';S.editPastorCod=p.cod;S.formPastor={cod:p.cod,nombre:p.nombre,telefono:p.telefono||'',email:p.email||'',codZona:p.codZona||'',zona:p.zona||'',codDistrito:p.codDistrito||'',distrito:p.distrito||'',estado:p.estado||'ordenado',rol:p.rol||'pastor',pastor_principal_cod:p.pastor_principal_cod||'',iglesia_asignada_cod:p.iglesia_asignada_cod||'',fecha_ingreso:p.fecha_ingreso||''};render(); }));
   document.querySelectorAll('[data-del-pastor]').forEach(el => el.addEventListener('click', () => { S.showDeletePastorConfirm=true;S.deletePastorCod=el.dataset.delPastor;render(); }));
   q('#btn-pastor-close',  el => el.addEventListener('click', () => { S.showPastorModal=false;render(); }));
   q('#btn-pastor-cancel', el => el.addEventListener('click', () => { S.showPastorModal=false;render(); }));
   q('#pastor-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el){S.showPastorModal=false;render();} }));
+  q('#pastor-rol', el => el.addEventListener('change', e => { S.formPastor={...S.formPastor,rol:e.target.value};render(); }));
   q('#pastor-zona', el => el.addEventListener('change', e => { const cod=e.target.value;const z=RAW.zonas.find(z=>z.cod===cod);S.formPastor={...S.formPastor,codZona:cod,zona:z?z.nombre:'',codDistrito:'',distrito:''};render(); }));
   q('#pastor-distrito', el => el.addEventListener('change', e => { const cod=e.target.value;const d=RAW.distritos.find(d=>d.cod===cod);S.formPastor={...S.formPastor,codDistrito:cod,distrito:d?d.nombre:''}; }));
   q('#btn-pastor-save', el => el.addEventListener('click', async () => {
-    const nombre=document.getElementById('pastor-nombre')?.value.trim()||''; const cod=document.getElementById('pastor-cod')?.value.trim().toUpperCase()||''; const telefono=document.getElementById('pastor-telefono')?.value.trim()||''; const email=document.getElementById('pastor-email')?.value.trim()||''; const codZona=document.getElementById('pastor-zona')?.value||''; const zona=RAW.zonas.find(z=>z.cod===codZona)?.nombre||''; const codDistrito=document.getElementById('pastor-distrito')?.value||''; const distrito=RAW.distritos.find(d=>d.cod===codDistrito)?.nombre||''; const estado=document.getElementById('pastor-estado')?.value||'ordenado';
+    const nombre=document.getElementById('pastor-nombre')?.value.trim()||''; const cod=document.getElementById('pastor-cod')?.value.trim().toUpperCase()||''; const telefono=document.getElementById('pastor-telefono')?.value.trim()||''; const email=document.getElementById('pastor-email')?.value.trim()||''; const rol=document.getElementById('pastor-rol')?.value||'pastor'; const esOficina=rol==='departamental'||rol==='administrador'; const esPlantador=rol==='plantador'; const pastor_principal_cod=!esPlantador?(document.getElementById('pastor-principal-cod')?.value||null):null; const iglesia_asignada_cod=esPlantador?(document.getElementById('pastor-iglesia-cod')?.value||null):null; const codZona=esOficina||esPlantador?'':document.getElementById('pastor-zona')?.value||''; const zona=RAW.zonas.find(z=>z.cod===codZona)?.nombre||''; const codDistrito=esOficina||esPlantador?'':document.getElementById('pastor-distrito')?.value||''; const distrito=RAW.distritos.find(d=>d.cod===codDistrito)?.nombre||''; const estado=document.getElementById('pastor-estado')?.value||'ordenado'; const fecha_ingreso=document.getElementById('pastor-fecha-ingreso')?.value||'';
+    S.formPastor={...S.formPastor,nombre,cod,telefono,email,codZona,codDistrito,estado,rol,pastor_principal_cod,iglesia_asignada_cod,fecha_ingreso};
     if(!nombre){showToast('El nombre es requerido','error');return;} if(!cod){showToast('El codigo es requerido','error');return;}
     if(S.pastorModalMode==='add'&&RAW.pastores.find(p=>p.cod===cod)){showToast('El codigo ya existe','error');return;}
-    const row={cod,nombre,telefono,email,codZona,zona,codDistrito,distrito,estado};
+    const row={cod,nombre,telefono,email,codZona,zona,codDistrito,distrito,estado,rol,pastor_principal_cod:pastor_principal_cod||null,iglesia_asignada_cod:iglesia_asignada_cod||null,fecha_ingreso:fecha_ingreso||null};
     if(S.sbClient){const{error}=S.pastorModalMode==='add'?await S.sbClient.from('pastores').insert([row]):await S.sbClient.from('pastores').update(row).eq('cod',cod);if(error){showToast('Error: '+error.message,'error');return;}}
     if(S.pastorModalMode==='add')RAW.pastores.push(row);else{const i=RAW.pastores.findIndex(p=>p.cod===cod);if(i>=0)RAW.pastores[i]=row;}
     registrarHistorial(S.pastorModalMode==='add'?'Creo':'Edito','Pastor',row.cod,row.nombre);S.showPastorModal=false;showToast(S.pastorModalMode==='add'?'Pastor agregado':'Pastor actualizado','success');render();
@@ -1451,6 +2117,88 @@ function bindEvents() {
     }
     RAW.pastores=RAW.pastores.filter(p=>p.cod!==cod);registrarHistorial('Elimino','Pastor',cod,pNom);S.showDeletePastorConfirm=false;S.deletePastorCod=null;showToast('Pastor eliminado'+(iglesiasAfectadas.length?' ('+iglesiasAfectadas.length+' iglesias desvinculadas)':''),'success');render(); }));
 
+  /* PASTORES — filtros activos */
+  document.querySelectorAll('[data-clear-filter]').forEach(el => el.addEventListener('click', () => { S[el.dataset.clearFilter]='all'; renderKeepScroll(); }));
+  q('#btn-clear-all-filters', el => el.addEventListener('click', () => { S.fEstado='all'; S.fRol='all'; renderKeepScroll(); }));
+
+  /* IGLESIAS — selección masiva */
+  q('#chk-ig-all', el => el.addEventListener('change', () => {
+    const list = getFilteredIglesias();
+    if (el.checked) list.forEach(ig => S.selectedIglesias.add(ig.cod));
+    else S.selectedIglesias.clear();
+    renderKeepScroll();
+  }));
+  document.querySelectorAll('[data-chk-iglesia]').forEach(el => el.addEventListener('change', () => {
+    if (el.checked) S.selectedIglesias.add(el.dataset.chkIglesia);
+    else S.selectedIglesias.delete(el.dataset.chkIglesia);
+    renderKeepScroll();
+  }));
+  q('#btn-bulk-ig-clear', el => el.addEventListener('click', () => { S.selectedIglesias.clear(); render(); }));
+  async function bulkUpdateIglesias(nuevoTipo) {
+    const cods = [...S.selectedIglesias];
+    if (!cods.length) return;
+    if (S.sbClient) {
+      const { error } = await S.sbClient.from(S.sbTable).update({ tipo: nuevoTipo }).in('cod', cods);
+      if (error) { showToast('Error: ' + error.message, 'error'); return; }
+    }
+    cods.forEach(cod => { const ig = RAW.iglesias.find(i => i.cod === cod); if (ig) ig.tipo = nuevoTipo; });
+    recomputeCounts();
+    registrarHistorial('Cambio tipo masivo', 'Iglesia', cods.join(','), nuevoTipo);
+    S.selectedIglesias.clear();
+    showToast(`${cods.length} iglesia${cods.length!==1?'s':''} actualizadas a "${nuevoTipo}"`, 'success');
+    render();
+  }
+  q('#btn-bulk-ig-iglesia', el => el.addEventListener('click', () => bulkUpdateIglesias('iglesia')));
+  q('#btn-bulk-ig-grupo',   el => el.addEventListener('click', () => bulkUpdateIglesias('grupo')));
+
+  /* PASTORES — selección masiva */
+  q('#chk-pastor-all', el => el.addEventListener('change', () => {
+    const list = getFilteredPastores();
+    if (el.checked) list.forEach(p => S.selectedPastores.add(p.cod));
+    else S.selectedPastores.clear();
+    renderKeepScroll();
+  }));
+  document.querySelectorAll('[data-chk-pastor]').forEach(el => el.addEventListener('change', () => {
+    if (el.checked) S.selectedPastores.add(el.dataset.chkPastor);
+    else S.selectedPastores.delete(el.dataset.chkPastor);
+    renderKeepScroll();
+  }));
+  q('#btn-bulk-pastor-clear', el => el.addEventListener('click', () => { S.selectedPastores.clear(); render(); }));
+  async function bulkUpdatePastores(nuevoEstado) {
+    const cods = [...S.selectedPastores];
+    if (!cods.length) return;
+    if (S.sbClient) {
+      const { error } = await S.sbClient.from('pastores').update({ estado: nuevoEstado }).in('cod', cods);
+      if (error) { showToast('Error: ' + error.message, 'error'); return; }
+    }
+    cods.forEach(cod => { const p = RAW.pastores.find(p => p.cod === cod); if (p) p.estado = nuevoEstado; });
+    registrarHistorial('Cambio estado masivo', 'Pastor', cods.join(','), nuevoEstado);
+    S.selectedPastores.clear();
+    showToast(`${cods.length} pastor${cods.length!==1?'es':''} actualizados a "${nuevoEstado}"`, 'success');
+    render();
+  }
+  q('#btn-bulk-pastor-ordenado',   el => el.addEventListener('click', () => bulkUpdatePastores('ordenado')));
+  q('#btn-bulk-pastor-licenciado', el => el.addEventListener('click', () => bulkUpdatePastores('licenciado')));
+
+  /* SOLICITUDES — eliminar */
+  document.querySelectorAll('[data-del-sol]').forEach(el => el.addEventListener('click', () => {
+    S.showDeleteSolicitudConfirm = true;
+    S.deleteSolicitudId = el.dataset.delSol;
+    S.deleteSolicitudNombre = el.dataset.delSolNombre;
+    render();
+  }));
+  q('#btn-del-sol-cancel',  el => el.addEventListener('click', () => { S.showDeleteSolicitudConfirm=false; S.deleteSolicitudId=null; S.deleteSolicitudNombre=null; render(); }));
+  q('#btn-del-sol-confirm', el => el.addEventListener('click', async () => {
+    const id = S.deleteSolicitudId;
+    const nom = S.deleteSolicitudNombre;
+    const res = await fetch('/api/get-solicitudes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ accion:'eliminar', id }) });
+    if (!res.ok) { showToast('Error al eliminar','error'); return; }
+    S._solicitudes = (S._solicitudes||[]).filter(s => s.id !== id);
+    S.showDeleteSolicitudConfirm = false; S.deleteSolicitudId = null; S.deleteSolicitudNombre = null;
+    showToast(`Solicitud de ${nom} eliminada`, 'success');
+    render();
+  }));
+
   /* HISTORIAL */
   q('#btn-clear-historial', el => el.addEventListener('click', async () => { localStorage.removeItem('padron_historial'); if(S.sbClient) await S.sbClient.from('historial').delete().neq('id','00000000-0000-0000-0000-000000000000'); S._historialData=null; showToast('Historial borrado','success'); render(); }));
   document.querySelectorAll('[data-alerta]').forEach(el => el.addEventListener('click', () => { const a=el.dataset.alerta; if(a==='iglesias-sin-pastor'){S.view='iglesias';S.fZona='all';S.fDistrito='all';S.fPastor='__sin_pastor__';}else{S.view=a;S.fZona='all';S.fDistrito='all';S.fPastor='all';}S.search='';S.page=1;render(); }));
@@ -1459,7 +2207,24 @@ function bindEvents() {
   q('#btn-global-search', el => el.addEventListener('click', () => { S.showSearch=true; S.searchQuery=''; render(); setTimeout(()=>document.getElementById('search-input')?.focus(),50); }));
   q('#btn-search-close', el => el.addEventListener('click', () => { S.showSearch=false; render(); }));
   q('#search-bg', el => el.addEventListener('click', e => { if(e.target===el){S.showSearch=false;render();} }));
-  q('#search-input', el => el.addEventListener('input', e => { S.searchQuery=e.target.value; render(); setTimeout(()=>{const inp=document.getElementById('search-input');if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}},0); }));
+  q('#search-input', el => el.addEventListener('input', e => {
+    S.searchQuery=e.target.value;
+    const container=document.querySelector('#search-bg div div:nth-child(2)');
+    if(!container){render();return;}
+    const q2=S.searchQuery.toLowerCase().trim();
+    let results2=[];
+    if(q2.length>=2){
+      const ig=RAW.iglesias.filter(i=>i.nombre.toLowerCase().includes(q2)||(i.cod||'').toLowerCase().includes(q2)||(i.pastor||'').toLowerCase().includes(q2)).slice(0,6).map(i=>({tipo:'Iglesia',cod:i.cod,nombre:i.nombre,sub:i.distrito||'',nav:'iglesias'}));
+      const pa=RAW.pastores.filter(p=>p.nombre.toLowerCase().includes(q2)||(p.distrito||'').toLowerCase().includes(q2)).slice(0,4).map(p=>({tipo:'Pastor',cod:p.cod,nombre:p.nombre,sub:p.distrito||'',nav:'pastores'}));
+      const di=RAW.distritos.filter(d=>d.nombre.toLowerCase().includes(q2)||(d.cod||'').toLowerCase().includes(q2)).slice(0,3).map(d=>({tipo:'Distrito',cod:d.cod,nombre:d.nombre,sub:d.zona||'',nav:'distritos'}));
+      const zo=RAW.zonas.filter(z=>z.nombre.toLowerCase().includes(q2)||(z.cod||'').toLowerCase().includes(q2)).slice(0,2).map(z=>({tipo:'Zona',cod:z.cod,nombre:z.nombre,sub:'',nav:'zonas'}));
+      results2=[...ig,...pa,...di,...zo];
+    }
+    const entColor={'Iglesia':'#d4a820','Pastor':'#3a6ab0','Distrito':'#2d5090','Zona':'#1e3564'};
+    const items2=results2.map(r=>`<button data-search-nav="${r.nav}" data-search-val="${escHtml(r.cod)}" style="display:flex;align-items:center;gap:12px;width:100%;padding:11px 16px;border:none;background:transparent;cursor:pointer;border-radius:8px;text-align:left;" onmouseover="this.style.background='#f0f2f7'" onmouseout="this.style.background='transparent'"><span style="background:${entColor[r.tipo]||'#6b7280'}20;color:${entColor[r.tipo]||'#6b7280'};border-radius:20px;padding:2px 8px;font-size:11px;font-weight:600;flex-shrink:0;">${r.tipo}</span><span style="flex:1;font-size:13px;font-weight:500;color:#1a2340;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(r.nombre)}</span>${r.sub?`<span style="font-size:12px;color:#9ca3af;white-space:nowrap;">${escHtml(r.sub)}</span>`:''}</button>`).join('');
+    container.innerHTML=q2.length<2?'<div style="padding:24px;text-align:center;color:#9ca3af;font-size:13px;">Escribe al menos 2 caracteres...</div>':results2.length?items2:'<div style="padding:24px;text-align:center;color:#9ca3af;font-size:13px;">Sin resultados para "'+escHtml(S.searchQuery)+'"</div>';
+    container.querySelectorAll('[data-search-nav]').forEach(btn=>btn.addEventListener('click',()=>{S.view=btn.dataset.searchNav;S.search=btn.dataset.searchVal||'';S.showSearch=false;S.fZona='all';S.fDistrito='all';S.fPastor='all';S.page=1;render();}));
+  }));
   document.querySelectorAll('[data-search-nav]').forEach(el => el.addEventListener('click', () => { S.view=el.dataset.searchNav; S.search=el.dataset.searchVal||''; S.showSearch=false; S.fZona='all'; S.fDistrito='all'; S.fPastor='all'; S.page=1; render(); }));
 
   /* EXPORTAR EXCEL */
@@ -1498,7 +2263,7 @@ function bindEvents() {
   if (S.view==='configuracion' && isAdmin() && S._allProfiles===null && !S._allProfilesLoading) { loadAllProfiles(); }
   q('#btn-add-user', el => el.addEventListener('click', () => {
     S.showNewUserModal=true; S.editingProfileId=null;
-    S.newUserForm={ email:'', nombre:'', permisos:{ gestionar_usuarios:false, ver_dashboard:true, ver_iglesias:true, ver_pastores:true, ver_distritos:true, ver_zonas:true, ver_solicitudes:false, ver_historial:false, ver_configuracion:false, editar_iglesias:false, editar_pastores:false, editar_distritos:false, editar_zonas:false, eliminar_iglesias:false, eliminar_pastores:false, zonas:[] } };
+    S.newUserForm={ email:'', nombre:'', permisos:{ gestionar_usuarios:false, ver_dashboard:true, ver_iglesias:true, ver_pastores:true, ver_distritos:true, ver_zonas:true, ver_solicitudes:false, ver_historial:false, ver_configuracion:false, editar_iglesias:false, editar_pastores:false, editar_distritos:false, editar_zonas:false, eliminar_iglesias:false, eliminar_pastores:false, ver_permisos:false, gestionar_permisos:false, ver_vacaciones:false, gestionar_vacaciones:false, ver_organizacion:false, gestionar_organizacion:false, zonas:[] } };
     render();
   }));
   q('#btn-nu-close',  el => el.addEventListener('click', () => { S.showNewUserModal=false; render(); }));
@@ -1519,7 +2284,8 @@ function bindEvents() {
         });
         const result = await res.json();
         if(!res.ok){showToast('Error: '+(result.error||'Error creando usuario'),'error');return;}
-        alert(`✅ Invitación enviada a ${email}.\n\nEl usuario recibirá un correo con un enlace para establecer su contraseña y acceder al sistema.`);
+        const passMsg = result.password ? `\n\nContraseña temporal: ${result.password}` : '';
+        alert(`✅ Usuario creado exitosamente.${passMsg}\n\nComparte estas credenciales con el usuario.`);
       } catch(e){showToast('Error: '+e.message,'error');return;}
     } else {
       await S.sbClient.from('profiles').update({nombre,permisos}).eq('id',S.editingProfileId);
@@ -1556,6 +2322,357 @@ function bindEvents() {
   /* SOLICITUDES */
   q('#btn-reload-solicitudes', el => el.addEventListener('click', () => { S._solicitudes=null; S._solicitudesLoading=true; render(); loadSolicitudes(); }));
   if (S.view==='solicitudes' && !S._solicitudes && !S._solicitudesLoading) { S._solicitudesLoading=true; loadSolicitudes(); }
+
+  /* PERMISOS DE AUSENCIA */
+  if (S.view==='permisos' && !S._permisos && !S._permisosLoading) { S._permisosLoading=true; loadPermisos(); }
+  q('#btn-reload-permisos', el => el.addEventListener('click', () => { S._permisos=null; S._permisosLoading=true; render(); loadPermisos(); }));
+  q('#btn-add-permiso', el => el.addEventListener('click', () => {
+    S.showPermisoModal=true; S.permisoModalMode='add'; S.editPermisoId=null;
+    S.formPermiso={ nombre:'', fecha_solicitud:new Date().toISOString().slice(0,10), motivo:'enfermedad', lugar:'', fecha_ausencia:'', estado:'pendiente', observaciones:'' };
+    render();
+  }));
+  q('#btn-permiso-close',  el => el.addEventListener('click', () => { S.showPermisoModal=false; render(); }));
+  q('#btn-permiso-cancel', el => el.addEventListener('click', () => { S.showPermisoModal=false; render(); }));
+  q('#permiso-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el){S.showPermisoModal=false;render();} }));
+  q('#btn-permiso-save', el => el.addEventListener('click', async () => {
+    const nombre = document.getElementById('permiso-nombre')?.value.trim()||'';
+    const email           = document.getElementById('permiso-email')?.value.trim()||'';
+    const fecha_solicitud = document.getElementById('permiso-fecha-solicitud')?.value||'';
+    const fecha_ausencia  = document.getElementById('permiso-fecha-ausencia')?.value||'';
+    const motivo          = document.getElementById('permiso-motivo')?.value||'enfermedad';
+    const lugar           = document.getElementById('permiso-lugar')?.value.trim()||'';
+    const estado          = document.getElementById('permiso-estado')?.value||'pendiente';
+    const observaciones   = document.getElementById('permiso-observaciones')?.value.trim()||'';
+    if (!nombre) { showToast('El nombre es requerido','error'); return; }
+    if (!fecha_solicitud) { showToast('La fecha de solicitud es requerida','error'); return; }
+    if (!fecha_ausencia)  { showToast('La fecha de ausencia es requerida','error'); return; }
+    const payload = { nombre, email: email||null, fecha_solicitud, fecha_ausencia, motivo, lugar: lugar||null, estado, observaciones: observaciones||null };
+    if (S.permisoModalMode==='add') {
+      const { data, error } = await S.sbClient.from('permisos_ausencia').insert([payload]).select();
+      if (error) { showToast('Error: '+error.message,'error'); return; }
+      S._permisos = [data[0], ...(S._permisos||[])];
+    } else {
+      const { error } = await S.sbClient.from('permisos_ausencia').update(payload).eq('id', S.editPermisoId);
+      if (error) { showToast('Error: '+error.message,'error'); return; }
+      S._permisos = (S._permisos||[]).map(p => p.id===S.editPermisoId ? {...p,...payload} : p);
+    }
+    S.showPermisoModal=false;
+    showToast(S.permisoModalMode==='add'?'Permiso registrado':'Permiso actualizado','success');
+    render();
+  }));
+  async function decidirPermiso(id, nuevoEstado) {
+    const p = (S._permisos||[]).find(p=>p.id===id); if(!p) return;
+    const { error } = await S.sbClient.from('permisos_ausencia').update({ estado: nuevoEstado }).eq('id', id);
+    if (error) { showToast('Error: '+error.message,'error'); return; }
+    S._permisos = (S._permisos||[]).map(x => x.id===id ? {...x, estado: nuevoEstado} : x);
+    showToast(nuevoEstado==='aprobado' ? 'Permiso aprobado' : 'Permiso rechazado', 'success');
+    render();
+
+    // Si aprobó, abrir WhatsApp del pastor
+    if (nuevoEstado === 'aprobado') {
+      const pastor = (RAW.pastores||[]).find(ps => ps.nombre === p.nombre);
+      if (pastor && pastor.telefono) {
+        const tel = pastor.telefono.replace(/\D/g, '');
+        const msg = encodeURIComponent('Tu permiso de salida ha sido aprobado ✅');
+        setTimeout(() => window.open(`https://wa.me/${tel}?text=${msg}`, '_blank'), 500);
+      }
+    }
+  }
+  document.querySelectorAll('[data-aprobar-permiso]').forEach(el => el.addEventListener('click', () => decidirPermiso(el.dataset.aprobarPermiso, 'aprobado')));
+  document.querySelectorAll('[data-rechazar-permiso]').forEach(el => el.addEventListener('click', () => decidirPermiso(el.dataset.rechazarPermiso, 'rechazado')));
+  document.querySelectorAll('[data-print-permiso]').forEach(el => el.addEventListener('click', () => imprimirPermiso(el.dataset.printPermiso)));
+
+  document.querySelectorAll('[data-edit-permiso]').forEach(el => el.addEventListener('click', () => {
+    const p = (S._permisos||[]).find(p=>p.id===el.dataset.editPermiso); if(!p) return;
+    S.showPermisoModal=true; S.permisoModalMode='edit'; S.editPermisoId=p.id;
+    S.formPermiso={ nombre:p.nombre, email:p.email||'', fecha_solicitud:p.fecha_solicitud||'', motivo:p.motivo, lugar:p.lugar||'', fecha_ausencia:p.fecha_ausencia||'', estado:p.estado||'pendiente', observaciones:p.observaciones||'' };
+    render();
+  }));
+  document.querySelectorAll('[data-del-permiso]').forEach(el => el.addEventListener('click', () => {
+    S.showDeletePermisoConfirm=true; S.deletePermisoId=el.dataset.delPermiso; S.deletePermisoNombre=el.dataset.delPermisoNombre; render();
+  }));
+  q('#btn-del-permiso-cancel',  el => el.addEventListener('click', () => { S.showDeletePermisoConfirm=false; S.deletePermisoId=null; S.deletePermisoNombre=null; render(); }));
+  q('#btn-del-permiso-confirm', el => el.addEventListener('click', async () => {
+    const { error } = await S.sbClient.from('permisos_ausencia').delete().eq('id', S.deletePermisoId);
+    if (error) { showToast('Error: '+error.message,'error'); return; }
+    S._permisos = (S._permisos||[]).filter(p => p.id!==S.deletePermisoId);
+    S.showDeletePermisoConfirm=false; S.deletePermisoId=null; S.deletePermisoNombre=null;
+    showToast('Permiso eliminado','success'); render();
+  }));
+
+  /* VACACIONES */
+  if (S.view==='vacaciones' && !S._vacaciones && !S._vacacionesLoading) { S._vacacionesLoading=true; loadVacaciones(); }
+  q('#btn-reload-vacaciones', el => el.addEventListener('click', () => { S._vacaciones=null; S._vacacionesLoading=true; render(); loadVacaciones(); }));
+  q('#btn-add-vacacion', el => el.addEventListener('click', () => {
+    S.showVacacionModal=true; S.vacacionModalMode='add'; S.editVacacionId=null;
+    S.formVacacion={ pastor_cod:'', nombre:'', email:'', fecha_solicitud:new Date().toISOString().slice(0,10), fecha_inicio:'', fecha_fin:'', lugar:'', estado:'pendiente', observaciones:'' };
+    render();
+  }));
+  q('#btn-vacacion-close',  el => el.addEventListener('click', () => { S.showVacacionModal=false; render(); }));
+  q('#btn-vacacion-cancel', el => el.addEventListener('click', () => { S.showVacacionModal=false; render(); }));
+  q('#vacacion-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el){S.showVacacionModal=false;render();} }));
+  q('#vacacion-pastor-cod', el => el.addEventListener('change', () => {
+    const p = RAW.pastores.find(p=>p.cod===el.value);
+    S.formVacacion.pastor_cod = el.value;
+    S.formVacacion.nombre = p ? p.nombre : '';
+    S.formVacacion.email = p?.email || S.formVacacion.email;
+    render();
+  }));
+  q('#vacacion-fecha-inicio', el => el.addEventListener('change', () => { S.formVacacion.fecha_inicio=el.value; render(); }));
+  q('#vacacion-fecha-fin',    el => el.addEventListener('change', () => { S.formVacacion.fecha_fin=el.value; render(); }));
+  q('#btn-vacacion-save', el => el.addEventListener('click', async () => {
+    const pastor_cod      = document.getElementById('vacacion-pastor-cod')?.value||'';
+    const pastor           = RAW.pastores.find(p=>p.cod===pastor_cod);
+    const nombre           = pastor?.nombre||'';
+    const email           = document.getElementById('vacacion-email')?.value.trim()||'';
+    const fecha_inicio    = document.getElementById('vacacion-fecha-inicio')?.value||'';
+    const fecha_fin       = document.getElementById('vacacion-fecha-fin')?.value||'';
+    const lugar           = document.getElementById('vacacion-lugar')?.value.trim()||'';
+    const estado          = document.getElementById('vacacion-estado')?.value||'pendiente';
+    const observaciones   = document.getElementById('vacacion-observaciones')?.value.trim()||'';
+    if (!pastor_cod) { showToast('Selecciona un pastor','error'); return; }
+    if (!fecha_inicio || !fecha_fin) { showToast('Las fechas de inicio y fin son requeridas','error'); return; }
+    const dias_solicitados = diasEntre(fecha_inicio, fecha_fin);
+    if (dias_solicitados < 1) { showToast('La fecha fin debe ser posterior o igual a la fecha inicio','error'); return; }
+    const payload = { pastor_cod, nombre, email: email||null, fecha_inicio, fecha_fin, dias_solicitados, lugar: lugar||null, estado, observaciones: observaciones||null };
+    if (S.vacacionModalMode==='add') {
+      const { data, error } = await S.sbClient.from('vacaciones_solicitudes').insert([payload]).select();
+      if (error) { showToast('Error: '+error.message,'error'); return; }
+      S._vacaciones = [data[0], ...(S._vacaciones||[])];
+    } else {
+      const { error } = await S.sbClient.from('vacaciones_solicitudes').update(payload).eq('id', S.editVacacionId);
+      if (error) { showToast('Error: '+error.message,'error'); return; }
+      S._vacaciones = (S._vacaciones||[]).map(v => v.id===S.editVacacionId ? {...v,...payload} : v);
+    }
+    S.showVacacionModal=false;
+    showToast(S.vacacionModalMode==='add'?'Solicitud registrada':'Solicitud actualizada','success');
+    loadVacBalance();
+    render();
+  }));
+  async function decidirVacacion(id, nuevoEstado) {
+    const v = (S._vacaciones||[]).find(v=>v.id===id); if(!v) return;
+    if (nuevoEstado === 'aprobado') {
+      const bal = getVacBalance(v.pastor_cod);
+      if (bal && bal.dias_asignados_anio != null) {
+        const disp = bal.dias_asignados_anio - bal.dias_tomados_anio;
+        if (v.dias_solicitados > disp) {
+          const ok = confirm(`${v.nombre} solo tiene ${disp} días disponibles este año y está solicitando ${v.dias_solicitados}. ¿Aprobar de todas formas?`);
+          if (!ok) return;
+        }
+      }
+    }
+    const { error } = await S.sbClient.from('vacaciones_solicitudes').update({ estado: nuevoEstado }).eq('id', id);
+    if (error) { showToast('Error: '+error.message,'error'); return; }
+    S._vacaciones = (S._vacaciones||[]).map(x => x.id===id ? {...x, estado: nuevoEstado} : x);
+    showToast(nuevoEstado==='aprobado' ? 'Vacaciones aprobadas' : 'Solicitud rechazada', 'success');
+    loadVacBalance();
+    render();
+
+    // Si aprobó, abrir WhatsApp del pastor
+    if (nuevoEstado === 'aprobado') {
+      const pastor = (RAW.pastores||[]).find(ps => ps.cod === v.pastor_cod || ps.nombre === v.nombre);
+      if (pastor && pastor.telefono) {
+        const tel = pastor.telefono.replace(/\D/g, '');
+        const msg = encodeURIComponent('Tus vacaciones han sido aprobadas ✅. Recibirás la constancia firmada por Presidencia y Secretaría.');
+        setTimeout(() => window.open(`https://wa.me/${tel}?text=${msg}`, '_blank'), 500);
+      }
+    }
+  }
+  document.querySelectorAll('[data-aprobar-vacacion]').forEach(el => el.addEventListener('click', () => decidirVacacion(el.dataset.aprobarVacacion, 'aprobado')));
+  document.querySelectorAll('[data-rechazar-vacacion]').forEach(el => el.addEventListener('click', () => decidirVacacion(el.dataset.rechazarVacacion, 'rechazado')));
+  document.querySelectorAll('[data-print-vacacion]').forEach(el => el.addEventListener('click', () => imprimirVacacion(el.dataset.printVacacion)));
+
+  document.querySelectorAll('[data-edit-vacacion]').forEach(el => el.addEventListener('click', () => {
+    const v = (S._vacaciones||[]).find(v=>v.id===el.dataset.editVacacion); if(!v) return;
+    S.showVacacionModal=true; S.vacacionModalMode='edit'; S.editVacacionId=v.id;
+    S.formVacacion={ pastor_cod:v.pastor_cod||'', nombre:v.nombre, email:v.email||'', fecha_inicio:v.fecha_inicio||'', fecha_fin:v.fecha_fin||'', lugar:v.lugar||'', estado:v.estado||'pendiente', observaciones:v.observaciones||'' };
+    render();
+  }));
+  document.querySelectorAll('[data-del-vacacion]').forEach(el => el.addEventListener('click', () => {
+    S.showDeleteVacacionConfirm=true; S.deleteVacacionId=el.dataset.delVacacion; S.deleteVacacionNombre=el.dataset.delVacacionNombre; render();
+  }));
+  q('#btn-del-vacacion-cancel',  el => el.addEventListener('click', () => { S.showDeleteVacacionConfirm=false; S.deleteVacacionId=null; S.deleteVacacionNombre=null; render(); }));
+  q('#btn-del-vacacion-confirm', el => el.addEventListener('click', async () => {
+    const { error } = await S.sbClient.from('vacaciones_solicitudes').delete().eq('id', S.deleteVacacionId);
+    if (error) { showToast('Error: '+error.message,'error'); return; }
+    S._vacaciones = (S._vacaciones||[]).filter(v => v.id!==S.deleteVacacionId);
+    S.showDeleteVacacionConfirm=false; S.deleteVacacionId=null; S.deleteVacacionNombre=null;
+    showToast('Solicitud eliminada','success'); render();
+  }));
+
+  /* ORGANIZACIÓN DE IGLESIAS */
+  if (S.view==='organizacion' && !S._organizaciones && !S._organizacionesLoading) { S._organizacionesLoading=true; loadOrganizaciones(); }
+  q('#btn-reload-organizacion', el => el.addEventListener('click', () => { S._organizaciones=null; S._organizacionesLoading=true; render(); loadOrganizaciones(); }));
+  document.querySelectorAll('[data-org-filter]').forEach(el => el.addEventListener('click', () => { S.fOrgFase = el.dataset.orgFilter; render(); }));
+
+  q('#btn-add-organizacion', el => el.addEventListener('click', () => {
+    S.showOrganizacionModal=true; S.organizacionModalMode='add'; S.editOrganizacionId=null;
+    S.formOrganizacion={
+      iglesia_cod:'', iglesia_nombre:'', zona:'', distrito:'',
+      pastor_asignado:'', pastor_telefono:'', pastor_confirmado:false, fase1_completada:false,
+      fecha_ceremonia:'', req_min_miembros:false, req_lideres:false, req_solvencia:false, instructivo_enviado_junta:false, fase2_completada:false,
+      fecha_ceremonia_realizada:'', acta_firmada:false, checklist_materiales:{}, fase3_completada:false,
+      acms_actualizado:false, acms_fecha:'', oficiales_electos:'', fase4_completada:false,
+      plataformas:{}, fase5_completada:false, notas:''
+    };
+    render();
+  }));
+  q('#btn-organizacion-close',  el => el.addEventListener('click', () => { S.showOrganizacionModal=false; render(); }));
+  q('#btn-organizacion-cancel', el => el.addEventListener('click', () => { S.showOrganizacionModal=false; render(); }));
+  q('#organizacion-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el){S.showOrganizacionModal=false;render();} }));
+  q('#org-iglesia-select', el => el.addEventListener('change', () => {
+    const cod = el.value;
+    const ig = RAW.iglesias.find(i=>i.cod===cod);
+    S.formOrganizacion.iglesia_cod = cod;
+    S.formOrganizacion.iglesia_nombre = ig ? ig.nombre : '';
+    S.formOrganizacion.zona = ig ? (ig.zona||'') : '';
+    S.formOrganizacion.distrito = ig ? (ig.distrito||'') : '';
+    if (ig && ig.pastor && !S.formOrganizacion.pastor_asignado) S.formOrganizacion.pastor_asignado = ig.pastor;
+    render();
+  }));
+
+  function harvestOrganizacionForm() {
+    const gv = id => document.getElementById(id)?.value ?? '';
+    const gc = id => !!document.getElementById(id)?.checked;
+    const f = S.formOrganizacion;
+    f.pastor_asignado = gv('org-pastor-asignado');
+    f.pastor_telefono = gv('org-pastor-telefono');
+    f.pastor_confirmado = gc('org-pastor-confirmado');
+    f.fase1_completada = gc('org-fase1_completada');
+    f.fecha_ceremonia = gv('org-fecha-ceremonia');
+    f.req_min_miembros = gc('org-req-miembros');
+    f.req_lideres = gc('org-req-lideres');
+    f.req_solvencia = gc('org-req-solvencia');
+    f.instructivo_enviado_junta = gc('org-instructivo-enviado');
+    f.fase2_completada = gc('org-fase2_completada');
+    f.fecha_ceremonia_realizada = gv('org-fecha-ceremonia-realizada');
+    f.acta_firmada = gc('org-acta-firmada');
+    const checklist_materiales = {};
+    MATERIALES_ORG.forEach(m => checklist_materiales[m.id] = gc('org-mat-'+m.id));
+    f.checklist_materiales = checklist_materiales;
+    f.fase3_completada = gc('org-fase3_completada');
+    f.acms_actualizado = gc('org-acms-actualizado');
+    f.acms_fecha = gv('org-acms-fecha');
+    f.oficiales_electos = gv('org-oficiales-electos');
+    f.fase4_completada = gc('org-fase4_completada');
+    const plataformas = {};
+    PLATAFORMAS_ORG.forEach(p => plataformas[p.id] = gc('org-plat-'+p.id));
+    f.plataformas = plataformas;
+    f.fase5_completada = gc('org-fase5_completada');
+    f.notas = gv('org-notas');
+  }
+  ['fase1_completada','fase2_completada','fase3_completada','fase4_completada','fase5_completada'].forEach(key => {
+    q('#org-'+key, el => el.addEventListener('change', () => {
+      harvestOrganizacionForm();
+      const scrollEl = document.getElementById('organizacion-modal-scroll');
+      const sy = scrollEl ? scrollEl.scrollTop : 0;
+      render();
+      const newScrollEl = document.getElementById('organizacion-modal-scroll');
+      if (newScrollEl) newScrollEl.scrollTop = sy;
+    }));
+  });
+
+  async function promoverGrupoAIglesia(cod, nombre) {
+    const { error } = await S.sbClient.from('iglesias').update({ tipo: 'iglesia' }).eq('cod', cod);
+    if (error) { showToast('Aviso: no se pudo actualizar el tipo en el padrón ('+error.message+')','error'); return; }
+    RAW.iglesias = RAW.iglesias.map(i => i.cod===cod ? {...i, tipo:'iglesia'} : i);
+    recomputeCounts();
+    registrarHistorial('Cambio tipo automático (organización)', 'Iglesia', cod, nombre);
+    showToast(escHtml(nombre)+' fue marcada como Iglesia Organizada en el padrón','success');
+  }
+
+  async function guardarOrganizacion() {
+    const gv = id => document.getElementById(id)?.value ?? '';
+    const gc = id => !!document.getElementById(id)?.checked;
+    const iglesia_cod = S.organizacionModalMode==='add' ? (document.getElementById('org-iglesia-select')?.value||'') : S.formOrganizacion.iglesia_cod;
+    if (!iglesia_cod) { showToast('Debe seleccionar un grupo','error'); return; }
+    const ig = RAW.iglesias.find(i=>i.cod===iglesia_cod);
+    const checklist_materiales = {};
+    MATERIALES_ORG.forEach(m => checklist_materiales[m.id] = gc('org-mat-'+m.id));
+    const plataformas = {};
+    PLATAFORMAS_ORG.forEach(p => plataformas[p.id] = gc('org-plat-'+p.id));
+    const hoy = new Date().toISOString().slice(0,10);
+    const fase1_completada = gc('org-fase1_completada');
+    const fase2_completada = gc('org-fase2_completada');
+    const fase3_completada = gc('org-fase3_completada');
+    const fase4_completada = gc('org-fase4_completada');
+    const fase5_completada = gc('org-fase5_completada');
+    const completado = fase1_completada && fase2_completada && fase3_completada && fase4_completada && fase5_completada;
+    const payload = {
+      iglesia_cod, iglesia_nombre: ig ? ig.nombre : S.formOrganizacion.iglesia_nombre, zona: ig ? (ig.zona||'') : S.formOrganizacion.zona, distrito: ig ? (ig.distrito||'') : S.formOrganizacion.distrito,
+      pastor_asignado: gv('org-pastor-asignado').trim()||null, pastor_telefono: gv('org-pastor-telefono').trim()||null, pastor_confirmado: gc('org-pastor-confirmado'),
+      fase1_completada, fase1_fecha: fase1_completada ? (S.formOrganizacion.fase1_fecha||hoy) : null,
+      fecha_ceremonia: gv('org-fecha-ceremonia')||null, req_min_miembros: gc('org-req-miembros'), req_lideres: gc('org-req-lideres'), req_solvencia: gc('org-req-solvencia'), instructivo_enviado_junta: gc('org-instructivo-enviado'),
+      fase2_completada, fase2_fecha: fase2_completada ? (S.formOrganizacion.fase2_fecha||hoy) : null,
+      fecha_ceremonia_realizada: gv('org-fecha-ceremonia-realizada')||null, acta_firmada: gc('org-acta-firmada'), checklist_materiales,
+      fase3_completada, fase3_fecha: fase3_completada ? (S.formOrganizacion.fase3_fecha||hoy) : null,
+      acms_actualizado: gc('org-acms-actualizado'), acms_fecha: gv('org-acms-fecha')||null, oficiales_electos: gv('org-oficiales-electos').trim()||null,
+      fase4_completada, fase4_fecha: fase4_completada ? (S.formOrganizacion.fase4_fecha||hoy) : null,
+      plataformas, fase5_completada, fase5_fecha: fase5_completada ? (S.formOrganizacion.fase5_fecha||hoy) : null,
+      completado, completado_fecha: completado ? (S.formOrganizacion.completado_fecha||hoy) : null,
+      notas: gv('org-notas').trim()||null,
+    };
+    const wasFase4Completed = S.organizacionModalMode==='edit' ? !!(S._organizaciones||[]).find(o=>o.id===S.editOrganizacionId)?.fase4_completada : false;
+
+    if (S.organizacionModalMode==='add') {
+      const { data, error } = await S.sbClient.from('organizacion_iglesias').insert([payload]).select();
+      if (error) { showToast('Error: '+error.message,'error'); return; }
+      S._organizaciones = [data[0], ...(S._organizaciones||[])];
+      registrarHistorial('Creo', 'OrganizacionIglesia', iglesia_cod, payload.iglesia_nombre);
+    } else {
+      const { error } = await S.sbClient.from('organizacion_iglesias').update(payload).eq('id', S.editOrganizacionId);
+      if (error) { showToast('Error: '+error.message,'error'); return; }
+      S._organizaciones = (S._organizaciones||[]).map(o => o.id===S.editOrganizacionId ? {...o,...payload} : o);
+      registrarHistorial('Edito', 'OrganizacionIglesia', iglesia_cod, payload.iglesia_nombre);
+    }
+
+    if (fase4_completada && !wasFase4Completed) {
+      await promoverGrupoAIglesia(iglesia_cod, payload.iglesia_nombre);
+    }
+
+    S.showOrganizacionModal=false;
+    showToast(S.organizacionModalMode==='add'?'Registro creado':'Registro actualizado','success');
+    render();
+  }
+  q('#btn-organizacion-save', el => el.addEventListener('click', guardarOrganizacion));
+
+  document.querySelectorAll('[data-org-edit]').forEach(el => el.addEventListener('click', () => {
+    const o = (S._organizaciones||[]).find(x=>x.id===el.dataset.orgEdit); if(!o) return;
+    S.showOrganizacionModal=true; S.organizacionModalMode='edit'; S.editOrganizacionId=o.id;
+    S.formOrganizacion = { ...o, checklist_materiales: o.checklist_materiales||{}, plataformas: o.plataformas||{} };
+    render();
+  }));
+
+  document.querySelectorAll('[data-org-avanzar]').forEach(el => el.addEventListener('click', async () => {
+    const o = (S._organizaciones||[]).find(x=>x.id===el.dataset.orgAvanzar); if(!o) return;
+    const actual = orgFaseActual(o);
+    const key = 'fase'+actual+'_completada';
+    const fechaKey = 'fase'+actual+'_fecha';
+    const hoy = new Date().toISOString().slice(0,10);
+    const patch = { [key]: true, [fechaKey]: hoy };
+    const nuevo = { ...o, ...patch };
+    const completado = [1,2,3,4,5].every(n => nuevo['fase'+n+'_completada']);
+    if (completado) { patch.completado = true; patch.completado_fecha = hoy; }
+    const { error } = await S.sbClient.from('organizacion_iglesias').update(patch).eq('id', o.id);
+    if (error) { showToast('Error: '+error.message,'error'); return; }
+    S._organizaciones = (S._organizaciones||[]).map(x => x.id===o.id ? {...x, ...patch} : x);
+    registrarHistorial('Avanzo Fase '+actual, 'OrganizacionIglesia', o.iglesia_cod, o.iglesia_nombre);
+    showToast('Fase '+actual+' marcada como completada','success');
+    if (actual === 4) { await promoverGrupoAIglesia(o.iglesia_cod, o.iglesia_nombre); }
+    render();
+  }));
+
+  document.querySelectorAll('[data-org-del]').forEach(el => el.addEventListener('click', () => {
+    S.showDeleteOrganizacionConfirm=true; S.deleteOrganizacionId=el.dataset.orgDel; S.deleteOrganizacionNombre=el.dataset.orgDelNombre; render();
+  }));
+  q('#btn-del-organizacion-cancel',  el => el.addEventListener('click', () => { S.showDeleteOrganizacionConfirm=false; S.deleteOrganizacionId=null; S.deleteOrganizacionNombre=null; render(); }));
+  q('#btn-del-organizacion-confirm', el => el.addEventListener('click', async () => {
+    const { error } = await S.sbClient.from('organizacion_iglesias').delete().eq('id', S.deleteOrganizacionId);
+    if (error) { showToast('Error: '+error.message,'error'); return; }
+    S._organizaciones = (S._organizaciones||[]).filter(o => o.id!==S.deleteOrganizacionId);
+    S.showDeleteOrganizacionConfirm=false; S.deleteOrganizacionId=null; S.deleteOrganizacionNombre=null;
+    showToast('Registro eliminado','success'); render();
+  }));
 
   /* FLUJO CONFIG */
   q('#btn-save-flujo-cfg', el => el.addEventListener('click', async () => {
@@ -1609,12 +2726,56 @@ async function loadSolicitudes() {
   render();
 }
 
+async function loadPermisos() {
+  try {
+    const { data, error } = await S.sbClient.from('permisos_ausencia').select('*').order('created_at', { ascending: false });
+    S._permisos = error ? [] : (data || []);
+  } catch(e) {
+    S._permisos = [];
+  }
+  S._permisosLoading = false;
+  render();
+}
+
+async function loadVacaciones() {
+  try {
+    const { data, error } = await S.sbClient.from('vacaciones_solicitudes').select('*').order('created_at', { ascending: false });
+    S._vacaciones = error ? [] : (data || []);
+  } catch(e) {
+    S._vacaciones = [];
+  }
+  S._vacacionesLoading = false;
+  loadVacBalance();
+  render();
+}
+
+async function loadVacBalance() {
+  try {
+    const { data, error } = await S.sbClient.from('vacaciones_balance').select('*');
+    S._vacBalance = error ? [] : (data || []);
+  } catch(e) {
+    S._vacBalance = [];
+  }
+  render();
+}
+
+async function loadOrganizaciones() {
+  try {
+    const { data, error } = await S.sbClient.from('organizacion_iglesias').select('*').order('created_at', { ascending: false });
+    S._organizaciones = error ? [] : (data || []);
+  } catch(e) {
+    S._organizaciones = [];
+  }
+  S._organizacionesLoading = false;
+  render();
+}
+
 /* =====================================================================
    CRUD HELPERS
    ===================================================================== */
 function recomputeCounts() {
-  for (const d of RAW.distritos) d.iglesias = RAW.iglesias.filter(i=>i.codDistrito===d.cod).length;
-  for (const z of RAW.zonas) { z.distritos=RAW.distritos.filter(d=>d.codZona===z.cod).length; z._igCount=RAW.iglesias.filter(i=>i.codZona===z.cod).length; }
+  for (const d of RAW.distritos) d.iglesias = RAW.iglesias.filter(i=>i.codDistrito===d.cod&&i.tipo!=='pendiente_revision'&&i.pastor&&i.pastor.trim()).length;
+  for (const z of RAW.zonas) { z.distritos=RAW.distritos.filter(d=>d.codZona===z.cod).length; z._igCount=RAW.iglesias.filter(i=>i.codZona===z.cod&&i.tipo!=='pendiente_revision'&&i.pastor&&i.pastor.trim()).length; }
 }
 async function saveCamposCustom() {
   if(S.sbClient) await S.sbClient.from('configuracion').upsert({id:'campos_iglesias',valor:S.camposCustom,updated_at:new Date().toISOString()});
@@ -1622,6 +2783,252 @@ async function saveCamposCustom() {
 function showToast(msg, type='success') {
   if(S.toastTimer) clearTimeout(S.toastTimer);
   S.toast={msg,type}; S.toastTimer=setTimeout(()=>{S.toast=null;render();},3000);
+}
+
+function imprimirPermiso(id) {
+  const p = (S._permisos||[]).find(x => x.id === id);
+  if (!p) { showToast('Permiso no encontrado','error'); return; }
+
+  const motivoLabel = { enfermedad:'Enfermedad', cita_medica:'Cita Médica', asuntos_familiares:'Asuntos Familiares', asuntos_oficiales:'Asuntos Oficiales', asuntos_personales:'Asuntos Personales' };
+  const fechaAus = p.fecha_ausencia ? new Date(p.fecha_ausencia+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'long',year:'numeric'}) : '—';
+  const fechaSol = p.fecha_solicitud ? new Date(p.fecha_solicitud+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'long',year:'numeric'}) : '—';
+  const estadoLabel = { pendiente:'Pendiente', aprobado:'Aprobado', rechazado:'Rechazado' }[p.estado] || p.estado;
+  const estadoColor = { pendiente:'#ca8a04', aprobado:'#16a34a', rechazado:'#dc2626' }[p.estado] || '#6b7280';
+  const estadoBg = { pendiente:'#fef9c3', aprobado:'#dcfce7', rechazado:'#fee2e2' }[p.estado] || '#f3f4f6';
+  const hoy = new Date().toLocaleDateString('es-DO',{day:'2-digit',month:'long',year:'numeric'});
+  const horaMinuto = new Date().toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'});
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <title>Constancia - ${p.nombre}</title>
+      <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 30px 25px; background: white; color: #1a2340; line-height: 1.5; }
+        .container { max-width: 750px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #1e3564; padding-bottom: 18px; }
+        .header h1 { margin: 0 0 6px 0; font-size: 24px; font-weight: 700; color: #1e3564; }
+        .header p { margin: 0; font-size: 12px; color: #6b7280; }
+        .content { margin-bottom: 25px; }
+        .field { margin-bottom: 14px; }
+        .label { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .value { font-size: 15px; color: #1a2340; font-weight: 500; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 14px; }
+        .row-item { }
+        .estado-box { background: ${estadoBg}; border-left: 5px solid ${estadoColor}; padding: 14px; margin: 18px 0; border-radius: 4px; }
+        .estado-label { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; }
+        .estado-valor { font-size: 20px; font-weight: 700; color: ${estadoColor}; margin-top: 4px; }
+        .firma-section { margin-top: 35px; }
+        .firma-linea { border-top: 1px solid #1a2340; width: 50%; margin-left: 0; margin-bottom: 4px; }
+        .firma-label { font-size: 11px; font-weight: 600; color: #1a2340; }
+        .footer { text-align: center; margin-top: 30px; padding-top: 15px; border-top: 1px solid #e5e7eb; font-size: 10px; color: #9ca3af; }
+        .footer p { margin: 3px 0; }
+        @media print { body { margin: 0; padding: 15px; } .container { max-width: 100%; } }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Constancia de Permiso de Ausencia</h1>
+          <p>Asociación Dominicana del Sureste</p>
+        </div>
+
+        <div class="content">
+          <div class="field">
+            <div class="label">Solicitante</div>
+            <div class="value">${escHtml(p.nombre)}</div>
+          </div>
+
+          <div class="row">
+            <div class="row-item">
+              <div class="label">Motivo de Ausencia</div>
+              <div class="value">${motivoLabel[p.motivo] || p.motivo}</div>
+            </div>
+            <div class="row-item">
+              <div class="label">Fecha de Ausencia</div>
+              <div class="value">${fechaAus}</div>
+            </div>
+          </div>
+
+          ${p.lugar ? `<div class="field">
+            <div class="label">Lugar de Destino</div>
+            <div class="value">${escHtml(p.lugar)}</div>
+          </div>` : ''}
+
+          <div class="estado-box">
+            <div class="estado-label">Estado del Permiso</div>
+            <div class="estado-valor">${estadoLabel}</div>
+          </div>
+
+          <div class="row">
+            <div class="row-item">
+              <div class="label">Fecha de Solicitud</div>
+              <div class="value">${fechaSol}</div>
+            </div>
+            <div class="row-item">
+              <div class="label">Procesado el</div>
+              <div class="value">${hoy}</div>
+            </div>
+          </div>
+
+          ${p.observaciones ? `<div class="field" style="margin-top:18px;padding:12px;background:#f8f9fc;border-radius:4px;">
+            <div class="label">Observaciones</div>
+            <div class="value">${escHtml(p.observaciones)}</div>
+          </div>` : ''}
+        </div>
+
+        <div class="firma-section">
+          <div class="firma-linea"></div>
+          <div class="firma-label">Secretaría Ejecutiva</div>
+        </div>
+
+        <div class="footer">
+          <p>Este es un documento oficial de permiso de ausencia del sistema de la Asociación Dominicana del Sureste.</p>
+          <p>Generado: ${hoy} • ${horaMinuto}</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const printWin = window.open('', '', 'width=800,height=600');
+  printWin.document.write(html);
+  printWin.document.close();
+  setTimeout(() => { printWin.print(); }, 250);
+}
+
+function imprimirVacacion(id) {
+  const v = (S._vacaciones||[]).find(x => x.id === id);
+  if (!v) { showToast('Solicitud no encontrada','error'); return; }
+
+  const fFmt = d => d ? new Date(d+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'long',year:'numeric'}) : '—';
+  const estadoLabel = { pendiente:'Pendiente', aprobado:'Aprobado', rechazado:'Rechazado' }[v.estado] || v.estado;
+  const estadoColor = { pendiente:'#ca8a04', aprobado:'#16a34a', rechazado:'#dc2626' }[v.estado] || '#6b7280';
+  const estadoBg = { pendiente:'#fef9c3', aprobado:'#dcfce7', rechazado:'#fee2e2' }[v.estado] || '#f3f4f6';
+  const hoy = new Date().toLocaleDateString('es-DO',{day:'2-digit',month:'long',year:'numeric'});
+  const horaMinuto = new Date().toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'});
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <title>Constancia de Vacaciones - ${v.nombre}</title>
+      <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 30px 25px; background: white; color: #1a2340; line-height: 1.5; }
+        .container { max-width: 750px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #1e3564; padding-bottom: 18px; }
+        .header h1 { margin: 0 0 6px 0; font-size: 24px; font-weight: 700; color: #1e3564; }
+        .header p { margin: 0; font-size: 12px; color: #6b7280; }
+        .content { margin-bottom: 25px; }
+        .field { margin-bottom: 14px; }
+        .label { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .value { font-size: 15px; color: #1a2340; font-weight: 500; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 14px; }
+        .row-item { }
+        .estado-box { background: ${estadoBg}; border-left: 5px solid ${estadoColor}; padding: 14px; margin: 18px 0; border-radius: 4px; }
+        .estado-label { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; }
+        .estado-valor { font-size: 20px; font-weight: 700; color: ${estadoColor}; margin-top: 4px; }
+        .firma-section { margin-top: 45px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        .firma-linea { border-top: 1px solid #1a2340; margin-bottom: 4px; }
+        .firma-label { font-size: 11px; font-weight: 600; color: #1a2340; }
+        .firma-cargo { font-size: 10px; color: #6b7280; }
+        .firma-solicitante-img { max-width: 220px; max-height: 70px; display: block; margin-bottom: 4px; }
+        .footer { text-align: center; margin-top: 30px; padding-top: 15px; border-top: 1px solid #e5e7eb; font-size: 10px; color: #9ca3af; }
+        .footer p { margin: 3px 0; }
+        @media print { body { margin: 0; padding: 15px; } .container { max-width: 100%; } }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Constancia de Vacaciones</h1>
+          <p>Asociación Dominicana del Sureste</p>
+        </div>
+
+        <div class="content">
+          <div class="field">
+            <div class="label">Solicitante</div>
+            <div class="value">${escHtml(v.nombre)}</div>
+          </div>
+
+          <div class="row">
+            <div class="row-item">
+              <div class="label">Período de Vacaciones</div>
+              <div class="value">${fFmt(v.fecha_inicio)} — ${fFmt(v.fecha_fin)}</div>
+            </div>
+            <div class="row-item">
+              <div class="label">Días Solicitados</div>
+              <div class="value">${v.dias_solicitados}${v.semanas_solicitadas ? ` (${v.semanas_solicitadas} semanas${v.feriados_periodo ? ', ' + v.feriados_periodo + ' feriado(s) no descontado(s)' : ''})` : ''}</div>
+            </div>
+          </div>
+
+          ${v.celular ? `<div class="field">
+            <div class="label">Celular del Solicitante</div>
+            <div class="value">${escHtml(v.celular)}</div>
+          </div>` : ''}
+
+          ${v.lugar ? `<div class="field">
+            <div class="label">Lugar</div>
+            <div class="value">${escHtml(v.lugar)}</div>
+          </div>` : ''}
+
+          ${v.confirmo_autorizacion_presidente ? `<div class="field">
+            <div class="label">Autorización de Presidencia</div>
+            <div class="value">El solicitante certificó haber consultado con el Pastor Gabriel Paulino (Presidente) y contar con su autorización.</div>
+          </div>` : ''}
+
+          <div class="estado-box">
+            <div class="estado-label">Estado de la Solicitud</div>
+            <div class="estado-valor">${estadoLabel}</div>
+          </div>
+
+          <div class="field">
+            <div class="label">Procesado el</div>
+            <div class="value">${hoy}</div>
+          </div>
+
+          ${v.observaciones ? `<div class="field" style="margin-top:18px;padding:12px;background:#f8f9fc;border-radius:4px;">
+            <div class="label">Observaciones</div>
+            <div class="value">${escHtml(v.observaciones)}</div>
+          </div>` : ''}
+        </div>
+
+        ${v.firma_data_url ? `<div class="field" style="margin-top:20px;">
+          <div class="label">Firma del Solicitante</div>
+          <img class="firma-solicitante-img" src="${v.firma_data_url}" alt="Firma del solicitante" />
+          <div class="firma-label">${escHtml(v.nombre)}</div>
+        </div>` : ''}
+
+        <div class="firma-section">
+          <div>
+            <div class="firma-linea"></div>
+            <div class="firma-label">Pastor Gabriel Paulino</div>
+            <div class="firma-cargo">Presidente</div>
+          </div>
+          <div>
+            <div class="firma-linea"></div>
+            <div class="firma-label">Francis Contreras</div>
+            <div class="firma-cargo">Secretario Ejecutivo</div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <p>Este es un documento oficial de vacaciones del sistema de la Asociación Dominicana del Sureste, conforme al Reglamento Operativo DIA (CB 20 05–45).</p>
+          <p>Generado: ${hoy} • ${horaMinuto}</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const printWin = window.open('', '', 'width=800,height=600');
+  printWin.document.write(html);
+  printWin.document.close();
+  setTimeout(() => { printWin.print(); }, 250);
 }
 
 
@@ -1793,7 +3200,7 @@ function buildHistorialView() {
     getHistorialFromDB().then(data => { S._historialData = data; S._historialLoading = false; render(); });
   }
   const accionColor = { 'Creo':'#15803d', 'Edito':'#854d0e', 'Elimino':'#b91c1c' };
-  const entColor = { 'Zona':'#1e3564', 'Distrito':'#2d5090', 'Iglesia':'#d4a820', 'Pastor':'#3a6ab0', 'Campo':'#6b7280' };
+  const entColor = { 'Zona':'#1e3564', 'Distrito':'#2d5090', 'Iglesia':'#d4a820', 'Pastor':'#3a6ab0', 'Campo':'#6b7280', 'OrganizacionIglesia':'#166534' };
   const rows = h.map(e => {
     const fecha = new Date(e.ts);
     const label = fecha.toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'}) + ' ' + fecha.toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'});
@@ -1865,7 +3272,7 @@ function exportarExcel() {
     const data = getFilteredIglesias().map(i=>({Codigo:i.cod,Nombre:i.nombre,Pastor:i.pastor||'',Zona:i.zona||'',Distrito:i.distrito||'',Drive:i.carpeta_drive||''}));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Iglesias');
   } else if (S.view === 'pastores') {
-    const data = getFilteredPastores().map(p=>({Codigo:p.cod,Nombre:p.nombre,Telefono:p.telefono||'',Email:p.email||'',Zona:p.zona||'',Distrito:p.distrito||''}));
+    const data = getFilteredPastores().map(p=>({Codigo:p.cod,Nombre:p.nombre,Rol:p.rol||'pastor',Estado:p.estado||'ordenado',Telefono:p.telefono||'',Email:p.email||'',Zona:p.zona||'',Distrito:p.distrito||'',PastorPrincipal:p.pastor_principal_cod?RAW.pastores.find(x=>x.cod===p.pastor_principal_cod)?.nombre||'':'',IglesiaPlantando:p.iglesia_asignada_cod?RAW.iglesias.find(x=>x.cod===p.iglesia_asignada_cod)?.nombre||'':''}));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Pastores');
   }
   const ts = new Date().toISOString().slice(0,10);

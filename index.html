@@ -49,6 +49,11 @@ let S = {
   showPermisoModal: false, permisoModalMode: 'add', editPermisoId: null,
   formPermiso: { nombre:'', email:'', fecha_solicitud:'', motivo:'enfermedad', lugar:'', fecha_ausencia:'', estado:'pendiente', observaciones:'' },
   showDeletePermisoConfirm: false, deletePermisoId: null, deletePermisoNombre: null,
+  // Vacaciones
+  _vacaciones: null, _vacacionesLoading: false, _vacBalance: null,
+  showVacacionModal: false, vacacionModalMode: 'add', editVacacionId: null,
+  formVacacion: { pastor_cod:'', nombre:'', email:'', fecha_solicitud:'', fecha_inicio:'', fecha_fin:'', lugar:'', estado:'pendiente', observaciones:'' },
+  showDeleteVacacionConfirm: false, deleteVacacionId: null, deleteVacacionNombre: null,
   // Organización de Iglesias
   _organizaciones: null, _organizacionesLoading: false,
   showOrganizacionModal: false, organizacionModalMode: 'add', editOrganizacionId: null,
@@ -79,7 +84,7 @@ let S = {
   showDeleteDistritoConfirm: false, deleteDistritoCod: null,
   // Pastor modal
   showPastorModal: false, pastorModalMode: 'add', editPastorCod: null,
-  formPastor: { cod:'', nombre:'', telefono:'', email:'', codZona:'', zona:'', codDistrito:'', distrito:'' },
+  formPastor: { cod:'', nombre:'', telefono:'', email:'', codZona:'', zona:'', codDistrito:'', distrito:'', fecha_ingreso:'' },
   showDeletePastorConfirm: false, deletePastorCod: null,
   // Campo modal
   showCampoModal: false, campoModalMode: 'add', editCampoIdx: null,
@@ -100,28 +105,7 @@ let S = {
   // Gestión de usuarios
   _allProfiles: null, _allProfilesLoading: false,
   showNewUserModal: false, editingProfileId: null,
-  newUserForm: { email:'', nombre:'', permisos:{ gestionar_usuarios:false, ver_dashboard:true, ver_iglesias:true, ver_pastores:true, ver_distritos:true, ver_zonas:true, ver_solicitudes:false, ver_historial:false, ver_configuracion:false, editar_iglesias:false, editar_pastores:false, editar_distritos:false, editar_zonas:false, eliminar_iglesias:false, eliminar_pastores:false, ver_permisos:false, gestionar_permisos:false, ver_organizacion:false, gestionar_organizacion:false, ver_gos:false, gestionar_gos:false, zonas:[] } },
-  // Informe Trimestral (movimientos de membresia)
-  gosView: 'carga', // 'carga' | 'trimestres'
-  _gosAsociaciones: null, _gosAsociacionesLoading: false,
-  gosAsociacionId: null,
-  _gosTrimestres: null, _gosTrimestresLoading: false,
-  gosTrimestreSeleccionado: null,
-  gosCargaPaso: 'seleccion', // 'seleccion' | 'archivo' | 'revision' | 'listo'
-  gosMostrarNuevoTrimestre: false,
-  gosCargaTrimestreId: '', gosCargaAnioNuevo: new Date().getFullYear(), gosCargaNumeroNuevo: 1,
-  gosCargaArchivoNombre: '', gosCargaError: '', gosCargaFilas: [], gosCargaResumen: null, gosCargaResultado: null,
-  gosCargando: false, gosConfirmando: false,
-  showGosAjusteModal: false, gosAjusteIglesiaCod: null, gosAjusteError: '', gosAjusteGuardando: false,
-  _gosReporte: null, _gosReporteLoading: false, _gosReporteTrimestreId: null,
-  gosInformeError: '', gosExportando: false,
-  showGosMembresiaModal: false, gosMembresiaFilas: [], gosMembresiaResumen: null,
-  gosMembresiaError: '', gosMembresiaProcesando: false, gosMembresiaConfirmando: false,
-  // Eliminacion masiva (Iglesias/Pastores)
-  showBulkDeleteConfirm: false, bulkDeleteTipo: null, bulkDeleteChecking: false, bulkDeleteConfirming: false,
-  bulkDeleteSeguros: [], bulkDeleteBloqueados: [], bulkDeleteError: '',
-  showGosCerrarConfirm: false, gosCerrarTrimestreId: null,
-  showGosReabrirConfirm: false, gosReabrirTrimestreId: null,
+  newUserForm: { email:'', nombre:'', permisos:{ gestionar_usuarios:false, ver_dashboard:true, ver_iglesias:true, ver_pastores:true, ver_distritos:true, ver_zonas:true, ver_solicitudes:false, ver_historial:false, ver_configuracion:false, editar_iglesias:false, editar_pastores:false, editar_distritos:false, editar_zonas:false, eliminar_iglesias:false, eliminar_pastores:false, ver_permisos:false, gestionar_permisos:false, ver_vacaciones:false, gestionar_vacaciones:false, ver_organizacion:false, gestionar_organizacion:false, zonas:[] } },
 };
 
 /* =====================================================================
@@ -151,10 +135,9 @@ const icons = {
   mail:    ic('<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',15),
   lock:    ic('<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>'),
   calendar:ic('<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'),
+  sun:     ic('<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>'),
   logout:  ic('<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>'),
   shield:  ic('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
-  upload:  ic('<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>'),
-  barchart:ic('<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>'),
 };
 
 /* =====================================================================
@@ -461,15 +444,12 @@ function buildHTML() {
   ${S.showDeleteSolicitudConfirm ? buildDeleteSolicitudConfirm() : ''}
   ${S.showPermisoModal ? buildPermisoModal() : ''}
   ${S.showDeletePermisoConfirm ? buildDeletePermisoConfirm() : ''}
+  ${S.showVacacionModal ? buildVacacionModal() : ''}
+  ${S.showDeleteVacacionConfirm ? buildDeleteVacacionConfirm() : ''}
   ${S.showOrganizacionModal ? buildOrganizacionModal() : ''}
   ${S.showDeleteOrganizacionConfirm ? buildDeleteOrganizacionConfirm() : ''}
   ${S.showSearch                  ? buildSearchModal()           : ''}
   ${S.showImportModal            ? buildImportModal()           : ''}
-  ${S.showGosAjusteModal         ? buildGosAjusteModal()        : ''}
-  ${S.showGosMembresiaModal      ? buildGosMembresiaModal()     : ''}
-  ${S.showBulkDeleteConfirm      ? buildBulkDeleteConfirmModal(): ''}
-  ${S.showGosCerrarConfirm       ? buildGosCerrarConfirm()      : ''}
-  ${S.showGosReabrirConfirm      ? buildGosReabrirConfirm()     : ''}
   ${S.toast                     ? buildToast()                 : ''}
   `;
 }
@@ -509,12 +489,10 @@ function buildSidebar() {
       <div style="color:rgba(255,255,255,.3);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:10px 10px 4px;">Sistema</div>
       ${canDo('ver_solicitudes')   ? navItem('solicitudes','Solicitudes',icons.plus) : ''}
       ${canDo('ver_permisos')      ? navItem('permisos','Permisos de Ausencia',icons.calendar) : ''}
+      ${canDo('ver_vacaciones')    ? navItem('vacaciones','Vacaciones',icons.sun) : ''}
       ${canDo('ver_organizacion')  ? navItem('organizacion','Organización de Iglesias',icons.shield,(S._organizaciones||[]).filter(o=>!o.completado).length||undefined) : ''}
       ${canDo('ver_historial')     ? navItem('historial','Historial',icons.clock) : ''}
       ${canDo('ver_configuracion') ? navItem('configuracion','Configuración',icons.settings) : ''}
-      <div style="color:rgba(255,255,255,.3);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:10px 10px 4px;">Informes</div>
-      ${canDo('ver_gos') ? navItem('gos_carga','Carga de Movimientos',icons.upload) : ''}
-      ${canDo('ver_gos') ? navItem('gos_trimestres','Informe Trimestral',icons.barchart) : ''}
     </nav>
     <div style="padding:10px 12px 14px;border-top:1px solid rgba(255,255,255,.08);">
       <button id="btn-import-excel" style="display:flex;align-items:center;gap:8px;width:100%;background:rgba(212,168,32,.12);border:none;cursor:pointer;padding:8px;border-radius:8px;margin-bottom:6px;">
@@ -545,7 +523,7 @@ function buildSidebar() {
 
 /* ---- HEADER ---- */
 function buildHeader() {
-  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Pastores', solicitudes:'Solicitudes de Congregación', permisos:'Permisos de Ausencia', organizacion:'Organización de Iglesias', configuracion:'Configuracion', gos_carga:'Carga de Movimientos', gos_trimestres:'Informe Trimestral' };
+  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Pastores', solicitudes:'Solicitudes de Congregación', permisos:'Permisos de Ausencia', vacaciones:'Vacaciones', organizacion:'Organización de Iglesias', configuracion:'Configuracion' };
   const needsSearch = ['iglesias','distritos','pastores'].includes(S.view);
   const addBtn = (id,label) => `<button id="${id}" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;">${icons.plus.replace('currentColor','white')} ${label}</button>`;
   const searchBtn = `<button id="btn-global-search" title="Ctrl+K" style="background:#f0f2f7;border:none;border-radius:8px;padding:8px;cursor:pointer;color:#6b7280;display:flex;align-items:center;">${icons.search}</button>`;
@@ -568,7 +546,7 @@ function buildHeader() {
 }
 
 /* ---- CONTENT ROUTER ---- */
-const PERM_MAP = { dashboard:'ver_dashboard', zonas:'ver_zonas', distritos:'ver_distritos', iglesias:'ver_iglesias', pastores:'ver_pastores', historial:'ver_historial', solicitudes:'ver_solicitudes', permisos:'ver_permisos', organizacion:'ver_organizacion', configuracion:'ver_configuracion', gos_carga:'ver_gos', gos_trimestres:'ver_gos' };
+const PERM_MAP = { dashboard:'ver_dashboard', zonas:'ver_zonas', distritos:'ver_distritos', iglesias:'ver_iglesias', pastores:'ver_pastores', historial:'ver_historial', solicitudes:'ver_solicitudes', permisos:'ver_permisos', vacaciones:'ver_vacaciones', organizacion:'ver_organizacion', configuracion:'ver_configuracion' };
 const NO_ACCESO = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;color:#9ca3af;gap:12px;"><span style="font-size:40px;">${icons.lock.replace('currentColor','#cbd5e1')}</span><div style="font-size:15px;font-weight:600;color:#6b7280;">Sin acceso</div><div style="font-size:13px;text-align:center;">No tienes permiso para ver esta sección.<br>Contacta al administrador.</div></div>`;
 
 function buildContent() {
@@ -585,10 +563,9 @@ function buildContent() {
     case 'historial':     return buildHistorialView();
     case 'solicitudes':   return buildSolicitudes();
     case 'permisos':      return buildPermisos();
+    case 'vacaciones':    return buildVacaciones();
     case 'organizacion':  return buildOrganizacion();
     case 'configuracion': return buildConfiguracion();
-    case 'gos_carga':     return buildGosCarga();
-    case 'gos_trimestres':return buildGosTrimestres();
     default:              return buildDashboard();
   }
 }
@@ -827,7 +804,6 @@ function buildIglesias() {
       <span style="font-size:12px;opacity:.7;">Cambiar tipo a:</span>
       <button id="btn-bulk-ig-iglesia" style="background:#1e40af;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Iglesia</button>
       <button id="btn-bulk-ig-grupo" style="background:#92400e;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Grupo</button>
-      ${canDo('eliminar_iglesias') ? `<button id="btn-bulk-ig-eliminar" style="background:#7f1d1d;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">🗑 Eliminar</button>` : ''}
       <button id="btn-bulk-ig-clear" style="background:rgba(255,255,255,.15);color:white;border:none;border-radius:7px;padding:7px 12px;font-size:13px;cursor:pointer;">✕ Cancelar</button>
     </div>` : '';
 
@@ -898,7 +874,6 @@ function buildPastores() {
       <span style="font-size:12px;opacity:.7;">Cambiar estado a:</span>
       <button id="btn-bulk-pastor-ordenado" style="background:#166534;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Ordenado</button>
       <button id="btn-bulk-pastor-licenciado" style="background:#991b1b;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Licenciado</button>
-      ${canDo('eliminar_pastores') ? `<button id="btn-bulk-pastor-eliminar" style="background:#7f1d1d;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">🗑 Eliminar</button>` : ''}
       <button id="btn-bulk-pastor-clear" style="background:rgba(255,255,255,.15);color:white;border:none;border-radius:7px;padding:7px 12px;font-size:13px;cursor:pointer;">✕ Cancelar</button>
     </div>` : '';
 
@@ -1157,6 +1132,144 @@ function buildDeletePermisoConfirm() {
   return confirmModal('Eliminar permiso', `Se eliminará el permiso de <strong>${escHtml(S.deletePermisoNombre||'')}</strong> permanentemente.`, 'btn-del-permiso-cancel', 'btn-del-permiso-confirm');
 }
 
+/* ---- VACACIONES ---- */
+function diasEntre(inicio, fin) {
+  if (!inicio || !fin) return 0;
+  const a = new Date(inicio+'T12:00:00'), b = new Date(fin+'T12:00:00');
+  return Math.round((b-a)/86400000) + 1;
+}
+function getVacBalance(pastor_cod) {
+  return (S._vacBalance||[]).find(b => b.pastor_cod === pastor_cod) || null;
+}
+function fmtDisponible(b) {
+  if (!b || b.dias_asignados_anio == null) return '<span style="color:#9ca3af;">Falta fecha de ingreso</span>';
+  const disp = b.dias_asignados_anio - b.dias_tomados_anio;
+  return `${disp} de ${b.dias_asignados_anio} días (${b.dias_tomados_anio} tomados este año)`;
+}
+function buildVacaciones() {
+  if (!canDo('ver_vacaciones')) return NO_ACCESO;
+  const items = S._vacaciones || [];
+  const loading = S._vacacionesLoading;
+  const estadoInfo = { pendiente:{ label:'Pendiente', bg:'#fef9c3', color:'#854d0e' }, aprobado:{ label:'Aprobado', bg:'#dcfce7', color:'#166534' }, rechazado:{ label:'Rechazado', bg:'#fee2e2', color:'#991b1b' } };
+  let contenido;
+  if (loading) {
+    contenido = `<div style="text-align:center;padding:60px;color:#6b7280;">Cargando vacaciones…</div>`;
+  } else if (!items.length) {
+    contenido = `<div style="text-align:center;padding:60px;"><div style="font-size:40px;margin-bottom:12px;">☀️</div><div style="color:#6b7280;font-size:15px;">No hay solicitudes de vacaciones registradas.</div></div>`;
+  } else {
+    contenido = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;">
+      <thead><tr style="background:#f8f9fc;">
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Nombre</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Período</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Días</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Disponibles (año)</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Estado</th>
+        <th style="padding:12px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Acción</th>
+      </tr></thead>
+      <tbody>${items.map(v => {
+        const est = estadoInfo[v.estado] || { label:v.estado, bg:'#f3f4f6', color:'#374151' };
+        const fFmt = d => d ? new Date(d+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+        const canGest = canDo('gestionar_vacaciones');
+        const bal = getVacBalance(v.pastor_cod);
+        const btnAprobar  = canGest && v.estado !== 'aprobado'  ? `<button data-aprobar-vacacion="${escHtml(v.id)}" style="background:#dcfce7;color:#166534;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">✓ Aprobar</button>` : '';
+        const btnRechazar = canGest && v.estado !== 'rechazado' ? `<button data-rechazar-vacacion="${escHtml(v.id)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">✕ Rechazar</button>` : '';
+        const btnPrint = `<button data-print-vacacion="${escHtml(v.id)}" style="background:#eef2ff;color:#1e3564;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">🖨️ Imprimir</button>`;
+        const btnEdit = canGest ? `<button data-edit-vacacion="${escHtml(v.id)}" style="background:#f3f4f6;color:#374151;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">✎</button>` : '';
+        const btnDel  = canGest ? `<button data-del-vacacion="${escHtml(v.id)}" data-del-vacacion-nombre="${escHtml(v.nombre)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;">✕</button>` : '';
+        return `<tr style="border-bottom:1px solid #f0f2f7;">
+          <td style="padding:12px 16px;font-weight:600;color:#1e3564;">${escHtml(v.nombre)}</td>
+          <td style="padding:12px 16px;color:#6b7280;">${fFmt(v.fecha_inicio)} — ${fFmt(v.fecha_fin)}</td>
+          <td style="padding:12px 16px;color:#374151;">${v.dias_solicitados}</td>
+          <td style="padding:12px 16px;color:#6b7280;font-size:12px;">${fmtDisponible(bal)}</td>
+          <td style="padding:12px 16px;"><span style="background:${est.bg};color:${est.color};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">${est.label}</span></td>
+          <td style="padding:12px 16px;">${btnAprobar}${btnRechazar}${btnPrint}${btnEdit}${btnDel}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+  }
+  return `<div style="padding:24px;display:flex;flex-direction:column;gap:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h2 style="font-size:18px;font-weight:700;color:#1a2340;margin-bottom:4px;">Vacaciones</h2>
+        <p style="font-size:13px;color:#6b7280;">Solicitudes de vacaciones del personal, sujetas a aprobación de Presidencia y Secretaría Ejecutiva. Acumulación anual según antigüedad (Reglamento CB 20 05): 14 días (0-5 años) · 21 días (6-9 años) · 28 días (+9 años). No aplica arrastre de un año a otro.</p>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <a href="/vacaciones" target="_blank" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;text-decoration:none;">🔗 Compartir enlace al pastor</a>
+        ${canDo('gestionar_vacaciones') ? `<button id="btn-add-vacacion" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">${icons.plus} Registrar manualmente</button>` : ''}
+        <button id="btn-reload-vacaciones" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">↻ Actualizar</button>
+      </div>
+    </div>
+    <div style="background:white;border-radius:14px;border:1px solid #e8eaf2;overflow:hidden;">${contenido}</div>
+  </div>`;
+}
+
+function buildVacacionModal() {
+  const editing = S.vacacionModalMode === 'edit';
+  const f = S.formVacacion;
+  const dias = diasEntre(f.fecha_inicio, f.fecha_fin);
+  const bal = getVacBalance(f.pastor_cod);
+  const estadoOpts = [
+    { val:'pendiente', label:'Pendiente' },
+    { val:'aprobado', label:'Aprobado' },
+    { val:'rechazado', label:'Rechazado' },
+  ];
+  const pastoresSorted = [...RAW.pastores].sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
+  let balanceLine = '';
+  if (f.pastor_cod) {
+    if (!bal || bal.dias_asignados_anio == null) {
+      balanceLine = `<div style="font-size:13px;color:#ca8a04;background:#fef9c3;border-radius:8px;padding:10px 14px;">⚠️ Este pastor no tiene fecha de ingreso registrada — no se puede calcular su balance de vacaciones. Agrégala en la ficha del pastor.</div>`;
+    } else {
+      const disp = bal.dias_asignados_anio - bal.dias_tomados_anio;
+      const excede = dias > 0 && dias > disp;
+      balanceLine = `<div style="font-size:13px;color:${excede?'#991b1b':'#374151'};background:${excede?'#fee2e2':'#f8f9fc'};border-radius:8px;padding:10px 14px;">
+        Disponibles este año: <strong>${disp}</strong> de ${bal.dias_asignados_anio} días (${bal.dias_tomados_anio} ya tomados).
+        ${excede ? '<br>⚠️ Esta solicitud excede los días disponibles.' : ''}
+      </div>`;
+    }
+  }
+  return `<div id="vacacion-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:16px;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;max-height:92vh;overflow-y:auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:22px 24px 0;">
+        <h3 style="font-size:17px;font-weight:700;color:#1a2340;">${editing?'Editar Solicitud':'Nueva Solicitud de Vacaciones'}</h3>
+        <button id="btn-vacacion-close" style="background:transparent;border:none;cursor:pointer;color:#9ca3af;font-size:20px;line-height:1;">×</button>
+      </div>
+      <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px;">
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Pastor <span style="color:#ef4444;">*</span></label>
+          <select id="vacacion-pastor-cod" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;">
+            <option value="">Selecciona un pastor…</option>
+            ${pastoresSorted.map(p=>`<option value="${escHtml(p.cod)}" ${f.pastor_cod===p.cod?'selected':''}>${escHtml(p.nombre)}</option>`).join('')}
+          </select></div>
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Correo electrónico</label>
+          <input id="vacacion-email" type="email" value="${escHtml(f.email||'')}" placeholder="correo@ejemplo.com" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+        ${balanceLine}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Fecha Inicio <span style="color:#ef4444;">*</span></label>
+            <input id="vacacion-fecha-inicio" type="date" value="${escHtml(f.fecha_inicio)}" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Fecha Fin <span style="color:#ef4444;">*</span></label>
+            <input id="vacacion-fecha-fin" type="date" value="${escHtml(f.fecha_fin)}" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+        </div>
+        <div style="font-size:13px;color:#6b7280;">Días solicitados: <strong style="color:#1a2340;">${dias > 0 ? dias : '—'}</strong></div>
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Lugar donde pasará las vacaciones</label>
+          <input id="vacacion-lugar" type="text" value="${escHtml(f.lugar||'')}" placeholder="Lugar (opcional)" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Estado</label>
+          <select id="vacacion-estado" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;">
+            ${estadoOpts.map(o=>`<option value="${o.val}" ${(f.estado||'pendiente')===o.val?'selected':''}>${o.label}</option>`).join('')}
+          </select></div>
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Observaciones</label>
+          <textarea id="vacacion-observaciones" placeholder="Observaciones adicionales…" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;resize:vertical;min-height:70px;box-sizing:border-box;">${escHtml(f.observaciones||'')}</textarea></div>
+      </div>
+      <div style="padding:0 24px 24px;display:flex;gap:10px;justify-content:flex-end;">
+        <button id="btn-vacacion-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
+        <button id="btn-vacacion-save" style="padding:10px 20px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;">${editing?'Guardar cambios':'Registrar'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildDeleteVacacionConfirm() {
+  return confirmModal('Eliminar solicitud', `Se eliminará la solicitud de vacaciones de <strong>${escHtml(S.deleteVacacionNombre||'')}</strong> permanentemente.`, 'btn-del-vacacion-cancel', 'btn-del-vacacion-confirm');
+}
+
 /* ---- ORGANIZACIÓN DE IGLESIAS ---- */
 const MATERIALES_ORG = [
   { id:'listado_acms', cat:'El Oficial Llevará', label:'Listado de Miembros ACMS' },
@@ -1380,10 +1493,10 @@ function buildUsuariosSection() {
     { key:'ver_solicitudes',  label:'Ver Solicitudes' },
     { key:'ver_permisos',     label:'Ver Permisos de Ausencia' },
     { key:'gestionar_permisos', label:'Gestionar Permisos de Ausencia' },
+    { key:'ver_vacaciones',     label:'Ver Vacaciones' },
+    { key:'gestionar_vacaciones', label:'Gestionar Vacaciones' },
     { key:'ver_organizacion', label:'Ver Organización de Iglesias' },
     { key:'gestionar_organizacion', label:'Gestionar Organización de Iglesias' },
-    { key:'ver_gos',          label:'Ver Informe Trimestral' },
-    { key:'gestionar_gos',    label:'Gestionar Informe Trimestral (cargar, ajustar, cerrar trimestre)' },
     { key:'ver_historial',    label:'Ver Historial' },
     { key:'ver_configuracion',label:'Ver Configuración' },
     { key:'editar_iglesias',  label:'Editar Iglesias' },
@@ -1643,6 +1756,8 @@ function buildPastorModal() {
           ${formField('Nombre completo','pastor-nombre',f.nombre,'text','Apellido, Nombre','',true)}
           ${formField('Telefono','pastor-telefono',f.telefono||'','tel','809-000-0000')}
           ${formField('Correo electronico','pastor-email',f.email||'','email','pastor@iglesia.org')}
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Fecha de ingreso <span style="font-weight:400;color:#9ca3af;">(para calcular vacaciones por antigüedad)</span></label>
+            <input id="pastor-fecha-ingreso" type="date" value="${escHtml(f.fecha_ingreso||'')}" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
           ${esAsociado ? `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Pastor principal</label>
             <select id="pastor-principal-cod" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
               <option value="">Sin asignar</option>
@@ -1717,7 +1832,7 @@ function buildImportModal() {
           <button id="btn-import-close" style="background:transparent;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#9ca3af;">${icons.x}</button>
         </div>
         ${!p && !res ? `
-        <p style="font-size:13px;color:#6b7280;margin-bottom:18px;">Sube un archivo Excel con <strong>una sola hoja</strong> (una fila por iglesia/grupo, con su zona/distrito/pastor) o, si prefieres, hojas separadas <strong>Zonas</strong>/<strong>Distritos</strong>/<strong>Iglesias</strong>/<strong>Pastores</strong> — ambos formatos se reconocen. Los registros existentes se actualizan por código (ej. cambiar el pastor o el tipo de una iglesia ya creada).</p>
+        <p style="font-size:13px;color:#6b7280;margin-bottom:18px;">Sube un archivo Excel con hojas llamadas <strong>Zonas</strong>, <strong>Distritos</strong>, <strong>Iglesias</strong> y/o <strong>Pastores</strong>. Los registros existentes se actualizaran por codigo.</p>
         <div id="import-drop-zone" style="border:2px dashed #d4a820;border-radius:12px;padding:40px;text-align:center;cursor:pointer;background:#fffdf0;">
           <div style="font-size:32px;margin-bottom:10px;">📊</div>
           <div style="font-weight:600;color:#1a2340;margin-bottom:6px;">Arrastra tu archivo aqui</div>
@@ -1725,12 +1840,15 @@ function buildImportModal() {
           <input id="import-file-input" type="file" accept=".xlsx,.xls" style="display:none;" />
         </div>
         <div style="margin-top:14px;padding:14px;background:#f0f2f7;border-radius:10px;">
-          <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px;">Columnas de la hoja única (una fila por iglesia/grupo):</div>
+          <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px;">Columnas esperadas por hoja:</div>
           <div style="font-size:12px;color:#6b7280;line-height:1.8;">
-            Cod Zona, Zona, Cod Distrito, Distrito, Cod Iglesia, Iglesia, Tipo (Iglesia/Grupo), Pastor
+            <b>Zonas:</b> cod, nombre<br>
+            <b>Distritos:</b> cod, nombre, codZona (o zona)<br>
+            <b>Iglesias:</b> cod, nombre, pastor, codZona, codDistrito (o zona, distrito)<br>
+            <b>Pastores:</b> cod, nombre, telefono, email, codZona, codDistrito (o zona, distrito)
           </div>
         </div>
-        <button onclick="downloadTemplate()" style="margin-top:12px;width:100%;padding:10px;border-radius:8px;border:1.5px solid #d4a820;background:white;color:#d4a820;font-size:13px;font-weight:600;cursor:pointer;">&#11015; Descargar plantilla con el catálogo actual</button>` : ''}
+        <button onclick="downloadTemplate()" style="margin-top:12px;width:100%;padding:10px;border-radius:8px;border:1.5px solid #d4a820;background:white;color:#d4a820;font-size:13px;font-weight:600;cursor:pointer;">&#11015; Descargar plantilla Excel</button>` : ''}
         ${p && !res ? `
         <div style="display:flex;flex-direction:column;gap:12px;">
           ${p.zonas?.length    ? previewCard('Zonas',    p.zonas,    '#1e3564') : ''}
@@ -1829,44 +1947,6 @@ function buildDeletePastorConfirm() {
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
         <button id="btn-del-pastor-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
         <button id="btn-del-pastor-confirm" style="padding:10px 20px;border-radius:8px;border:none;background:#ef4444;color:white;font-size:14px;cursor:pointer;font-weight:500;">Eliminar</button>
-      </div>
-    </div>
-  </div>`;
-}
-
-/* Eliminacion masiva (Iglesias/Pastores): antes de borrar, revisa si algun
-   codigo seleccionado tiene historial en el Informe Trimestral/Organizacion de Iglesias (para
-   iglesias -- pastores no tienen esa dependencia) y separa lo que SI se
-   puede borrar de lo que no, mostrando nombres concretos en vez de solo un
-   numero. */
-function buildBulkDeleteConfirmModal() {
-  const tipo = S.bulkDeleteTipo;
-  const nombreDe = cod => tipo === 'iglesias'
-    ? (RAW.iglesias.find(i => i.cod === cod)?.nombre || cod)
-    : (RAW.pastores.find(p => p.cod === cod)?.nombre || cod);
-  const etiqueta = tipo === 'iglesias' ? 'iglesias/grupos' : 'pastores';
-  return `<div id="bulk-delete-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:250;display:flex;align-items:center;justify-content:center;padding:20px;">
-    <div style="background:white;border-radius:16px;width:100%;max-width:520px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:modalIn .2s ease;">
-      <div style="padding:24px;">
-        <h3 style="font-size:16px;font-weight:700;color:#1a2340;margin-bottom:6px;">Eliminar ${etiqueta} seleccionados</h3>
-        ${S.bulkDeleteChecking ? `<p style="font-size:13px;color:#6b7280;">Verificando dependencias...</p>` : `
-        <p style="font-size:13px;color:#b91c1c;margin-bottom:10px;">Esta acción no se puede deshacer.</p>
-        ${S.bulkDeleteSeguros.length ? `
-        <div style="font-size:12px;color:#374151;font-weight:600;margin-bottom:4px;">Se eliminarán (${S.bulkDeleteSeguros.length}):</div>
-        <div style="max-height:140px;overflow-y:auto;font-size:12px;color:#374151;background:#f8f9fc;border-radius:8px;padding:8px 12px;margin-bottom:12px;">
-          ${S.bulkDeleteSeguros.map(c => `<div>${escHtml(nombreDe(c))}</div>`).join('')}
-        </div>` : `<p style="font-size:13px;color:#9ca3af;margin-bottom:12px;">Ninguno de los seleccionados se puede eliminar.</p>`}
-        ${S.bulkDeleteBloqueados.length ? `
-        <div style="font-size:12px;color:#b45309;font-weight:600;margin-bottom:4px;">No se pueden eliminar (${S.bulkDeleteBloqueados.length}) — tienen historial en el Informe Trimestral u Organización de Iglesias:</div>
-        <div style="max-height:100px;overflow-y:auto;font-size:12px;color:#b45309;background:#fffbeb;border-radius:8px;padding:8px 12px;margin-bottom:12px;">
-          ${S.bulkDeleteBloqueados.map(c => `<div>${escHtml(nombreDe(c))}</div>`).join('')}
-        </div>` : ''}
-        `}
-        ${S.bulkDeleteError ? `<p style="font-size:12px;color:#b91c1c;margin-bottom:10px;">${escHtml(S.bulkDeleteError)}</p>` : ''}
-      </div>
-      <div style="padding:16px 24px;border-top:1px solid #f0f2f7;display:flex;gap:10px;justify-content:flex-end;">
-        <button id="btn-bulk-delete-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
-        <button id="btn-bulk-delete-confirm" ${(S.bulkDeleteChecking || !S.bulkDeleteSeguros.length) ? 'disabled' : ''} style="padding:10px 20px;border-radius:8px;border:none;background:#dc2626;color:white;font-size:14px;cursor:pointer;font-weight:600;opacity:${(S.bulkDeleteChecking || !S.bulkDeleteSeguros.length) ? '.5' : '1'};">${S.bulkDeleteConfirming ? 'Eliminando...' : 'Eliminar ' + S.bulkDeleteSeguros.length}</button>
       </div>
     </div>
   </div>`;
@@ -2009,8 +2089,8 @@ function bindEvents() {
   q('#btn-del-confirm', el => el.addEventListener('click', async () => { const ig=RAW.iglesias[S.deleteTarget];if(S.sbClient)await S.sbClient.from(S.sbTable).delete().eq('cod',ig.cod);registrarHistorial('Elimino','Iglesia',ig.cod,ig.nombre);RAW.iglesias.splice(S.deleteTarget,1);recomputeCounts();S.showDeleteConfirm=false;S.deleteTarget=null;showToast('Iglesia eliminada','success');render(); }));
 
   /* PASTORES */
-  q('#btn-add-pastor', el => el.addEventListener('click', () => { S.showPastorModal=true;S.pastorModalMode='add';S.editPastorCod=null;S.formPastor={cod:nextPastorCod(),nombre:'',telefono:'',email:'',codZona:'',zona:'',codDistrito:'',distrito:'',estado:'ordenado',rol:'pastor',pastor_principal_cod:'',iglesia_asignada_cod:''};render(); }));
-  document.querySelectorAll('[data-edit-pastor]').forEach(el => el.addEventListener('click', () => { const p=RAW.pastores.find(p=>p.cod===el.dataset.editPastor);if(!p)return;S.showPastorModal=true;S.pastorModalMode='edit';S.editPastorCod=p.cod;S.formPastor={cod:p.cod,nombre:p.nombre,telefono:p.telefono||'',email:p.email||'',codZona:p.codZona||'',zona:p.zona||'',codDistrito:p.codDistrito||'',distrito:p.distrito||'',estado:p.estado||'ordenado',rol:p.rol||'pastor',pastor_principal_cod:p.pastor_principal_cod||'',iglesia_asignada_cod:p.iglesia_asignada_cod||''};render(); }));
+  q('#btn-add-pastor', el => el.addEventListener('click', () => { S.showPastorModal=true;S.pastorModalMode='add';S.editPastorCod=null;S.formPastor={cod:nextPastorCod(),nombre:'',telefono:'',email:'',codZona:'',zona:'',codDistrito:'',distrito:'',estado:'ordenado',rol:'pastor',pastor_principal_cod:'',iglesia_asignada_cod:'',fecha_ingreso:''};render(); }));
+  document.querySelectorAll('[data-edit-pastor]').forEach(el => el.addEventListener('click', () => { const p=RAW.pastores.find(p=>p.cod===el.dataset.editPastor);if(!p)return;S.showPastorModal=true;S.pastorModalMode='edit';S.editPastorCod=p.cod;S.formPastor={cod:p.cod,nombre:p.nombre,telefono:p.telefono||'',email:p.email||'',codZona:p.codZona||'',zona:p.zona||'',codDistrito:p.codDistrito||'',distrito:p.distrito||'',estado:p.estado||'ordenado',rol:p.rol||'pastor',pastor_principal_cod:p.pastor_principal_cod||'',iglesia_asignada_cod:p.iglesia_asignada_cod||'',fecha_ingreso:p.fecha_ingreso||''};render(); }));
   document.querySelectorAll('[data-del-pastor]').forEach(el => el.addEventListener('click', () => { S.showDeletePastorConfirm=true;S.deletePastorCod=el.dataset.delPastor;render(); }));
   q('#btn-pastor-close',  el => el.addEventListener('click', () => { S.showPastorModal=false;render(); }));
   q('#btn-pastor-cancel', el => el.addEventListener('click', () => { S.showPastorModal=false;render(); }));
@@ -2019,11 +2099,11 @@ function bindEvents() {
   q('#pastor-zona', el => el.addEventListener('change', e => { const cod=e.target.value;const z=RAW.zonas.find(z=>z.cod===cod);S.formPastor={...S.formPastor,codZona:cod,zona:z?z.nombre:'',codDistrito:'',distrito:''};render(); }));
   q('#pastor-distrito', el => el.addEventListener('change', e => { const cod=e.target.value;const d=RAW.distritos.find(d=>d.cod===cod);S.formPastor={...S.formPastor,codDistrito:cod,distrito:d?d.nombre:''}; }));
   q('#btn-pastor-save', el => el.addEventListener('click', async () => {
-    const nombre=document.getElementById('pastor-nombre')?.value.trim()||''; const cod=document.getElementById('pastor-cod')?.value.trim().toUpperCase()||''; const telefono=document.getElementById('pastor-telefono')?.value.trim()||''; const email=document.getElementById('pastor-email')?.value.trim()||''; const rol=document.getElementById('pastor-rol')?.value||'pastor'; const esOficina=rol==='departamental'||rol==='administrador'; const esPlantador=rol==='plantador'; const pastor_principal_cod=!esPlantador?(document.getElementById('pastor-principal-cod')?.value||null):null; const iglesia_asignada_cod=esPlantador?(document.getElementById('pastor-iglesia-cod')?.value||null):null; const codZona=esOficina||esPlantador?'':document.getElementById('pastor-zona')?.value||''; const zona=RAW.zonas.find(z=>z.cod===codZona)?.nombre||''; const codDistrito=esOficina||esPlantador?'':document.getElementById('pastor-distrito')?.value||''; const distrito=RAW.distritos.find(d=>d.cod===codDistrito)?.nombre||''; const estado=document.getElementById('pastor-estado')?.value||'ordenado';
-    S.formPastor={...S.formPastor,nombre,cod,telefono,email,codZona,codDistrito,estado,rol,pastor_principal_cod,iglesia_asignada_cod};
+    const nombre=document.getElementById('pastor-nombre')?.value.trim()||''; const cod=document.getElementById('pastor-cod')?.value.trim().toUpperCase()||''; const telefono=document.getElementById('pastor-telefono')?.value.trim()||''; const email=document.getElementById('pastor-email')?.value.trim()||''; const rol=document.getElementById('pastor-rol')?.value||'pastor'; const esOficina=rol==='departamental'||rol==='administrador'; const esPlantador=rol==='plantador'; const pastor_principal_cod=!esPlantador?(document.getElementById('pastor-principal-cod')?.value||null):null; const iglesia_asignada_cod=esPlantador?(document.getElementById('pastor-iglesia-cod')?.value||null):null; const codZona=esOficina||esPlantador?'':document.getElementById('pastor-zona')?.value||''; const zona=RAW.zonas.find(z=>z.cod===codZona)?.nombre||''; const codDistrito=esOficina||esPlantador?'':document.getElementById('pastor-distrito')?.value||''; const distrito=RAW.distritos.find(d=>d.cod===codDistrito)?.nombre||''; const estado=document.getElementById('pastor-estado')?.value||'ordenado'; const fecha_ingreso=document.getElementById('pastor-fecha-ingreso')?.value||'';
+    S.formPastor={...S.formPastor,nombre,cod,telefono,email,codZona,codDistrito,estado,rol,pastor_principal_cod,iglesia_asignada_cod,fecha_ingreso};
     if(!nombre){showToast('El nombre es requerido','error');return;} if(!cod){showToast('El codigo es requerido','error');return;}
     if(S.pastorModalMode==='add'&&RAW.pastores.find(p=>p.cod===cod)){showToast('El codigo ya existe','error');return;}
-    const row={cod,nombre,telefono,email,codZona,zona,codDistrito,distrito,estado,rol,pastor_principal_cod:pastor_principal_cod||null,iglesia_asignada_cod:iglesia_asignada_cod||null};
+    const row={cod,nombre,telefono,email,codZona,zona,codDistrito,distrito,estado,rol,pastor_principal_cod:pastor_principal_cod||null,iglesia_asignada_cod:iglesia_asignada_cod||null,fecha_ingreso:fecha_ingreso||null};
     if(S.sbClient){const{error}=S.pastorModalMode==='add'?await S.sbClient.from('pastores').insert([row]):await S.sbClient.from('pastores').update(row).eq('cod',cod);if(error){showToast('Error: '+error.message,'error');return;}}
     if(S.pastorModalMode==='add')RAW.pastores.push(row);else{const i=RAW.pastores.findIndex(p=>p.cod===cod);if(i>=0)RAW.pastores[i]=row;}
     registrarHistorial(S.pastorModalMode==='add'?'Creo':'Edito','Pastor',row.cod,row.nombre);S.showPastorModal=false;showToast(S.pastorModalMode==='add'?'Pastor agregado':'Pastor actualizado','success');render();
@@ -2099,60 +2179,6 @@ function bindEvents() {
   }
   q('#btn-bulk-pastor-ordenado',   el => el.addEventListener('click', () => bulkUpdatePastores('ordenado')));
   q('#btn-bulk-pastor-licenciado', el => el.addEventListener('click', () => bulkUpdatePastores('licenciado')));
-
-  /* ELIMINACION MASIVA (Iglesias/Pastores) */
-  async function abrirConfirmBulkDelete(tipo) {
-    const cods = tipo === 'iglesias' ? [...S.selectedIglesias] : [...S.selectedPastores];
-    if (!cods.length) return;
-    S.bulkDeleteTipo = tipo; S.showBulkDeleteConfirm = true; S.bulkDeleteChecking = true;
-    S.bulkDeleteError = ''; S.bulkDeleteSeguros = []; S.bulkDeleteBloqueados = [];
-    render();
-    if (tipo === 'iglesias' && S.sbClient) {
-      // Pastores no tiene esta restriccion: solo se auto-desvincula (SET NULL) de pastor_principal_cod.
-      const tablasDependientes = ['gos_reporte_iglesia', 'iglesia_distrito_historial', 'organizacion_iglesias', 'gos_movimientos'];
-      const bloqueadosSet = new Set();
-      for (const tabla of tablasDependientes) {
-        const { data, error } = await S.sbClient.from(tabla).select('iglesia_cod').in('iglesia_cod', cods);
-        if (!error) (data || []).forEach(r => bloqueadosSet.add(r.iglesia_cod));
-      }
-      S.bulkDeleteBloqueados = cods.filter(c => bloqueadosSet.has(c));
-      S.bulkDeleteSeguros = cods.filter(c => !bloqueadosSet.has(c));
-    } else {
-      S.bulkDeleteSeguros = cods;
-    }
-    S.bulkDeleteChecking = false;
-    render();
-  }
-  q('#btn-bulk-ig-eliminar',     el => el.addEventListener('click', () => abrirConfirmBulkDelete('iglesias')));
-  q('#btn-bulk-pastor-eliminar', el => el.addEventListener('click', () => abrirConfirmBulkDelete('pastores')));
-  q('#btn-bulk-delete-cancel', el => el.addEventListener('click', () => { S.showBulkDeleteConfirm=false; render(); }));
-  q('#bulk-delete-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el && !S.bulkDeleteConfirming){S.showBulkDeleteConfirm=false;render();} }));
-  q('#btn-bulk-delete-confirm', el => el.addEventListener('click', async () => {
-    const tipo = S.bulkDeleteTipo;
-    const cods = S.bulkDeleteSeguros;
-    if (!cods.length) return;
-    S.bulkDeleteConfirming = true; S.bulkDeleteError = ''; render();
-    const tabla = tipo === 'iglesias' ? S.sbTable : 'pastores';
-    if (S.sbClient) {
-      const { error } = await S.sbClient.from(tabla).delete().in('cod', cods);
-      if (error) { S.bulkDeleteConfirming = false; S.bulkDeleteError = 'Error: ' + error.message; render(); return; }
-    }
-    if (tipo === 'iglesias') {
-      const nombres = cods.map(c => RAW.iglesias.find(i => i.cod === c)?.nombre || c);
-      RAW.iglesias = RAW.iglesias.filter(i => !cods.includes(i.cod));
-      S.selectedIglesias.clear();
-      registrarHistorial('Eliminación masiva', 'Iglesia', cods.join(','), nombres.join(', '));
-      recomputeCounts();
-    } else {
-      const nombres = cods.map(c => RAW.pastores.find(p => p.cod === c)?.nombre || c);
-      RAW.pastores = RAW.pastores.filter(p => !cods.includes(p.cod));
-      S.selectedPastores.clear();
-      registrarHistorial('Eliminación masiva', 'Pastor', cods.join(','), nombres.join(', '));
-    }
-    S.bulkDeleteConfirming = false; S.showBulkDeleteConfirm = false;
-    showToast(`${cods.length} eliminado${cods.length !== 1 ? 's' : ''}`, 'success');
-    render();
-  }));
 
   /* SOLICITUDES — eliminar */
   document.querySelectorAll('[data-del-sol]').forEach(el => el.addEventListener('click', () => {
@@ -2237,7 +2263,7 @@ function bindEvents() {
   if (S.view==='configuracion' && isAdmin() && S._allProfiles===null && !S._allProfilesLoading) { loadAllProfiles(); }
   q('#btn-add-user', el => el.addEventListener('click', () => {
     S.showNewUserModal=true; S.editingProfileId=null;
-    S.newUserForm={ email:'', nombre:'', permisos:{ gestionar_usuarios:false, ver_dashboard:true, ver_iglesias:true, ver_pastores:true, ver_distritos:true, ver_zonas:true, ver_solicitudes:false, ver_historial:false, ver_configuracion:false, editar_iglesias:false, editar_pastores:false, editar_distritos:false, editar_zonas:false, eliminar_iglesias:false, eliminar_pastores:false, ver_organizacion:false, gestionar_organizacion:false, zonas:[] } };
+    S.newUserForm={ email:'', nombre:'', permisos:{ gestionar_usuarios:false, ver_dashboard:true, ver_iglesias:true, ver_pastores:true, ver_distritos:true, ver_zonas:true, ver_solicitudes:false, ver_historial:false, ver_configuracion:false, editar_iglesias:false, editar_pastores:false, editar_distritos:false, editar_zonas:false, eliminar_iglesias:false, eliminar_pastores:false, ver_permisos:false, gestionar_permisos:false, ver_vacaciones:false, gestionar_vacaciones:false, ver_organizacion:false, gestionar_organizacion:false, zonas:[] } };
     render();
   }));
   q('#btn-nu-close',  el => el.addEventListener('click', () => { S.showNewUserModal=false; render(); }));
@@ -2372,6 +2398,106 @@ function bindEvents() {
     S._permisos = (S._permisos||[]).filter(p => p.id!==S.deletePermisoId);
     S.showDeletePermisoConfirm=false; S.deletePermisoId=null; S.deletePermisoNombre=null;
     showToast('Permiso eliminado','success'); render();
+  }));
+
+  /* VACACIONES */
+  if (S.view==='vacaciones' && !S._vacaciones && !S._vacacionesLoading) { S._vacacionesLoading=true; loadVacaciones(); }
+  q('#btn-reload-vacaciones', el => el.addEventListener('click', () => { S._vacaciones=null; S._vacacionesLoading=true; render(); loadVacaciones(); }));
+  q('#btn-add-vacacion', el => el.addEventListener('click', () => {
+    S.showVacacionModal=true; S.vacacionModalMode='add'; S.editVacacionId=null;
+    S.formVacacion={ pastor_cod:'', nombre:'', email:'', fecha_solicitud:new Date().toISOString().slice(0,10), fecha_inicio:'', fecha_fin:'', lugar:'', estado:'pendiente', observaciones:'' };
+    render();
+  }));
+  q('#btn-vacacion-close',  el => el.addEventListener('click', () => { S.showVacacionModal=false; render(); }));
+  q('#btn-vacacion-cancel', el => el.addEventListener('click', () => { S.showVacacionModal=false; render(); }));
+  q('#vacacion-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el){S.showVacacionModal=false;render();} }));
+  q('#vacacion-pastor-cod', el => el.addEventListener('change', () => {
+    const p = RAW.pastores.find(p=>p.cod===el.value);
+    S.formVacacion.pastor_cod = el.value;
+    S.formVacacion.nombre = p ? p.nombre : '';
+    S.formVacacion.email = p?.email || S.formVacacion.email;
+    render();
+  }));
+  q('#vacacion-fecha-inicio', el => el.addEventListener('change', () => { S.formVacacion.fecha_inicio=el.value; render(); }));
+  q('#vacacion-fecha-fin',    el => el.addEventListener('change', () => { S.formVacacion.fecha_fin=el.value; render(); }));
+  q('#btn-vacacion-save', el => el.addEventListener('click', async () => {
+    const pastor_cod      = document.getElementById('vacacion-pastor-cod')?.value||'';
+    const pastor           = RAW.pastores.find(p=>p.cod===pastor_cod);
+    const nombre           = pastor?.nombre||'';
+    const email           = document.getElementById('vacacion-email')?.value.trim()||'';
+    const fecha_inicio    = document.getElementById('vacacion-fecha-inicio')?.value||'';
+    const fecha_fin       = document.getElementById('vacacion-fecha-fin')?.value||'';
+    const lugar           = document.getElementById('vacacion-lugar')?.value.trim()||'';
+    const estado          = document.getElementById('vacacion-estado')?.value||'pendiente';
+    const observaciones   = document.getElementById('vacacion-observaciones')?.value.trim()||'';
+    if (!pastor_cod) { showToast('Selecciona un pastor','error'); return; }
+    if (!fecha_inicio || !fecha_fin) { showToast('Las fechas de inicio y fin son requeridas','error'); return; }
+    const dias_solicitados = diasEntre(fecha_inicio, fecha_fin);
+    if (dias_solicitados < 1) { showToast('La fecha fin debe ser posterior o igual a la fecha inicio','error'); return; }
+    const payload = { pastor_cod, nombre, email: email||null, fecha_inicio, fecha_fin, dias_solicitados, lugar: lugar||null, estado, observaciones: observaciones||null };
+    if (S.vacacionModalMode==='add') {
+      const { data, error } = await S.sbClient.from('vacaciones_solicitudes').insert([payload]).select();
+      if (error) { showToast('Error: '+error.message,'error'); return; }
+      S._vacaciones = [data[0], ...(S._vacaciones||[])];
+    } else {
+      const { error } = await S.sbClient.from('vacaciones_solicitudes').update(payload).eq('id', S.editVacacionId);
+      if (error) { showToast('Error: '+error.message,'error'); return; }
+      S._vacaciones = (S._vacaciones||[]).map(v => v.id===S.editVacacionId ? {...v,...payload} : v);
+    }
+    S.showVacacionModal=false;
+    showToast(S.vacacionModalMode==='add'?'Solicitud registrada':'Solicitud actualizada','success');
+    loadVacBalance();
+    render();
+  }));
+  async function decidirVacacion(id, nuevoEstado) {
+    const v = (S._vacaciones||[]).find(v=>v.id===id); if(!v) return;
+    if (nuevoEstado === 'aprobado') {
+      const bal = getVacBalance(v.pastor_cod);
+      if (bal && bal.dias_asignados_anio != null) {
+        const disp = bal.dias_asignados_anio - bal.dias_tomados_anio;
+        if (v.dias_solicitados > disp) {
+          const ok = confirm(`${v.nombre} solo tiene ${disp} días disponibles este año y está solicitando ${v.dias_solicitados}. ¿Aprobar de todas formas?`);
+          if (!ok) return;
+        }
+      }
+    }
+    const { error } = await S.sbClient.from('vacaciones_solicitudes').update({ estado: nuevoEstado }).eq('id', id);
+    if (error) { showToast('Error: '+error.message,'error'); return; }
+    S._vacaciones = (S._vacaciones||[]).map(x => x.id===id ? {...x, estado: nuevoEstado} : x);
+    showToast(nuevoEstado==='aprobado' ? 'Vacaciones aprobadas' : 'Solicitud rechazada', 'success');
+    loadVacBalance();
+    render();
+
+    // Si aprobó, abrir WhatsApp del pastor
+    if (nuevoEstado === 'aprobado') {
+      const pastor = (RAW.pastores||[]).find(ps => ps.cod === v.pastor_cod || ps.nombre === v.nombre);
+      if (pastor && pastor.telefono) {
+        const tel = pastor.telefono.replace(/\D/g, '');
+        const msg = encodeURIComponent('Tus vacaciones han sido aprobadas ✅. Recibirás la constancia firmada por Presidencia y Secretaría.');
+        setTimeout(() => window.open(`https://wa.me/${tel}?text=${msg}`, '_blank'), 500);
+      }
+    }
+  }
+  document.querySelectorAll('[data-aprobar-vacacion]').forEach(el => el.addEventListener('click', () => decidirVacacion(el.dataset.aprobarVacacion, 'aprobado')));
+  document.querySelectorAll('[data-rechazar-vacacion]').forEach(el => el.addEventListener('click', () => decidirVacacion(el.dataset.rechazarVacacion, 'rechazado')));
+  document.querySelectorAll('[data-print-vacacion]').forEach(el => el.addEventListener('click', () => imprimirVacacion(el.dataset.printVacacion)));
+
+  document.querySelectorAll('[data-edit-vacacion]').forEach(el => el.addEventListener('click', () => {
+    const v = (S._vacaciones||[]).find(v=>v.id===el.dataset.editVacacion); if(!v) return;
+    S.showVacacionModal=true; S.vacacionModalMode='edit'; S.editVacacionId=v.id;
+    S.formVacacion={ pastor_cod:v.pastor_cod||'', nombre:v.nombre, email:v.email||'', fecha_inicio:v.fecha_inicio||'', fecha_fin:v.fecha_fin||'', lugar:v.lugar||'', estado:v.estado||'pendiente', observaciones:v.observaciones||'' };
+    render();
+  }));
+  document.querySelectorAll('[data-del-vacacion]').forEach(el => el.addEventListener('click', () => {
+    S.showDeleteVacacionConfirm=true; S.deleteVacacionId=el.dataset.delVacacion; S.deleteVacacionNombre=el.dataset.delVacacionNombre; render();
+  }));
+  q('#btn-del-vacacion-cancel',  el => el.addEventListener('click', () => { S.showDeleteVacacionConfirm=false; S.deleteVacacionId=null; S.deleteVacacionNombre=null; render(); }));
+  q('#btn-del-vacacion-confirm', el => el.addEventListener('click', async () => {
+    const { error } = await S.sbClient.from('vacaciones_solicitudes').delete().eq('id', S.deleteVacacionId);
+    if (error) { showToast('Error: '+error.message,'error'); return; }
+    S._vacaciones = (S._vacaciones||[]).filter(v => v.id!==S.deleteVacacionId);
+    S.showDeleteVacacionConfirm=false; S.deleteVacacionId=null; S.deleteVacacionNombre=null;
+    showToast('Solicitud eliminada','success'); render();
   }));
 
   /* ORGANIZACIÓN DE IGLESIAS */
@@ -2584,266 +2710,6 @@ function bindEvents() {
       recomputeCounts();showToast('Supabase conectado','success');render();}
     catch(e){S.sbErr='Error: '+e.message;render();}
   }));
-
-  /* ===================== INFORME TRIMESTRAL ===================== */
-  if ((S.view==='gos_carga'||S.view==='gos_trimestres') && !S._gosAsociaciones && !S._gosAsociacionesLoading) { S._gosAsociacionesLoading=true; gosCargarAsociaciones(); }
-  if ((S.view==='gos_carga'||S.view==='gos_trimestres') && S.gosAsociacionId && !S._gosTrimestres && !S._gosTrimestresLoading) { S._gosTrimestresLoading=true; gosCargarTrimestres(); }
-  if (S.view==='gos_trimestres' && S.gosTrimestreSeleccionado && S._gosReporteTrimestreId!==S.gosTrimestreSeleccionado && !S._gosReporteLoading) { S._gosReporteLoading=true; gosCargarReporte(S.gosTrimestreSeleccionado); }
-
-  /* Carga: seleccion de trimestre */
-  q('#gos-sel-asociacion', el => el.addEventListener('change', e => { S.gosAsociacionId=e.target.value; S._gosTrimestres=null; S.gosCargaTrimestreId=''; render(); }));
-  q('#gos-sel-trimestre', el => el.addEventListener('change', e => { S.gosCargaTrimestreId=e.target.value; render(); }));
-  q('#gos-btn-mostrar-nuevo', el => el.addEventListener('click', () => { S.gosMostrarNuevoTrimestre=true; render(); }));
-  q('#gos-anio-nuevo', el => el.addEventListener('input', e => { S.gosCargaAnioNuevo=Number(e.target.value); }));
-  q('#gos-numero-nuevo', el => el.addEventListener('change', e => { S.gosCargaNumeroNuevo=Number(e.target.value); }));
-  q('#gos-btn-abrir-trimestre', el => el.addEventListener('click', async () => {
-    S.gosCargaError='';
-    const res = await gosAbrirTrimestre(S.gosAsociacionId, S.gosCargaAnioNuevo, S.gosCargaNumeroNuevo);
-    if (!res.ok) { S.gosCargaError=res.error; render(); return; }
-    S._gosTrimestres = null; S.gosCargaTrimestreId = res.id; S.gosMostrarNuevoTrimestre=false;
-    render();
-  }));
-  q('#gos-btn-ir-archivo', el => el.addEventListener('click', () => { S.gosCargaPaso='archivo'; S.gosCargaError=''; render(); }));
-
-  /* Carga: subir archivo */
-  q('#gos-btn-procesar', el => el.addEventListener('click', async () => {
-    const file = document.getElementById('gos-archivo-input')?.files?.[0];
-    if (!file) { S.gosCargaError='Selecciona un archivo .xlsx, .xls o .csv.'; render(); return; }
-    S.gosCargando=true; S.gosCargaError=''; render();
-    try {
-      const crudas = await gosParsearArchivo(file);
-      if (!crudas.length) { S.gosCargaError='El archivo no tiene filas de datos.'; S.gosCargando=false; render(); return; }
-      const catalogo = gosCatalogoIglesias().filter(i=>i.asociacion_id===S.gosAsociacionId);
-      const filas = crudas.map((c, idx) => {
-        const match = gosMatchIglesia(c.iglesiaNombre, catalogo);
-        return {
-          id: idx,
-          iglesiaNombreOriginal: c.iglesiaNombre,
-          fechaMovimiento: c.fechaMovimiento,
-          tipoMovimientoOriginal: c.tipoMovimientoRaw,
-          fechaCeremonia: c.fechaCeremonia,
-          distritoOriginal: c.distrito,
-          zonaOriginal: c.zona,
-          iglesiaCod: match.cod,
-          iglesiaNombreResuelto: match.nombre,
-          confianzaIglesia: match.confianza,
-          tipoMovimiento: gosMapearTipoMovimiento(c.tipoMovimientoRaw),
-          descartada: false,
-        };
-      });
-      S.gosCargaFilas = filas;
-      S.gosCargaResumen = {
-        totalFilas: filas.length,
-        limpias: filas.filter(f=>f.iglesiaCod&&f.tipoMovimiento).length,
-        excepcionesIglesia: filas.filter(f=>!f.iglesiaCod).length,
-        excepcionesTipo: filas.filter(f=>!f.tipoMovimiento).length,
-      };
-      S.gosCargaArchivoNombre = file.name;
-      S.gosCargaPaso = 'revision';
-    } catch(err) {
-      S.gosCargaError = err.message || String(err);
-    }
-    S.gosCargando=false; render();
-  }));
-
-  /* Carga: panel de excepciones */
-  document.querySelectorAll('[data-gos-fix-iglesia]').forEach(el => el.addEventListener('change', e => {
-    const id = Number(el.dataset.gosFixIglesia);
-    const fila = S.gosCargaFilas.find(f=>f.id===id); if (!fila) return;
-    const cod = e.target.value || null;
-    const ig = cod ? RAW.iglesias.find(i=>i.cod===cod) : null;
-    fila.iglesiaCod = cod; fila.iglesiaNombreResuelto = ig?.nombre||null; fila.confianzaIglesia = cod?'manual':'ninguno';
-    render();
-  }));
-  document.querySelectorAll('[data-gos-fix-tipo]').forEach(el => el.addEventListener('change', e => {
-    const id = Number(el.dataset.gosFixTipo);
-    const fila = S.gosCargaFilas.find(f=>f.id===id); if (!fila) return;
-    fila.tipoMovimiento = e.target.value || null;
-    render();
-  }));
-  document.querySelectorAll('[data-gos-descartar]').forEach(el => el.addEventListener('change', e => {
-    const id = Number(el.dataset.gosDescartar);
-    const fila = S.gosCargaFilas.find(f=>f.id===id); if (!fila) return;
-    fila.descartada = e.target.checked;
-    render();
-  }));
-
-  /* Carga: confirmar */
-  q('#gos-btn-confirmar-carga', el => el.addEventListener('click', async () => {
-    const filasValidas = S.gosCargaFilas.filter(f=>!f.descartada);
-    const faltantes = filasValidas.filter(f=>!f.iglesiaCod||!f.tipoMovimiento);
-    if (faltantes.length>0) { S.gosCargaError=`${faltantes.length} fila(s) no tienen iglesia o tipo de movimiento resueltos.`; render(); return; }
-    if (!filasValidas.length) { S.gosCargaError='No hay filas para cargar (todas descartadas).'; render(); return; }
-    S.gosConfirmando=true; S.gosCargaError=''; render();
-    try {
-      const filasParaInsertar = filasValidas.map(f => {
-        const igl = RAW.iglesias.find(i=>i.cod===f.iglesiaCod);
-        return {
-          asociacion_id: S.gosAsociacionId,
-          trimestre_id: S.gosCargaTrimestreId,
-          iglesia_cod: f.iglesiaCod,
-          iglesia_nombre_snapshot: igl?.nombre ?? f.iglesiaNombreResuelto ?? f.iglesiaNombreOriginal,
-          zona_snapshot: f.zonaOriginal ?? igl?.zona ?? null,
-          distrito_snapshot: f.distritoOriginal ?? igl?.distrito ?? null,
-          fecha_movimiento: f.fechaMovimiento,
-          tipo_movimiento: f.tipoMovimiento,
-          fecha_ceremonia: f.fechaCeremonia,
-          archivo_origen: S.gosCargaArchivoNombre,
-          subido_por: S.currentUser.id,
-        };
-      });
-      const LOTE = 500;
-      for (let i=0;i<filasParaInsertar.length;i+=LOTE) {
-        const lote = filasParaInsertar.slice(i,i+LOTE);
-        const { error } = await S.sbClient.from('gos_movimientos').insert(lote);
-        if (error) throw new Error('Error insertando movimientos: '+error.message);
-      }
-      const codsAfectados = Array.from(new Set(filasParaInsertar.map(f=>f.iglesia_cod)));
-      const recalculo = await gosRecalcularReporteIglesia(S.sbClient, S.gosCargaTrimestreId, codsAfectados);
-      if (!recalculo.ok) throw new Error('Movimientos insertados, pero fallo el recalculo: '+recalculo.error);
-      S.gosCargaResultado = { insertadas: filasParaInsertar.length, iglesiasAfectadas: codsAfectados.length };
-      S.gosCargaPaso = 'listo';
-      S._gosReporteTrimestreId = null; // forzar recarga si se visita el informe
-    } catch(err) {
-      S.gosCargaError = err.message || String(err);
-    }
-    S.gosConfirmando=false; render();
-  }));
-  q('#gos-btn-volver-archivo', el => el.addEventListener('click', () => { S.gosCargaPaso='archivo'; S.gosCargaFilas=[]; S.gosCargaResumen=null; S.gosCargaError=''; render(); }));
-  q('#gos-btn-nueva-carga', el => el.addEventListener('click', () => { S.gosCargaPaso='archivo'; S.gosCargaFilas=[]; S.gosCargaResumen=null; S.gosCargaResultado=null; S.gosCargaError=''; render(); }));
-
-  /* Trimestres: lista + drill-down */
-  document.querySelectorAll('[data-gos-ver-trimestre]').forEach(el => el.addEventListener('click', () => {
-    S.gosTrimestreSeleccionado = el.dataset.gosVerTrimestre; S._gosReporte=null; S._gosReporteTrimestreId=null; S.gosInformeError=''; render();
-  }));
-  q('#gos-btn-volver-trimestres', el => el.addEventListener('click', () => { S.gosTrimestreSeleccionado=null; render(); }));
-  q('#gos-btn-exportar', el => el.addEventListener('click', async () => {
-    S.gosExportando=true; S.gosInformeError=''; render();
-    try {
-      const { data: { session } } = await S.sbClient.auth.getSession();
-      const token = session?.access_token;
-      if (!token) throw new Error('Sesion no disponible, vuelve a iniciar sesion.');
-      const resp = await fetch(`/api/exportar-informe-gos?trimestre_id=${S.gosTrimestreSeleccionado}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!resp.ok) {
-        let msg = `Error ${resp.status}`;
-        try { msg = (await resp.json()).error || msg; } catch {}
-        throw new Error(msg);
-      }
-      const blob = await resp.blob();
-      const cd = resp.headers.get('Content-Disposition') || '';
-      const match = cd.match(/filename="([^"]+)"/);
-      const nombreArchivo = match ? match[1] : 'Informe_Trimestral.xlsx';
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = nombreArchivo; document.body.appendChild(a); a.click();
-      document.body.removeChild(a); URL.revokeObjectURL(url);
-      showToast('Informe exportado', 'success');
-    } catch (err) {
-      S.gosInformeError = 'No se pudo exportar: ' + (err.message || String(err));
-    }
-    S.gosExportando=false; render();
-  }));
-
-  /* Informe: membresia inicial (solo trimestre semilla) */
-  document.querySelectorAll('[data-gos-d]').forEach(el => el.addEventListener('blur', async e => {
-    const cod = el.dataset.gosD;
-    const valor = Number(e.target.value);
-    const t = S._gosTrimestres.find(x=>x.id===S.gosTrimestreSeleccionado);
-    if (!t || Number.isNaN(valor)) return;
-    const esSemilla = gosEsTrimestreSemilla(t, S._gosTrimestres);
-    S.gosInformeError='';
-    const res = await gosActualizarMembresiaInicial(t, esSemilla, cod, valor);
-    if (!res.ok) { S.gosInformeError=res.error; render(); return; }
-    S._gosReporteTrimestreId=null; render();
-  }));
-
-  /* Informe: cerrar / reabrir trimestre */
-  q('#gos-btn-cerrar-trimestre', el => el.addEventListener('click', () => { S.gosCerrarTrimestreId=S.gosTrimestreSeleccionado; S.showGosCerrarConfirm=true; render(); }));
-  q('#gos-btn-cerrar-cancel', el => el.addEventListener('click', () => { S.showGosCerrarConfirm=false; render(); }));
-  q('#gos-btn-cerrar-confirm', el => el.addEventListener('click', async () => {
-    const res = await gosCerrarTrimestre(S.gosCerrarTrimestreId);
-    S.showGosCerrarConfirm=false;
-    if (!res.ok) { S.gosInformeError=res.error; render(); return; }
-    S._gosTrimestres=null; S._gosReporteTrimestreId=null; render();
-  }));
-  q('#gos-btn-reabrir-trimestre', el => el.addEventListener('click', () => { S.gosReabrirTrimestreId=S.gosTrimestreSeleccionado; S.showGosReabrirConfirm=true; render(); }));
-  q('#gos-btn-reabrir-cancel', el => el.addEventListener('click', () => { S.showGosReabrirConfirm=false; render(); }));
-  q('#gos-btn-reabrir-confirm', el => el.addEventListener('click', async () => {
-    const res = await gosReabrirTrimestre(S.gosReabrirTrimestreId);
-    S.showGosReabrirConfirm=false;
-    if (!res.ok) { S.gosInformeError=res.error; render(); return; }
-    S._gosTrimestres=null; S._gosReporteTrimestreId=null; render();
-  }));
-
-  /* Informe: modal de ajuste */
-  document.querySelectorAll('[data-gos-ajustar]').forEach(el => el.addEventListener('click', () => {
-    S.showGosAjusteModal=true; S.gosAjusteIglesiaCod=el.dataset.gosAjustar; S.gosAjusteError=''; render();
-  }));
-  q('#gos-btn-ajuste-close',  el => el.addEventListener('click', () => { S.showGosAjusteModal=false; render(); }));
-  q('#gos-btn-ajuste-cancel', el => el.addEventListener('click', () => { S.showGosAjusteModal=false; render(); }));
-  q('#gos-ajuste-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el){S.showGosAjusteModal=false;render();} }));
-  q('#gos-btn-ajuste-guardar', el => el.addEventListener('click', async () => {
-    const cantidad = Number(document.getElementById('gos-ajuste-cantidad')?.value);
-    const nota = document.getElementById('gos-ajuste-nota')?.value || '';
-    const t = S._gosTrimestres.find(x=>x.id===S.gosTrimestreSeleccionado);
-    if (!t) return;
-    S.gosAjusteGuardando=true; S.gosAjusteError=''; render();
-    const res = await gosRegistrarAjuste(t, S.gosAjusteIglesiaCod, cantidad, nota);
-    S.gosAjusteGuardando=false;
-    if (!res.ok) { S.gosAjusteError=res.error; render(); return; }
-    S.showGosAjusteModal=false; S._gosReporteTrimestreId=null; render();
-  }));
-
-  /* Informe: carga masiva de membresia inicial desde Excel */
-  q('#gos-btn-abrir-membresia-modal', el => el.addEventListener('click', () => {
-    S.showGosMembresiaModal=true; S.gosMembresiaFilas=[]; S.gosMembresiaResumen=null; S.gosMembresiaError=''; render();
-  }));
-  q('#gos-btn-membresia-close', el => el.addEventListener('click', () => { S.showGosMembresiaModal=false; render(); }));
-  q('#gos-membresia-modal-bg', el => el.addEventListener('click', e => { if(e.target===el){S.showGosMembresiaModal=false;render();} }));
-  q('#gos-btn-membresia-procesar', el => el.addEventListener('click', async () => {
-    const file = document.getElementById('gos-membresia-archivo')?.files?.[0];
-    if (!file) { S.gosMembresiaError='Selecciona un archivo .xlsx, .xls o .csv.'; render(); return; }
-    S.gosMembresiaProcesando=true; S.gosMembresiaError=''; render();
-    try {
-      const crudas = await gosParsearMembresiaInicial(file);
-      if (!crudas.length) { S.gosMembresiaError='El archivo no tiene filas.'; S.gosMembresiaProcesando=false; render(); return; }
-      const catalogo = gosCatalogoIglesias().filter(i=>i.asociacion_id===S.gosAsociacionId);
-      const porCod = new Map(catalogo.map(i=>[i.cod, i]));
-      const porNombre = new Map(catalogo.map(i=>[gosNormalizarTexto(i.nombre), i]));
-      const validas = [];
-      const excepcionesLista = [];
-      for (const f of crudas) {
-        if (f.valorRaw===null || f.valorRaw==='' || f.valorRaw===undefined) continue; // sin dato, se omite
-        const valor = Number(f.valorRaw);
-        const igl = (f.cod && porCod.get(f.cod)) || (f.nombre && porNombre.get(gosNormalizarTexto(f.nombre)));
-        if (!igl) { excepcionesLista.push(`${f.nombre || f.cod || '(sin nombre)'} — no se reconoce en el catálogo`); continue; }
-        if (!Number.isInteger(valor) || valor < 0) { excepcionesLista.push(`${igl.nombre} — valor inválido (${f.valorRaw})`); continue; }
-        validas.push({ cod: igl.cod, valor });
-      }
-      S.gosMembresiaFilas = validas;
-      S.gosMembresiaResumen = { validas: validas.length, excepciones: excepcionesLista.length, excepcionesLista };
-    } catch(err) {
-      S.gosMembresiaError = err.message || String(err);
-    }
-    S.gosMembresiaProcesando=false; render();
-  }));
-  q('#gos-btn-membresia-reintentar', el => el.addEventListener('click', () => {
-    S.gosMembresiaFilas=[]; S.gosMembresiaResumen=null; S.gosMembresiaError=''; render();
-  }));
-  q('#gos-btn-membresia-confirmar', el => el.addEventListener('click', async () => {
-    const t = S._gosTrimestres.find(x=>x.id===S.gosTrimestreSeleccionado);
-    if (!t || !S.gosMembresiaFilas.length) return;
-    const esSemilla = gosEsTrimestreSemilla(t, S._gosTrimestres);
-    S.gosMembresiaConfirmando=true; S.gosMembresiaError=''; render();
-    const res = await gosCargarMembresiaInicialMasiva(t, esSemilla, S.gosMembresiaFilas);
-    S.gosMembresiaConfirmando=false;
-    if (!res.ok) { S.gosMembresiaError=res.error; render(); return; }
-    S.showGosMembresiaModal=false; S._gosReporteTrimestreId=null;
-    showToast(`Membresía inicial cargada (${res.actualizadas} iglesias)`, 'success');
-    render();
-  }));
 }
 
 function q(sel, fn) { const el=document.querySelector(sel); if(el) fn(el); }
@@ -2868,6 +2734,28 @@ async function loadPermisos() {
     S._permisos = [];
   }
   S._permisosLoading = false;
+  render();
+}
+
+async function loadVacaciones() {
+  try {
+    const { data, error } = await S.sbClient.from('vacaciones_solicitudes').select('*').order('created_at', { ascending: false });
+    S._vacaciones = error ? [] : (data || []);
+  } catch(e) {
+    S._vacaciones = [];
+  }
+  S._vacacionesLoading = false;
+  loadVacBalance();
+  render();
+}
+
+async function loadVacBalance() {
+  try {
+    const { data, error } = await S.sbClient.from('vacaciones_balance').select('*');
+    S._vacBalance = error ? [] : (data || []);
+  } catch(e) {
+    S._vacBalance = [];
+  }
   render();
 }
 
@@ -3011,27 +2899,143 @@ function imprimirPermiso(id) {
   setTimeout(() => { printWin.print(); }, 250);
 }
 
+function imprimirVacacion(id) {
+  const v = (S._vacaciones||[]).find(x => x.id === id);
+  if (!v) { showToast('Solicitud no encontrada','error'); return; }
+
+  const fFmt = d => d ? new Date(d+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'long',year:'numeric'}) : '—';
+  const estadoLabel = { pendiente:'Pendiente', aprobado:'Aprobado', rechazado:'Rechazado' }[v.estado] || v.estado;
+  const estadoColor = { pendiente:'#ca8a04', aprobado:'#16a34a', rechazado:'#dc2626' }[v.estado] || '#6b7280';
+  const estadoBg = { pendiente:'#fef9c3', aprobado:'#dcfce7', rechazado:'#fee2e2' }[v.estado] || '#f3f4f6';
+  const hoy = new Date().toLocaleDateString('es-DO',{day:'2-digit',month:'long',year:'numeric'});
+  const horaMinuto = new Date().toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'});
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <title>Constancia de Vacaciones - ${v.nombre}</title>
+      <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 30px 25px; background: white; color: #1a2340; line-height: 1.5; }
+        .container { max-width: 750px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #1e3564; padding-bottom: 18px; }
+        .header h1 { margin: 0 0 6px 0; font-size: 24px; font-weight: 700; color: #1e3564; }
+        .header p { margin: 0; font-size: 12px; color: #6b7280; }
+        .content { margin-bottom: 25px; }
+        .field { margin-bottom: 14px; }
+        .label { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .value { font-size: 15px; color: #1a2340; font-weight: 500; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 14px; }
+        .row-item { }
+        .estado-box { background: ${estadoBg}; border-left: 5px solid ${estadoColor}; padding: 14px; margin: 18px 0; border-radius: 4px; }
+        .estado-label { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; }
+        .estado-valor { font-size: 20px; font-weight: 700; color: ${estadoColor}; margin-top: 4px; }
+        .firma-section { margin-top: 45px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        .firma-linea { border-top: 1px solid #1a2340; margin-bottom: 4px; }
+        .firma-label { font-size: 11px; font-weight: 600; color: #1a2340; }
+        .firma-cargo { font-size: 10px; color: #6b7280; }
+        .firma-solicitante-img { max-width: 220px; max-height: 70px; display: block; margin-bottom: 4px; }
+        .footer { text-align: center; margin-top: 30px; padding-top: 15px; border-top: 1px solid #e5e7eb; font-size: 10px; color: #9ca3af; }
+        .footer p { margin: 3px 0; }
+        @media print { body { margin: 0; padding: 15px; } .container { max-width: 100%; } }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Constancia de Vacaciones</h1>
+          <p>Asociación Dominicana del Sureste</p>
+        </div>
+
+        <div class="content">
+          <div class="field">
+            <div class="label">Solicitante</div>
+            <div class="value">${escHtml(v.nombre)}</div>
+          </div>
+
+          <div class="row">
+            <div class="row-item">
+              <div class="label">Período de Vacaciones</div>
+              <div class="value">${fFmt(v.fecha_inicio)} — ${fFmt(v.fecha_fin)}</div>
+            </div>
+            <div class="row-item">
+              <div class="label">Días Solicitados</div>
+              <div class="value">${v.dias_solicitados}${v.semanas_solicitadas ? ` (${v.semanas_solicitadas} semanas${v.feriados_periodo ? ', ' + v.feriados_periodo + ' feriado(s) no descontado(s)' : ''})` : ''}</div>
+            </div>
+          </div>
+
+          ${v.celular ? `<div class="field">
+            <div class="label">Celular del Solicitante</div>
+            <div class="value">${escHtml(v.celular)}</div>
+          </div>` : ''}
+
+          ${v.lugar ? `<div class="field">
+            <div class="label">Lugar</div>
+            <div class="value">${escHtml(v.lugar)}</div>
+          </div>` : ''}
+
+          ${v.confirmo_autorizacion_presidente ? `<div class="field">
+            <div class="label">Autorización de Presidencia</div>
+            <div class="value">El solicitante certificó haber consultado con el Pastor Gabriel Paulino (Presidente) y contar con su autorización.</div>
+          </div>` : ''}
+
+          <div class="estado-box">
+            <div class="estado-label">Estado de la Solicitud</div>
+            <div class="estado-valor">${estadoLabel}</div>
+          </div>
+
+          <div class="field">
+            <div class="label">Procesado el</div>
+            <div class="value">${hoy}</div>
+          </div>
+
+          ${v.observaciones ? `<div class="field" style="margin-top:18px;padding:12px;background:#f8f9fc;border-radius:4px;">
+            <div class="label">Observaciones</div>
+            <div class="value">${escHtml(v.observaciones)}</div>
+          </div>` : ''}
+        </div>
+
+        ${v.firma_data_url ? `<div class="field" style="margin-top:20px;">
+          <div class="label">Firma del Solicitante</div>
+          <img class="firma-solicitante-img" src="${v.firma_data_url}" alt="Firma del solicitante" />
+          <div class="firma-label">${escHtml(v.nombre)}</div>
+        </div>` : ''}
+
+        <div class="firma-section">
+          <div>
+            <div class="firma-linea"></div>
+            <div class="firma-label">Pastor Gabriel Paulino</div>
+            <div class="firma-cargo">Presidente</div>
+          </div>
+          <div>
+            <div class="firma-linea"></div>
+            <div class="firma-label">Francis Contreras</div>
+            <div class="firma-cargo">Secretario Ejecutivo</div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <p>Este es un documento oficial de vacaciones del sistema de la Asociación Dominicana del Sureste, conforme al Reglamento Operativo DIA (CB 20 05–45).</p>
+          <p>Generado: ${hoy} • ${horaMinuto}</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const printWin = window.open('', '', 'width=800,height=600');
+  printWin.document.write(html);
+  printWin.document.close();
+  setTimeout(() => { printWin.print(); }, 250);
+}
+
 
 /* =====================================================================
    EXCEL IMPORT
    ===================================================================== */
 function normalizeKey(k) { return String(k).toLowerCase().replace(/[^a-z0-9]/g,''); }
-/* Devuelve undefined si la celda viene vacia o no reconocida -- asi el
-   upsert no toca el tipo ya guardado de una iglesia existente al
-   actualizar otros campos desde Excel. */
-function normalizarTipoIglesia(valor) {
-  const v = normalizeKey(valor);
-  if (!v) return undefined;
-  if (v.includes('grupo')) return 'grupo';
-  if (v.includes('iglesia')) return 'iglesia';
-  return undefined;
-}
-/* undefined en vez de '' para que el upsert no toque (borre) un valor ya
-   guardado cuando la celda viene vacia en una actualizacion por Excel. */
-function celdaOIndefinido(valor) {
-  const v = String(valor==null?'':valor).trim();
-  return v === '' ? undefined : v;
-}
 function findCol(row, ...candidates) {
   const keys = Object.keys(row); for (const c of candidates) { const n=normalizeKey(c); const k=keys.find(k=>normalizeKey(k)===n); if(k!==undefined)return row[k]; } return '';
 }
@@ -3053,9 +3057,9 @@ function parseExcel(file) {
         const pastoresSheet  = getSheet('pastores','pastor','pastors');
 
         if (zonasSheet)     preview.zonas    = zonasSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre','name')||'').trim() })).filter(r=>r.cod&&r.nombre);
-        if (distritosSheet) preview.distritos = distritosSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre')||'').trim(), codZona: celdaOIndefinido(String(findCol(r,'codZona','cod_zona','codzona')||'').trim().toUpperCase()), zona: celdaOIndefinido(findCol(r,'zona')) })).filter(r=>r.cod&&r.nombre);
-        if (iglesiasSheet)  preview.iglesias  = iglesiasSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre')||'').trim(), pastor: celdaOIndefinido(findCol(r,'pastor')), tipo: normalizarTipoIglesia(findCol(r,'tipo')), codZona: celdaOIndefinido(String(findCol(r,'codZona','cod_zona','codzona')||'').trim().toUpperCase()), zona: celdaOIndefinido(findCol(r,'zona')), codDistrito: celdaOIndefinido(String(findCol(r,'codDistrito','cod_distrito','coddistrito')||'').trim().toUpperCase()), distrito: celdaOIndefinido(findCol(r,'distrito')) })).filter(r=>r.cod&&r.nombre);
-        if (pastoresSheet)  preview.pastores  = pastoresSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre')||'').trim(), telefono: celdaOIndefinido(findCol(r,'telefono','tel','phone')), email: celdaOIndefinido(findCol(r,'email','correo')), codZona: celdaOIndefinido(String(findCol(r,'codZona','cod_zona','codzona')||'').trim().toUpperCase()), zona: celdaOIndefinido(findCol(r,'zona')), codDistrito: celdaOIndefinido(String(findCol(r,'codDistrito','cod_distrito','coddistrito')||'').trim().toUpperCase()), distrito: celdaOIndefinido(findCol(r,'distrito')) })).filter(r=>r.cod&&r.nombre);
+        if (distritosSheet) preview.distritos = distritosSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre')||'').trim(), codZona: String(findCol(r,'codZona','cod_zona','codzona')||'').trim().toUpperCase(), zona: String(findCol(r,'zona')||'').trim() })).filter(r=>r.cod&&r.nombre);
+        if (iglesiasSheet)  preview.iglesias  = iglesiasSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre')||'').trim(), pastor: String(findCol(r,'pastor')||'').trim(), codZona: String(findCol(r,'codZona','cod_zona','codzona')||'').trim().toUpperCase(), zona: String(findCol(r,'zona')||'').trim(), codDistrito: String(findCol(r,'codDistrito','cod_distrito','coddistrito')||'').trim().toUpperCase(), distrito: String(findCol(r,'distrito')||'').trim() })).filter(r=>r.cod&&r.nombre);
+        if (pastoresSheet)  preview.pastores  = pastoresSheet.map(r=>({ cod: String(findCol(r,'cod','codigo')||'').trim().toUpperCase(), nombre: String(findCol(r,'nombre')||'').trim(), telefono: String(findCol(r,'telefono','tel','phone')||'').trim(), email: String(findCol(r,'email','correo')||'').trim(), codZona: String(findCol(r,'codZona','cod_zona','codzona')||'').trim().toUpperCase(), zona: String(findCol(r,'zona')||'').trim(), codDistrito: String(findCol(r,'codDistrito','cod_distrito','coddistrito')||'').trim().toUpperCase(), distrito: String(findCol(r,'distrito')||'').trim() })).filter(r=>r.cod&&r.nombre);
 
         // Si no habia hojas estandar, buscar formato plano tipo PADRON (una sola hoja con todo)
         if (!zonasSheet && !distritosSheet && !iglesiasSheet && !pastoresSheet) {
@@ -3076,20 +3080,16 @@ function parseExcel(file) {
               const distrito   = String(findCol(r,'Distrito','DISTRITO','distrito')||'').trim();
               const codIglesia = String(findCol(r,'COD_IGLESIA','cod_iglesia','codIglesia')||'').trim().toUpperCase();
               const iglesia    = String(findCol(r,'Iglesia','IGLESIA','iglesia','nombre')||'').trim();
-              const tipo       = normalizarTipoIglesia(findCol(r,'Tipo','TIPO','tipo'));
               const pastor     = String(findCol(r,'Pastor','PASTOR','pastor')||'').trim();
               if (codZona&&zona&&!zonasMap[codZona])    zonasMap[codZona]    = {cod:codZona,nombre:zona};
               if (codDist&&distrito&&!distritosMap[codDist]) distritosMap[codDist] = {cod:codDist,nombre:distrito,codZona,zona};
               if (pastor&&!pastoresMap[pastor]) {
-                // Buscar cod en RAW.pastores por nombre, o generar uno.
-                // No se incluye telefono/email: esta hoja plana no los trae,
-                // y de incluirlos en blanco el upsert borraria los que ya
-                // tenia guardados el pastor.
+                // Buscar cod en RAW.pastores por nombre, o generar uno
                 const existing = RAW.pastores.find(p=>p.nombre.toLowerCase()===pastor.toLowerCase());
                 const cod = existing ? existing.cod : ('P'+String(Object.keys(pastoresMap).length+RAW.pastores.length+1).padStart(3,'0'));
-                pastoresMap[pastor] = {cod,nombre:pastor,codZona,zona,codDistrito:codDist,distrito};
+                pastoresMap[pastor] = {cod,nombre:pastor,telefono:'',email:'',codZona,zona,codDistrito:codDist,distrito};
               }
-              if (codIglesia&&iglesia) iglesias.push({cod:codIglesia,nombre:iglesia,pastor:celdaOIndefinido(pastor),tipo,codZona:celdaOIndefinido(codZona),zona:celdaOIndefinido(zona),codDistrito:celdaOIndefinido(codDist),distrito:celdaOIndefinido(distrito)});
+              if (codIglesia&&iglesia) iglesias.push({cod:codIglesia,nombre:iglesia,pastor,codZona,zona,codDistrito:codDist,distrito});
             }
             preview.zonas     = Object.values(zonasMap);
             preview.distritos = Object.values(distritosMap);
@@ -3114,42 +3114,15 @@ function parseExcel(file) {
   });
 }
 
-/* Exporta el catalogo REAL completo (no un ejemplo en blanco) para que se
-   pueda editar en Excel (cambiar pastor, tipo, agregar filas nuevas al
-   final...) y volver a subirlo con "Importar desde Excel" -- el mismo
-   mecanismo ya actualiza por codigo (upsert), no duplica. */
-/* Una sola hoja con todo (zona, distrito, iglesia, tipo, pastor por fila) --
-   es el mismo formato plano "Patron" que parseExcel() ya sabe leer como
-   fallback cuando no encuentra hojas separadas Zonas/Distritos/Iglesias/
-   Pastores. Los encabezados van sin tildes a proposito: findCol() compara
-   por igualdad exacta tras normalizar (solo letras/numeros), así que un
-   encabezado con tilde ("Cód. Zona") no calzaria con los candidatos ya
-   codificados ("codZona", "cod_zona", etc.). */
 function downloadTemplate() {
   const wb = XLSX.utils.book_new();
-
-  const iglesiasOrdenadas = [...RAW.iglesias].sort((a, b) =>
-    (a.codZona || '').localeCompare(b.codZona || '') ||
-    (a.codDistrito || '').localeCompare(b.codDistrito || '') ||
-    a.nombre.localeCompare(b.nombre)
-  );
-
-  const filas = [
-    ['Cod Zona', 'Zona', 'Cod Distrito', 'Distrito', 'Cod Iglesia', 'Iglesia', 'Tipo', 'Pastor'],
-    ...iglesiasOrdenadas.map(i => [i.codZona || '', i.zona || '', i.codDistrito || '', i.distrito || '', i.cod, i.nombre, i.tipo === 'grupo' ? 'Grupo' : 'Iglesia', i.pastor || '']),
+  const data = [
+    ['cod','nombre','pastor','codZona','zona','codDistrito','distrito','carpeta_drive'],
+    ['TIGLES01','Iglesia Ejemplo','Apellido, Nombre','Z01','ZONA I','DT001','Distrito Ejemplo',''],
+    ['TIGLES02','Segunda Iglesia','Otro Pastor','Z01','ZONA I','DT001','Distrito Ejemplo',''],
   ];
-
-  // Pastores sin ninguna iglesia asignada (ej. personal departamental): se
-  // agregan al final solo con su zona/distrito, sin fila de iglesia, para
-  // no perderlos del todo.
-  const nombresAsignados = new Set(RAW.iglesias.map(i => (i.pastor || '').toLowerCase()).filter(Boolean));
-  const pastoresSinIglesia = RAW.pastores.filter(p => !nombresAsignados.has((p.nombre || '').toLowerCase()));
-  for (const p of pastoresSinIglesia) {
-    filas.push([p.codZona || '', p.zona || '', p.codDistrito || '', p.distrito || '', '', '', '', p.nombre]);
-  }
-
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(filas), 'Padrón');
-  XLSX.writeFile(wb, 'Plantilla_Padron_Completo.xlsx');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), 'Iglesias');
+  XLSX.writeFile(wb, 'Plantilla_Importacion.xlsx');
 }
 
 async function executeImport(preview, mode='all') {
@@ -3170,7 +3143,7 @@ async function executeImport(preview, mode='all') {
       if (rows_d_all.length) { const rows = rows_d_all.map(d => { if (!d.codZona) { const z=RAW.zonas.find(z=>z.nombre.toLowerCase()===d.zona.toLowerCase()); if(z)d.codZona=z.cod; } return d; });
       const { error } = await sb.from('distritos').upsert(rows, { onConflict: 'cod' });
       if (error) throw error;
-      for (const d of rows) { const dLimpio=Object.fromEntries(Object.entries(d).filter(([,v])=>v!==undefined)); const i=RAW.distritos.findIndex(x=>x.cod===d.cod); if(i>=0)RAW.distritos[i]={...RAW.distritos[i],...dLimpio}; else RAW.distritos.push(dLimpio); }
+      for (const d of rows) { const i=RAW.distritos.findIndex(x=>x.cod===d.cod); if(i>=0)RAW.distritos[i]={...RAW.distritos[i],...d}; else RAW.distritos.push(d); }
       total += rows.length;
       } }
     if (preview.iglesias?.length) {
@@ -3178,13 +3151,7 @@ async function executeImport(preview, mode='all') {
       if (rows_i_all.length) { const rows = rows_i_all.map(ig => { if(!ig.codZona&&ig.zona){const z=RAW.zonas.find(z=>z.nombre.toLowerCase()===ig.zona.toLowerCase());if(z)ig.codZona=z.cod;} if(!ig.codDistrito&&ig.distrito){const d=RAW.distritos.find(d=>d.nombre.toLowerCase()===ig.distrito.toLowerCase());if(d)ig.codDistrito=d.cod;} return ig; });
       const chunks = []; for(let i=0;i<rows.length;i+=200)chunks.push(rows.slice(i,i+200));
       for (const chunk of chunks) { const{error}=await sb.from(S.sbTable).upsert(chunk,{onConflict:'cod'}); if(error)throw error; }
-      for (const ig of rows) {
-        // No sobrescribir localmente con undefined (ej. tipo no incluido en
-        // el archivo) -- Supabase ya lo respeta al hacer upsert (undefined
-        // se omite del JSON), pero el spread de JS si pisaria el valor.
-        const igLimpio = Object.fromEntries(Object.entries(ig).filter(([, v]) => v !== undefined));
-        const i=RAW.iglesias.findIndex(x=>x.cod===ig.cod); if(i>=0)RAW.iglesias[i]={...RAW.iglesias[i],...igLimpio}; else RAW.iglesias.push(igLimpio);
-      }
+      for (const ig of rows) { const i=RAW.iglesias.findIndex(x=>x.cod===ig.cod); if(i>=0)RAW.iglesias[i]={...RAW.iglesias[i],...ig}; else RAW.iglesias.push(ig); }
       total += rows.length;
       } }
     if (preview.pastores?.length) {
@@ -3192,7 +3159,7 @@ async function executeImport(preview, mode='all') {
       if (rows_p_all.length) { const rows = rows_p_all.map(p => { if(!p.codZona&&p.zona){const z=RAW.zonas.find(z=>z.nombre.toLowerCase()===p.zona.toLowerCase());if(z)p.codZona=z.cod;} if(!p.codDistrito&&p.distrito){const d=RAW.distritos.find(d=>d.nombre.toLowerCase()===p.distrito.toLowerCase());if(d)p.codDistrito=d.cod;} return p; });
       const { error } = await sb.from('pastores').upsert(rows, { onConflict: 'cod' });
       if (error) throw error;
-      for (const p of rows) { const pLimpio=Object.fromEntries(Object.entries(p).filter(([,v])=>v!==undefined)); const i=RAW.pastores.findIndex(x=>x.cod===p.cod); if(i>=0)RAW.pastores[i]={...RAW.pastores[i],...pLimpio}; else RAW.pastores.push(pLimpio); }
+      for (const p of rows) { const i=RAW.pastores.findIndex(x=>x.cod===p.cod); if(i>=0)RAW.pastores[i]={...RAW.pastores[i],...p}; else RAW.pastores.push(p); }
       total += rows.length;
       } }
     recomputeCounts();
@@ -3201,729 +3168,6 @@ async function executeImport(preview, mode='all') {
     S.importResult = { error: true, msg: e.message || String(e) };
   }
   S.importing = false; render();
-}
-
-/* =====================================================================
-   INFORME TRIMESTRAL (movimientos de membresia)
-   ===================================================================== */
-const GOS_TIPOS_MOVIMIENTO = [
-  { value:'bautismo', label:'Bautismo' },
-  { value:'profesion_fe', label:'Profesión de Fe' },
-  { value:'transferencia_entrada', label:'Transferencia Entrada' },
-  { value:'transferencia_salida', label:'Transferencia Salida' },
-  { value:'apostasia', label:'Apostasía / Remoción' },
-  { value:'muerte', label:'Muerte / Fallecimiento' },
-  { value:'paradero_desconocido', label:'Paradero desconocido' },
-  { value:'rebautismo', label:'Rebautismo' },
-];
-
-function gosNormalizarTexto(s) {
-  return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase().replace(/\s+/g,' ');
-}
-
-/* Confirmado contra los valores reales de "Informe trimestral 1er trimestre
-   2026 UD.xlsx" -> hoja Report Data (2). "Remocion" -> apostasia no es un
-   mapeo literal por nombre: se confirmo cruzando la hoja de informe oficial
-   (columna "Apostasia"). "Ajuste" no aparece aqui a proposito: no llega como
-   valor crudo del archivo, se captura manualmente con cantidad+nota. */
-const GOS_MAPEO_TIPO_MOVIMIENTO = {
-  'bautismo': 'bautismo',
-  'profesion de fe': 'profesion_fe',
-  'transferencia entrada': 'transferencia_entrada',
-  'transferencia salida': 'transferencia_salida',
-  'remocion': 'apostasia',
-  'fallecimiento': 'muerte',
-  'desaparecido': 'paradero_desconocido',
-  'rebautismo': 'rebautismo',
-};
-function gosMapearTipoMovimiento(raw) {
-  if (!raw) return null;
-  return GOS_MAPEO_TIPO_MOVIMIENTO[gosNormalizarTexto(raw)] || null;
-}
-
-/* Distancia de Levenshtein simple (sin dependencias externas). */
-function gosLevenshtein(a, b) {
-  const m=a.length, n=b.length;
-  if (m===0) return n; if (n===0) return m;
-  let prev=new Array(n+1); let curr=new Array(n+1);
-  for (let j=0;j<=n;j++) prev[j]=j;
-  for (let i=1;i<=m;i++) {
-    curr[0]=i;
-    for (let j=1;j<=n;j++) {
-      const costo = a[i-1]===b[j-1] ? 0 : 1;
-      curr[j]=Math.min(prev[j]+1, curr[j-1]+1, prev[j-1]+costo);
-    }
-    [prev,curr]=[curr,prev];
-  }
-  return prev[n];
-}
-
-/* Catalogo de iglesias/grupos que participan del Informe Trimestral: se excluyen
-   las "pendiente_revision" (aun no son congregaciones establecidas). */
-function gosCatalogoIglesias() {
-  return RAW.iglesias.filter(i => i.tipo !== 'pendiente_revision');
-}
-
-function gosMatchIglesia(nombreOriginal, catalogo) {
-  const objetivo = gosNormalizarTexto(nombreOriginal);
-  const exacto = catalogo.find(i => gosNormalizarTexto(i.nombre) === objetivo);
-  if (exacto) return { cod: exacto.cod, nombre: exacto.nombre, confianza: 'exacto' };
-  let mejor = null;
-  for (const ig of catalogo) {
-    const d = gosLevenshtein(objetivo, gosNormalizarTexto(ig.nombre));
-    if (!mejor || d < mejor.distancia) mejor = { iglesia: ig, distancia: d };
-  }
-  if (mejor) {
-    // Umbral: distancia <= 20% del largo del nombre objetivo (min 1, max 3).
-    const umbral = Math.min(3, Math.max(1, Math.round(objetivo.length*0.2)));
-    if (mejor.distancia <= umbral) return { cod: mejor.iglesia.cod, nombre: mejor.iglesia.nombre, confianza: 'similar' };
-  }
-  return { cod: null, nombre: null, confianza: 'ninguno' };
-}
-
-/* ---- Parseo del archivo "Report Data" (xlsx/csv), via SheetJS (ya cargado) ---- */
-function gosDetectarColumnas(headers) {
-  const norm = headers.map(h => h ? gosNormalizarTexto(String(h)) : '');
-  const buscar = pred => { const idx = norm.findIndex(pred); return idx===-1?null:idx; };
-  const iglesia = buscar(h=>h.includes('iglesia'));
-  const tipoMovimiento = buscar(h=>h.includes('tipo')&&h.includes('movimiento'));
-  const fechaCeremonia = buscar(h=>h.includes('ceremonia'));
-  const fechaMovimiento = buscar(h=>h.includes('fecha')&&h.includes('movimiento')&&!h.includes('ceremonia'));
-  const distrito = buscar(h=>h.includes('distrito'));
-  const zona = buscar(h=>h.includes('zona'));
-  if (iglesia===null) throw new Error('No se encontro una columna de "Nombre de la Iglesia" en el archivo.');
-  if (tipoMovimiento===null) throw new Error('No se encontro una columna de "Nombre del tipo de movimiento" en el archivo.');
-  return { iglesia, fechaMovimiento, tipoMovimiento, fechaCeremonia, distrito, zona };
-}
-function gosCeldaATexto(v) {
-  if (v===null||v===undefined) return null;
-  if (v instanceof Date) return gosFechaISO(v);
-  const t = String(v).trim();
-  return t===''?null:t;
-}
-function gosFechaISO(v) {
-  if (v===null||v===undefined) return null;
-  if (v instanceof Date) {
-    const y=v.getFullYear(), m=String(v.getMonth()+1).padStart(2,'0'), d=String(v.getDate()).padStart(2,'0');
-    return `${y}-${m}-${d}`;
-  }
-  const t = String(v).trim();
-  if (!t) return null;
-  // Formato dominicano DD/MM/YYYY primero (confirmado contra el Excel real).
-  let mm = t.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-  if (mm) { const [,d,m,y]=mm; return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
-  mm = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-  if (mm) { const [,y,m,d]=mm; return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
-  return null; // no critico: fecha_movimiento/fecha_ceremonia son solo historicas.
-}
-function gosParsearArchivo(file) {
-  return new Promise((resolve, reject) => {
-    const esCsv = /\.csv$/i.test(file.name);
-    const reader = new FileReader();
-    reader.onload = e => {
-      try {
-        // cellDates solo para xlsx/xls (fechas binarias sin ambiguedad). En
-        // CSV el texto de fecha es ambiguo (DD/MM vs MM/DD): SheetJS igual
-        // intenta adivinar el formato de fechas tipo "10/01/2026" (dia<=12)
-        // como MM/DD/YYYY y las convierte a numero de serie ANTES de que
-        // gosFechaISO() las vea -- `raw:true` a nivel de lectura desactiva
-        // por completo esa deteccion, dejando todo como texto crudo para
-        // que gosFechaISO() lo interprete con la convencion dominicana
-        // DD/MM/YYYY.
-        const wb = XLSX.read(e.target.result, esCsv ? { type:'string', raw:true } : { type:'array', cellDates:true });
-        let hoja = null;
-        for (const name of wb.SheetNames) {
-          const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header:1, raw:true, defval:null });
-          if (!rows.length) continue;
-          const headers = (rows[0]||[]).map(h=>h?gosNormalizarTexto(String(h)):'');
-          if (headers.some(h=>h.includes('iglesia')) && headers.some(h=>h.includes('tipo')&&h.includes('movimiento'))) { hoja=name; break; }
-        }
-        if (!hoja) hoja = wb.SheetNames[0];
-        const rowsAoA = XLSX.utils.sheet_to_json(wb.Sheets[hoja], { header:1, raw:true, defval:null });
-        if (!rowsAoA.length) { resolve([]); return; }
-        const columnas = gosDetectarColumnas(rowsAoA[0]);
-        const filas = [];
-        for (let i=1;i<rowsAoA.length;i++) {
-          const fila = rowsAoA[i];
-          const get = idx => idx===null?null:gosCeldaATexto(fila[idx]);
-          const getFecha = idx => idx===null?null:gosFechaISO(fila[idx]);
-          const iglesiaNombre = get(columnas.iglesia);
-          const tipoMovimientoRaw = get(columnas.tipoMovimiento);
-          if (!iglesiaNombre && !tipoMovimientoRaw) continue; // fila vacia
-          filas.push({
-            iglesiaNombre: iglesiaNombre || '',
-            fechaMovimiento: getFecha(columnas.fechaMovimiento),
-            tipoMovimientoRaw: tipoMovimientoRaw || '',
-            fechaCeremonia: getFecha(columnas.fechaCeremonia),
-            distrito: get(columnas.distrito),
-            zona: get(columnas.zona),
-          });
-        }
-        resolve(filas);
-      } catch(err) { reject(err); }
-    };
-    reader.onerror = reject;
-    if (esCsv) reader.readAsText(file); else reader.readAsArrayBuffer(file);
-  });
-}
-
-/* Plantilla descargable: columnas esperadas + catalogo real de iglesias
-   (para copiar nombres exactos y evitar typos) + tipos de movimiento
-   validos, todo scopeado a la asociacion seleccionada en el wizard. */
-function gosDescargarPlantilla() {
-  const wb = XLSX.utils.book_new();
-
-  // Distrito y Zona son OPCIONALES: si se dejan vacías, el sistema las
-  // completa automáticamente con los datos de la iglesia ya registrados
-  // en el catálogo (no hace falta que Francis las sepa por movimiento).
-  const movimientos = [
-    ['Nombre de la Iglesia', 'Fecha de Movimiento', 'Nombre del tipo de movimiento', 'Fecha de la ceremonia', 'Distrito (opcional)', 'Zona (opcional)'],
-    ['Bethel', '15/01/2026', 'Bautismo', '15/01/2026', '', ''],
-    ['La Fe', '20/01/2026', 'Transferencia Salida', '', '', ''],
-  ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(movimientos), 'Movimientos');
-
-  const catalogo = gosCatalogoIglesias().filter(i=>i.asociacion_id===S.gosAsociacionId);
-  const catalogoRows = [
-    ['Nombre exacto (copiar tal cual)', 'Zona', 'Distrito', 'Tipo'],
-    ...catalogo
-      .sort((a,b)=>a.nombre.localeCompare(b.nombre))
-      .map(i => [i.nombre, i.zona||'', i.distrito||'', i.tipo==='grupo'?'Grupo':'Iglesia']),
-  ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(catalogoRows), 'Catálogo Iglesias');
-
-  const tipos = [
-    ['Valor exacto a usar en "Nombre del tipo de movimiento"'],
-    ['Bautismo'], ['Profesión de Fe'], ['Transferencia Entrada'], ['Transferencia Salida'],
-    ['Remoción'], ['Fallecimiento'], ['Desaparecido'], ['Rebautismo'],
-  ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(tipos), 'Tipos válidos');
-
-  XLSX.writeFile(wb, 'Plantilla_Carga_Movimientos.xlsx');
-}
-
-/* ---- Recalculo de gos_reporte_iglesia (desde cero, no incremental) ---- */
-const GOS_TIPOS_CON_COLUMNA = ['bautismo','profesion_fe','transferencia_entrada','transferencia_salida','apostasia','muerte','paradero_desconocido','ajuste'];
-const GOS_COLUMNA_POR_TIPO = {
-  bautismo:'bautismos', profesion_fe:'prof_fe', transferencia_entrada:'t_entrada', transferencia_salida:'t_salida',
-  apostasia:'apostasia', muerte:'muerte', paradero_desconocido:'paradero', ajuste:'ajuste',
-};
-async function gosRecalcularReporteIglesia(sb, trimestreId, cods) {
-  if (!cods.length) return { ok:true };
-  const { data: movimientos, error } = await sb.from('gos_movimientos')
-    .select('iglesia_cod, tipo_movimiento, cantidad').eq('trimestre_id', trimestreId).in('iglesia_cod', cods);
-  if (error) return { ok:false, error: error.message };
-  const conteos = new Map();
-  for (const cod of cods) { const ini={}; for (const t of GOS_TIPOS_CON_COLUMNA) ini[t]=0; conteos.set(cod, ini); }
-  for (const m of (movimientos||[])) {
-    const c = conteos.get(m.iglesia_cod);
-    // Tipos sin columna propia (rebautismo) se ignoran: quedan como
-    // historial en gos_movimientos pero no alimentan el reporte.
-    if (c && m.tipo_movimiento in c) c[m.tipo_movimiento] = (c[m.tipo_movimiento]||0) + m.cantidad;
-  }
-  const filas = cods.map(cod => {
-    const c = conteos.get(cod);
-    const fila = { trimestre_id: trimestreId, iglesia_cod: cod };
-    for (const t of GOS_TIPOS_CON_COLUMNA) fila[GOS_COLUMNA_POR_TIPO[t]] = c[t];
-    return fila;
-  });
-  const { error: errUp } = await sb.from('gos_reporte_iglesia').upsert(filas, { onConflict: 'trimestre_id,iglesia_cod' });
-  if (errUp) return { ok:false, error: errUp.message };
-  return { ok:true };
-}
-
-function gosEsTrimestreSemilla(trimestre, trimestres) {
-  return !trimestres.some(t => t.asociacion_id===trimestre.asociacion_id &&
-    (t.anio<trimestre.anio || (t.anio===trimestre.anio && t.numero_trimestre<trimestre.numero_trimestre)));
-}
-
-async function gosAbrirTrimestre(asociacionId, anio, numero) {
-  const { data, error } = await S.sbClient.rpc('fn_abrir_trimestre', { p_asociacion_id: asociacionId, p_anio: anio, p_numero_trimestre: numero });
-  if (error) return { ok:false, error: error.message };
-  return { ok:true, id: data };
-}
-async function gosCerrarTrimestre(trimestreId) {
-  const { error } = await S.sbClient.rpc('fn_cerrar_trimestre', { p_trimestre_id: trimestreId });
-  if (error) return { ok:false, error: error.message };
-  return { ok:true };
-}
-async function gosReabrirTrimestre(trimestreId) {
-  const { error } = await S.sbClient.rpc('fn_reabrir_trimestre', { p_trimestre_id: trimestreId });
-  if (error) return { ok:false, error: error.message };
-  return { ok:true };
-}
-async function gosRegistrarAjuste(trimestre, iglesiaCod, cantidad, nota) {
-  if (trimestre.estado !== 'abierto') return { ok:false, error:'Este trimestre esta cerrado, no se pueden registrar ajustes.' };
-  if (!Number.isInteger(cantidad) || cantidad===0) return { ok:false, error:'La cantidad del ajuste debe ser un entero distinto de cero.' };
-  if (!nota || !nota.trim()) return { ok:false, error:'El motivo del ajuste es obligatorio.' };
-  const iglesia = RAW.iglesias.find(i=>i.cod===iglesiaCod);
-  if (!iglesia) return { ok:false, error:'No se encontro la iglesia/grupo en el catalogo.' };
-  const { error: errInsert } = await S.sbClient.from('gos_movimientos').insert({
-    asociacion_id: trimestre.asociacion_id,
-    trimestre_id: trimestre.id,
-    iglesia_cod: iglesiaCod,
-    iglesia_nombre_snapshot: iglesia.nombre,
-    zona_snapshot: iglesia.zona,
-    distrito_snapshot: iglesia.distrito,
-    fecha_movimiento: new Date().toISOString().slice(0,10),
-    tipo_movimiento: 'ajuste',
-    cantidad,
-    nota: nota.trim(),
-    subido_por: S.currentUser.id,
-  });
-  if (errInsert) return { ok:false, error: 'No se pudo registrar el ajuste: '+errInsert.message };
-  return await gosRecalcularReporteIglesia(S.sbClient, trimestre.id, [iglesiaCod]);
-}
-async function gosActualizarMembresiaInicial(trimestre, esSemilla, iglesiaCod, valor) {
-  if (trimestre.estado !== 'abierto') return { ok:false, error:'Este trimestre esta cerrado, no se puede editar la membresia inicial.' };
-  if (!esSemilla) return { ok:false, error:'La membresia inicial solo es editable en el primer trimestre de la asociacion; en los siguientes se hereda automaticamente.' };
-  if (!Number.isInteger(valor) || valor<0) return { ok:false, error:'La membresia inicial debe ser un entero mayor o igual a cero.' };
-  const { error } = await S.sbClient.from('gos_reporte_iglesia').upsert(
-    { trimestre_id: trimestre.id, iglesia_cod: iglesiaCod, membresia_inicial: valor },
-    { onConflict: 'trimestre_id,iglesia_cod' }
-  );
-  if (error) return { ok:false, error: 'No se pudo guardar la membresia inicial: '+error.message };
-  return { ok:true };
-}
-
-/* Carga masiva de membresia inicial (trimestre semilla) desde Excel/CSV. */
-async function gosCargarMembresiaInicialMasiva(trimestre, esSemilla, filas) {
-  if (trimestre.estado !== 'abierto') return { ok:false, error:'Este trimestre esta cerrado, no se puede editar la membresia inicial.' };
-  if (!esSemilla) return { ok:false, error:'La membresia inicial solo es editable en el primer trimestre de la asociacion.' };
-  if (!filas.length) return { ok:false, error:'No hay filas validas para cargar.' };
-  const filasUpsert = filas.map(f => ({ trimestre_id: trimestre.id, iglesia_cod: f.cod, membresia_inicial: f.valor }));
-  const LOTE = 500;
-  for (let i=0;i<filasUpsert.length;i+=LOTE) {
-    const lote = filasUpsert.slice(i,i+LOTE);
-    const { error } = await S.sbClient.from('gos_reporte_iglesia').upsert(lote, { onConflict: 'trimestre_id,iglesia_cod' });
-    if (error) return { ok:false, error: 'No se pudo guardar: '+error.message };
-  }
-  return { ok:true, actualizadas: filasUpsert.length };
-}
-
-function gosDescargarPlantillaMembresiaInicial() {
-  const catalogo = gosCatalogoIglesias().filter(i=>i.asociacion_id===S.gosAsociacionId)
-    .sort((a,b)=>(a.codZona||'').localeCompare(b.codZona||'')||(a.codDistrito||'').localeCompare(b.codDistrito||'')||a.nombre.localeCompare(b.nombre));
-  const wb = XLSX.utils.book_new();
-  const rows = [
-    ['Cód. Iglesia (no modificar)', 'Zona', 'Distrito', 'Iglesia/Grupo', 'Tipo', 'Membresía inicial'],
-    ...catalogo.map(i => [i.cod, i.zona || '', i.distrito || '', i.nombre, i.tipo === 'grupo' ? 'Grupo' : 'Iglesia', '']),
-  ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Membresía Inicial');
-  XLSX.writeFile(wb, 'Plantilla_Membresia_Inicial.xlsx');
-}
-
-/* Parseo tolerante: acepta la plantilla propia (con Cód. Iglesia) o un
-   archivo del usuario que solo traiga el nombre de la iglesia. */
-function gosParsearMembresiaInicial(file) {
-  return new Promise((resolve, reject) => {
-    const esCsv = /\.csv$/i.test(file.name);
-    const reader = new FileReader();
-    reader.onload = e => {
-      try {
-        const wb = XLSX.read(e.target.result, esCsv ? { type:'string', raw:true } : { type:'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rowsAoA = XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:null });
-        if (!rowsAoA.length) { resolve([]); return; }
-        const headers = rowsAoA[0].map(h => h ? gosNormalizarTexto(String(h)) : '');
-        const idxCod = headers.findIndex(h => h.includes('cod'));
-        // Excluye la columna de codigo: su encabezado tambien contiene
-        // "iglesia" ("Cod. Iglesia") y haria falso match aqui.
-        const idxNombre = headers.findIndex((h, idx) => idx !== idxCod && (h.includes('iglesia') || h.includes('grupo')));
-        const idxValor = headers.findIndex(h => h.includes('membresia') || h.includes('inicial'));
-        if (idxCod === -1 && idxNombre === -1) throw new Error('No se encontró una columna de código o nombre de iglesia.');
-        if (idxValor === -1) throw new Error('No se encontró la columna de "Membresía inicial".');
-        const filas = [];
-        for (let i = 1; i < rowsAoA.length; i++) {
-          const fila = rowsAoA[i];
-          const cod = idxCod !== -1 ? fila[idxCod] : null;
-          const nombre = idxNombre !== -1 ? fila[idxNombre] : null;
-          if (!cod && !nombre) continue;
-          filas.push({ cod: cod ? String(cod).trim() : null, nombre: nombre ? String(nombre).trim() : null, valorRaw: fila[idxValor] });
-        }
-        resolve(filas);
-      } catch (err) { reject(err); }
-    };
-    reader.onerror = reject;
-    if (esCsv) reader.readAsText(file); else reader.readAsArrayBuffer(file);
-  });
-}
-
-function buildGosMembresiaModal() {
-  const resumen = S.gosMembresiaResumen;
-  return `<div id="gos-membresia-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;">
-    <div style="background:white;border-radius:16px;width:100%;max-width:640px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:modalIn .2s ease;">
-      <div style="padding:24px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <h2 style="font-size:16px;font-weight:700;color:#1a2340;">Cargar membresía inicial desde Excel</h2>
-          <button id="gos-btn-membresia-close" style="background:transparent;border:none;cursor:pointer;padding:6px;color:#9ca3af;">${icons.x}</button>
-        </div>
-        <p style="font-size:12px;color:#9ca3af;margin-bottom:16px;">Descarga la plantilla con el catálogo de iglesias/grupos, llena la columna "Membresía inicial" y súbela de vuelta. Las filas vacías se omiten (no borran un valor ya guardado).</p>
-        <button onclick="gosDescargarPlantillaMembresiaInicial()" style="margin-bottom:14px;padding:8px 14px;border-radius:8px;border:1.5px solid #d4a820;background:white;color:#d4a820;font-size:12px;font-weight:600;cursor:pointer;">⬇ Descargar plantilla</button>
-        ${!resumen ? `
-        <div>
-          <input id="gos-membresia-archivo" type="file" accept=".xlsx,.xls,.csv" style="font-size:13px;" />
-          <button id="gos-btn-membresia-procesar" style="margin-left:10px;padding:8px 16px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:13px;font-weight:600;cursor:pointer;">${S.gosMembresiaProcesando?'Procesando...':'Procesar archivo'}</button>
-        </div>` : `
-        <div style="font-size:12px;color:#6b7280;margin-bottom:8px;">
-          <span style="color:#15803d;">Válidas: ${resumen.validas}</span> ·
-          <span style="color:${resumen.excepciones?'#b91c1c':'#9ca3af'};">Sin reconocer: ${resumen.excepciones}</span>
-        </div>
-        ${resumen.excepcionesLista.length ? `<div style="max-height:160px;overflow-y:auto;font-size:12px;color:#b91c1c;background:#fef2f2;border-radius:8px;padding:8px 12px;margin-bottom:10px;">
-          ${resumen.excepcionesLista.map(e=>`<div>${escHtml(e)}</div>`).join('')}
-        </div>` : ''}
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <button id="gos-btn-membresia-confirmar" ${resumen.validas===0?'disabled':''} style="padding:9px 18px;border-radius:8px;border:none;background:#15803d;color:white;font-size:13px;font-weight:600;cursor:pointer;opacity:${resumen.validas===0?'.5':'1'};">${S.gosMembresiaConfirmando?'Guardando...':'Confirmar ('+resumen.validas+' iglesias)'}</button>
-          <button id="gos-btn-membresia-reintentar" style="padding:9px 18px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:13px;font-weight:500;cursor:pointer;">← Subir otro archivo</button>
-        </div>
-        `}
-        ${S.gosMembresiaError ? `<p style="margin-top:10px;font-size:12px;color:#b91c1c;">${escHtml(S.gosMembresiaError)}</p>` : ''}
-      </div>
-    </div>
-  </div>`;
-}
-
-/* ---- Carga de datos: builds ---- */
-async function gosCargarAsociaciones() {
-  const { data, error } = await S.sbClient.from('asociaciones').select('id, nombre').order('nombre');
-  S._gosAsociaciones = error ? [] : (data||[]);
-  S._gosAsociacionesLoading = false;
-  if (S._gosAsociaciones.length && !S.gosAsociacionId) S.gosAsociacionId = S._gosAsociaciones[0].id;
-  render();
-}
-async function gosCargarTrimestres() {
-  if (!S.gosAsociacionId) { S._gosTrimestres=[]; S._gosTrimestresLoading=false; render(); return; }
-  const { data, error } = await S.sbClient.from('gos_trimestres').select('*')
-    .eq('asociacion_id', S.gosAsociacionId).order('anio',{ascending:false}).order('numero_trimestre',{ascending:false});
-  S._gosTrimestres = error ? [] : (data||[]);
-  S._gosTrimestresLoading = false;
-  const abiertos = S._gosTrimestres.filter(t=>t.estado==='abierto');
-  if (!S.gosCargaTrimestreId && abiertos.length) S.gosCargaTrimestreId = abiertos[0].id;
-  render();
-}
-async function gosCargarReporte(trimestreId) {
-  const { data, error } = await S.sbClient.from('gos_reporte_iglesia').select('*').eq('trimestre_id', trimestreId);
-  S._gosReporte = error ? [] : (data||[]);
-  S._gosReporteTrimestreId = trimestreId;
-  S._gosReporteLoading = false;
-  render();
-}
-
-function buildGosCarga() {
-  if (S._gosAsociacionesLoading || !S._gosAsociaciones) return `<div style="text-align:center;padding:60px;color:#6b7280;">Cargando…</div>`;
-  if (!S._gosAsociaciones.length) return `<div style="text-align:center;padding:60px;color:#9ca3af;">No hay asociaciones configuradas.</div>`;
-  if (S._gosTrimestresLoading || !S._gosTrimestres) return `<div style="text-align:center;padding:60px;color:#6b7280;">Cargando trimestres…</div>`;
-
-  const abiertos = S._gosTrimestres.filter(t=>t.estado==='abierto');
-  const gestionar = canDo('gestionar_gos');
-  let contenidoPaso = '';
-
-  if (S.gosCargaPaso==='seleccion') {
-    contenidoPaso = `
-    <div style="background:white;border-radius:14px;border:1px solid #e8eaf2;padding:20px;">
-      <h3 style="font-size:14px;font-weight:700;color:#1a2340;margin-bottom:4px;">1. Trimestre destino</h3>
-      ${S._gosAsociaciones.length>1 ? `
-      <div style="margin-top:10px;">
-        <label style="display:block;font-size:12px;font-weight:500;color:#6b7280;margin-bottom:4px;">Asociación</label>
-        <select id="gos-sel-asociacion" style="width:100%;padding:8px 10px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:13px;">
-          ${S._gosAsociaciones.map(a=>`<option value="${escHtml(a.id)}" ${a.id===S.gosAsociacionId?'selected':''}>${escHtml(a.nombre)}</option>`).join('')}
-        </select>
-      </div>` : ''}
-      ${abiertos.length ? `
-      <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
-        <div style="flex:1;min-width:200px;">
-          <label style="display:block;font-size:12px;font-weight:500;color:#6b7280;margin-bottom:4px;">Trimestre abierto</label>
-          <select id="gos-sel-trimestre" style="width:100%;padding:8px 10px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:13px;">
-            ${abiertos.map(t=>`<option value="${t.id}" ${t.id===S.gosCargaTrimestreId?'selected':''}>T${t.numero_trimestre} ${t.anio}</option>`).join('')}
-          </select>
-        </div>
-        ${gestionar ? `<button id="gos-btn-mostrar-nuevo" style="padding:8px 14px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#374151;font-size:12px;cursor:pointer;font-weight:500;">+ Abrir otro trimestre</button>` : ''}
-      </div>` : (gestionar ? '' : `<div style="margin-top:16px;color:#9ca3af;font-size:13px;">No hay trimestres abiertos.</div>`)}
-      ${(gestionar && (!abiertos.length || S.gosMostrarNuevoTrimestre)) ? `
-      <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
-        <div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px;">Año</label><input id="gos-anio-nuevo" type="number" value="${S.gosCargaAnioNuevo}" style="width:90px;padding:8px 10px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:13px;" /></div>
-        <div><label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px;">Trimestre</label>
-          <select id="gos-numero-nuevo" style="padding:8px 10px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:13px;">
-            <option value="1" ${S.gosCargaNumeroNuevo===1?'selected':''}>T1 (ene-mar)</option>
-            <option value="2" ${S.gosCargaNumeroNuevo===2?'selected':''}>T2 (abr-jun)</option>
-            <option value="3" ${S.gosCargaNumeroNuevo===3?'selected':''}>T3 (jul-sep)</option>
-            <option value="4" ${S.gosCargaNumeroNuevo===4?'selected':''}>T4 (oct-dic)</option>
-          </select>
-        </div>
-        <button id="gos-btn-abrir-trimestre" style="padding:9px 16px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:13px;font-weight:600;cursor:pointer;">Abrir trimestre</button>
-      </div>` : ''}
-      ${S.gosCargaError ? `<p style="margin-top:10px;font-size:12px;color:#b91c1c;">${escHtml(S.gosCargaError)}</p>` : ''}
-      ${S.gosCargaTrimestreId && gestionar ? `<button id="gos-btn-ir-archivo" style="margin-top:16px;padding:9px 18px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:13px;font-weight:600;cursor:pointer;">Continuar →</button>` : ''}
-    </div>`;
-  } else if (S.gosCargaPaso==='archivo') {
-    const t = S._gosTrimestres.find(x=>x.id===S.gosCargaTrimestreId);
-    contenidoPaso = `
-    <div style="background:white;border-radius:14px;border:1px solid #e8eaf2;padding:20px;">
-      <h3 style="font-size:14px;font-weight:700;color:#1a2340;margin-bottom:4px;">2. Subir archivo de movimientos</h3>
-      <p style="font-size:12px;color:#9ca3af;margin-bottom:10px;">Trimestre destino: T${t?.numero_trimestre||''} ${t?.anio||''}. Todas las filas se asignarán a este trimestre.</p>
-      <button onclick="gosDescargarPlantilla()" style="margin-bottom:14px;padding:8px 14px;border-radius:8px;border:1.5px solid #d4a820;background:white;color:#d4a820;font-size:12px;font-weight:600;cursor:pointer;">⬇ Descargar plantilla (con catálogo de iglesias)</button>
-      <p style="font-size:11px;color:#9ca3af;margin-bottom:14px;margin-top:-6px;">La plantilla trae el catálogo real de iglesias/grupos de tu asociación — copia los nombres de ahí tal cual para evitar errores de coincidencia.</p>
-      ${gestionar ? `
-      <input id="gos-archivo-input" type="file" accept=".xlsx,.xls,.csv" style="font-size:13px;" />
-      <button id="gos-btn-procesar" style="margin-left:10px;padding:8px 16px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:13px;font-weight:600;cursor:pointer;">${S.gosCargando?'Procesando...':'Procesar archivo'}</button>
-      ` : `<p style="color:#9ca3af;font-size:13px;">No tienes permiso para cargar datos.</p>`}
-      ${S.gosCargaError ? `<p style="margin-top:10px;font-size:12px;color:#b91c1c;">${escHtml(S.gosCargaError)}</p>` : ''}
-    </div>`;
-  } else if (S.gosCargaPaso==='revision') {
-    const filas = S.gosCargaFilas;
-    const activas = filas.filter(f=>!f.descartada);
-    const excepciones = activas.filter(f=>!f.iglesiaCod||!f.tipoMovimiento);
-    const aproximadas = activas.filter(f=>f.iglesiaCod && f.tipoMovimiento && f.confianzaIglesia==='similar');
-    const limpias = activas.length - excepciones.length - aproximadas.length;
-    const filaFixRow = f => `
-      <tr style="border-bottom:1px solid #f0f2f7;">
-        <td style="padding:8px 10px;">${escHtml(f.iglesiaNombreOriginal)}</td>
-        <td style="padding:8px 10px;">
-          <select data-gos-fix-iglesia="${f.id}" style="width:100%;padding:5px;border:1px solid #e8eaf2;border-radius:6px;font-size:12px;">
-            <option value="">— sin resolver —</option>
-            ${gosCatalogoIglesias().map(i=>`<option value="${escHtml(i.cod)}" ${f.iglesiaCod===i.cod?'selected':''}>${escHtml(i.nombre)}</option>`).join('')}
-          </select>
-        </td>
-        <td style="padding:8px 10px;color:#9ca3af;">${escHtml(f.tipoMovimientoOriginal)}</td>
-        <td style="padding:8px 10px;">
-          <select data-gos-fix-tipo="${f.id}" style="width:100%;padding:5px;border:1px solid #e8eaf2;border-radius:6px;font-size:12px;">
-            <option value="">— sin resolver —</option>
-            ${GOS_TIPOS_MOVIMIENTO.map(tm=>`<option value="${tm.value}" ${f.tipoMovimiento===tm.value?'selected':''}>${tm.label}</option>`).join('')}
-          </select>
-        </td>
-        <td style="padding:8px 10px;text-align:center;"><input type="checkbox" data-gos-descartar="${f.id}" ${f.descartada?'checked':''} /></td>
-      </tr>`;
-    contenidoPaso = `
-    <div style="background:white;border-radius:14px;border:1px solid #e8eaf2;padding:20px;">
-      <h3 style="font-size:14px;font-weight:700;color:#1a2340;margin-bottom:8px;">3. Revisión antes de confirmar</h3>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#6b7280;margin-bottom:12px;">
-        <span>Total filas: ${S.gosCargaResumen?.totalFilas||0}</span>
-        <span style="color:#15803d;">Limpias: ${limpias}</span>
-        <span style="color:${aproximadas.length?'#b45309':'#9ca3af'};">Coincidencias aproximadas: ${aproximadas.length}</span>
-        <span style="color:${excepciones.length?'#b91c1c':'#9ca3af'};">Excepciones: ${excepciones.length}</span>
-      </div>
-      ${excepciones.length ? `
-      <h4 style="font-size:12px;font-weight:700;color:#b91c1c;margin-bottom:6px;">Excepciones — sin resolver</h4>
-      <div style="overflow-x:auto;margin-bottom:16px;"><table style="width:100%;border-collapse:collapse;font-size:12px;">
-        <thead><tr style="background:#fef2f2;">${thCell('Iglesia (archivo)')}${thCell('Iglesia resuelta')}${thCell('Tipo (archivo)')}${thCell('Tipo resuelto')}${thCell('Descartar')}</tr></thead>
-        <tbody>${excepciones.map(filaFixRow).join('')}</tbody>
-      </table></div>` : ''}
-      ${aproximadas.length ? `
-      <h4 style="font-size:12px;font-weight:700;color:#b45309;margin-bottom:6px;">Coincidencias aproximadas — verifica que el nombre resuelto sea correcto</h4>
-      <p style="font-size:11px;color:#9ca3af;margin-bottom:6px;">El nombre del archivo no coincide exacto con el catálogo; se resolvió por similitud (ej. un typo). Revisa cada fila antes de confirmar.</p>
-      <div style="overflow-x:auto;margin-bottom:16px;"><table style="width:100%;border-collapse:collapse;font-size:12px;">
-        <thead><tr style="background:#fffbeb;">${thCell('Iglesia (archivo)')}${thCell('Iglesia resuelta')}${thCell('Tipo (archivo)')}${thCell('Tipo resuelto')}${thCell('Descartar')}</tr></thead>
-        <tbody>${aproximadas.map(filaFixRow).join('')}</tbody>
-      </table></div>` : ''}
-      ${S.gosCargaError ? `<p style="margin-top:10px;font-size:12px;color:#b91c1c;">${escHtml(S.gosCargaError)}</p>` : ''}
-      <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
-        ${gestionar ? `<button id="gos-btn-confirmar-carga" ${(activas.length===0||excepciones.length>0)?'disabled':''} style="padding:9px 18px;border-radius:8px;border:none;background:#15803d;color:white;font-size:13px;font-weight:600;cursor:pointer;opacity:${(activas.length===0||excepciones.length>0)?'.5':'1'};">${S.gosConfirmando?'Confirmando...':'Confirmar carga ('+activas.length+' filas)'}</button>` : ''}
-        <button id="gos-btn-volver-archivo" style="padding:9px 18px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:13px;font-weight:500;cursor:pointer;">← Volver a subir otro archivo</button>
-      </div>
-    </div>`;
-  } else if (S.gosCargaPaso==='listo') {
-    contenidoPaso = `
-    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;padding:20px;">
-      <h3 style="font-size:14px;font-weight:700;color:#166534;">Carga confirmada</h3>
-      <p style="margin-top:6px;font-size:13px;color:#15803d;">Se insertaron ${S.gosCargaResultado?.insertadas||0} movimiento(s) y se recalculó el reporte de ${S.gosCargaResultado?.iglesiasAfectadas||0} iglesia(s)/grupo(s).</p>
-      <button id="gos-btn-nueva-carga" style="margin-top:12px;padding:9px 18px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:13px;font-weight:600;cursor:pointer;">Subir otro archivo</button>
-    </div>`;
-  }
-
-  return `<div style="display:flex;flex-direction:column;gap:16px;max-width:900px;">
-    <p style="font-size:13px;color:#6b7280;">Sube el archivo de movimientos para el trimestre destino. Columnas requeridas: <strong>Nombre de la Iglesia</strong> y <strong>Nombre del tipo de movimiento</strong>. Columnas opcionales: Fecha de Movimiento, Fecha de la ceremonia, Distrito, Zona — si no las incluyes, el sistema completa Distrito/Zona automáticamente con los datos de la iglesia ya registrados en el catálogo.</p>
-    ${contenidoPaso}
-  </div>`;
-}
-
-/* ---- Trimestres + Informe: builds ---- */
-function buildGosTrimestres() {
-  if (S._gosTrimestresLoading || !S._gosTrimestres) return `<div style="text-align:center;padding:60px;color:#6b7280;">Cargando…</div>`;
-  if (S.gosTrimestreSeleccionado) {
-    const t = S._gosTrimestres.find(x=>x.id===S.gosTrimestreSeleccionado);
-    if (t) return buildGosInformeDetalle(t);
-  }
-  if (!S._gosTrimestres.length) return `<div style="text-align:center;padding:60px;color:#9ca3af;">
-    <div style="font-size:40px;margin-bottom:12px;">📊</div>
-    No hay trimestres abiertos todavía. Usa "Carga de Movimientos" para abrir el primero.
-  </div>`;
-  return `<div style="background:white;border-radius:14px;border:1px solid #e8eaf2;overflow:hidden;">
-    <table style="width:100%;border-collapse:collapse;font-size:14px;">
-      <thead><tr style="background:#f8f9fc;">${thCell('Trimestre')}${thCell('Corte')}${thCell('Estado')}</tr></thead>
-      <tbody>${S._gosTrimestres.map(t=>`
-        <tr data-gos-ver-trimestre="${t.id}" style="border-bottom:1px solid #f0f2f7;cursor:pointer;">
-          <td style="padding:12px 16px;font-weight:600;color:#1e3564;">T${t.numero_trimestre} ${t.anio}</td>
-          <td style="padding:12px 16px;color:#6b7280;">${t.fecha_corte}</td>
-          <td style="padding:12px 16px;"><span style="background:${t.estado==='abierto'?'#dcfce7':'#f3f4f6'};color:${t.estado==='abierto'?'#166534':'#6b7280'};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">${t.estado}</span></td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-  </div>`;
-}
-
-function buildGosInformeDetalle(t) {
-  if (S._gosReporteLoading || S._gosReporteTrimestreId!==t.id || !S._gosReporte) return `<div style="text-align:center;padding:60px;color:#6b7280;">Cargando informe…</div>`;
-
-  const catalogo = gosCatalogoIglesias().filter(i=>i.asociacion_id===t.asociacion_id);
-  const reportePorCod = new Map(S._gosReporte.map(r=>[r.iglesia_cod, r]));
-  const esSemilla = gosEsTrimestreSemilla(t, S._gosTrimestres);
-  const abierto = t.estado==='abierto';
-  const gestionar = canDo('gestionar_gos');
-
-  const filas = catalogo.map(igl => {
-    const r = reportePorCod.get(igl.cod);
-    const membresiaInicial = r?.membresia_inicial ?? 0;
-    const total = r?.total ?? membresiaInicial;
-    return {
-      cod: igl.cod, nombre: igl.nombre, tipo: igl.tipo||'iglesia',
-      zona: igl.zona, codZona: igl.codZona, distrito: igl.distrito, codDistrito: igl.codDistrito,
-      membresiaInicial,
-      bautismos: r?.bautismos ?? 0, profFe: r?.prof_fe ?? 0, tEntrada: r?.t_entrada ?? 0, tSalida: r?.t_salida ?? 0,
-      apostasia: r?.apostasia ?? 0, muerte: r?.muerte ?? 0, paradero: r?.paradero ?? 0, ajuste: r?.ajuste ?? 0,
-      total, sinDatos: total===membresiaInicial,
-    };
-  }).sort((a,b) => (a.codZona||'').localeCompare(b.codZona||'') || (a.codDistrito||'').localeCompare(b.codDistrito||'') || a.nombre.localeCompare(b.nombre));
-
-  const zonasMap = new Map();
-  for (const f of filas) {
-    const claveZona = f.codZona || f.zona || '—';
-    if (!zonasMap.has(claveZona)) zonasMap.set(claveZona, { codZona:f.codZona, nombreZona:f.zona, distritos: new Map() });
-    const zg = zonasMap.get(claveZona);
-    const claveDist = f.codDistrito || f.distrito || '—';
-    if (!zg.distritos.has(claveDist)) zg.distritos.set(claveDist, { codDistrito:f.codDistrito, nombreDistrito:f.distrito, filas: [] });
-    zg.distritos.get(claveDist).filas.push(f);
-  }
-
-  const sumar = list => list.reduce((acc,f) => ({
-    membresiaInicial: acc.membresiaInicial+f.membresiaInicial, bautismos: acc.bautismos+f.bautismos, profFe: acc.profFe+f.profFe,
-    tEntrada: acc.tEntrada+f.tEntrada, tSalida: acc.tSalida+f.tSalida, apostasia: acc.apostasia+f.apostasia, muerte: acc.muerte+f.muerte,
-    paradero: acc.paradero+f.paradero, ajuste: acc.ajuste+f.ajuste, total: acc.total+f.total,
-  }), {membresiaInicial:0,bautismos:0,profFe:0,tEntrada:0,tSalida:0,apostasia:0,muerte:0,paradero:0,ajuste:0,total:0});
-
-  const colCell = v => `<td style="padding:8px 10px;text-align:right;">${v}</td>`;
-  const rowTotales = (etiqueta, tot, estilo) => `<tr style="${estilo}">
-    <td></td><td style="padding:8px 10px;font-weight:600;">${etiqueta}</td>
-    ${colCell(tot.membresiaInicial)}${colCell(tot.bautismos)}${colCell(tot.profFe)}${colCell(tot.tEntrada)}${colCell(tot.tSalida)}${colCell(tot.apostasia)}${colCell(tot.muerte)}${colCell(tot.paradero)}${colCell(tot.ajuste)}${colCell(tot.total)}<td></td>
-  </tr>`;
-
-  let filasHtml = '';
-  for (const [, zg] of zonasMap) {
-    filasHtml += `<tr style="background:#1e3564;color:white;"><td colspan="13" style="padding:8px 10px;font-weight:600;">Zona ${escHtml(zg.codZona||'—')} ${escHtml(zg.nombreZona||'')}</td></tr>`;
-    let filasZona = [];
-    for (const [, dg] of zg.distritos) {
-      filasHtml += `<tr style="background:#f1f5f9;"><td colspan="13" style="padding:6px 10px;font-weight:500;color:#374151;">Distrito ${escHtml(dg.codDistrito||'—')} ${escHtml(dg.nombreDistrito||'')}</td></tr>`;
-      for (const f of dg.filas) {
-        const dEditable = abierto && esSemilla && gestionar;
-        filasHtml += `<tr style="border-bottom:1px solid #f0f2f7;">
-          <td style="padding:8px 10px;color:#9ca3af;">${escHtml(f.codDistrito||'—')}</td>
-          <td style="padding:8px 10px;">${escHtml(f.nombre)}${f.tipo==='grupo'?' <span style="color:#9ca3af;">(grupo)</span>':''}</td>
-          <td style="padding:8px 10px;text-align:right;">${dEditable ? `<input type="number" data-gos-d="${escHtml(f.cod)}" value="${f.membresiaInicial}" style="width:70px;padding:4px 6px;border:1px solid #e8eaf2;border-radius:6px;text-align:right;" />` : f.membresiaInicial}</td>
-          ${colCell(f.bautismos)}${colCell(f.profFe)}${colCell(f.tEntrada)}${colCell(f.tSalida)}${colCell(f.apostasia)}${colCell(f.muerte)}${colCell(f.paradero)}${colCell(f.ajuste)}
-          <td style="padding:8px 10px;text-align:right;font-weight:600;">${f.total}</td>
-          <td style="padding:8px 10px;text-align:right;">${(abierto&&gestionar)?`<button data-gos-ajustar="${escHtml(f.cod)}" style="background:transparent;border:none;color:#6b7280;font-size:12px;cursor:pointer;text-decoration:underline;">Ajustar</button>`:''}</td>
-        </tr>`;
-        filasZona.push(f);
-      }
-      filasHtml += rowTotales('Subtotal distrito '+(dg.codDistrito||''), sumar(dg.filas), 'background:#f8f9fc;color:#6b7280;');
-    }
-    filasHtml += rowTotales('Subtotal zona '+(zg.codZona||''), sumar(filasZona), 'background:#e2e8f0;font-weight:600;color:#1a2340;');
-  }
-  const totalGeneral = sumar(filas);
-  filasHtml += rowTotales('Total general', totalGeneral, 'background:#1a2340;color:white;font-weight:700;');
-
-  const sinDatos = filas.filter(f=>f.sinDatos);
-
-  return `<div style="display:flex;flex-direction:column;gap:16px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-      <div>
-        <button id="gos-btn-volver-trimestres" style="background:transparent;border:none;color:#6b7280;font-size:12px;cursor:pointer;margin-bottom:4px;padding:0;">← Volver a trimestres</button>
-        <h3 style="font-size:16px;font-weight:700;color:#1a2340;">Informe T${t.numero_trimestre} ${t.anio}</h3>
-        <p style="font-size:12px;color:#9ca3af;">Corte: ${t.fecha_corte} · Estado: <strong style="color:${abierto?'#166534':'#6b7280'};">${t.estado}</strong></p>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button id="gos-btn-exportar" ${S.gosExportando?'disabled':''} style="padding:8px 16px;border-radius:8px;border:1.5px solid #15803d;background:white;color:#15803d;font-size:13px;font-weight:600;cursor:pointer;">${S.gosExportando?'Generando...':'⬇ Exportar Excel'}</button>
-        ${abierto && gestionar ? `<button id="gos-btn-cerrar-trimestre" style="padding:8px 16px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:13px;font-weight:600;cursor:pointer;">Cerrar trimestre</button>` : ''}
-        ${!abierto && S.currentProfile?.permisos?.rol==='superadmin' ? `<button id="gos-btn-reabrir-trimestre" style="padding:8px 16px;border-radius:8px;border:1.5px solid #f59e0b;background:#fffbeb;color:#92650a;font-size:13px;font-weight:600;cursor:pointer;">Reabrir trimestre</button>` : ''}
-      </div>
-    </div>
-    ${esSemilla ? `<div style="font-size:12px;color:#6b7280;background:#eef2ff;border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-      <span>Trimestre semilla: la columna D (membresía inicial) es editable por iglesia/grupo, o puedes cargarla en bloque desde Excel.</span>
-      ${gestionar ? `<button id="gos-btn-abrir-membresia-modal" style="padding:6px 12px;border-radius:6px;border:1.5px solid #1e3564;background:white;color:#1e3564;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Cargar desde Excel</button>` : ''}
-    </div>` : ''}
-    ${S.gosInformeError ? `<p style="font-size:12px;color:#b91c1c;">${escHtml(S.gosInformeError)}</p>` : ''}
-    <div style="overflow-x:auto;background:white;border-radius:14px;border:1px solid #e8eaf2;">
-      <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:1100px;">
-        <thead><tr style="background:#f8f9fc;">
-          ${thCell('Cód. distrito')}${thCell('Iglesia / Grupo')}
-          ${thCell('D · Membresía inicial','right')}${thCell('E · Bautismos','right')}${thCell('F · Prof. Fe','right')}${thCell('G · T. Entrada','right')}${thCell('H · T. Salida','right')}${thCell('I · Apostasía','right')}${thCell('J · Muerte','right')}${thCell('K · Paradero','right')}${thCell('L · Ajuste','right')}${thCell('M · Total','right')}${thCell('')}
-        </tr></thead>
-        <tbody>${filasHtml}</tbody>
-      </table>
-    </div>
-    <div style="background:white;border-radius:14px;border:1px solid #e8eaf2;padding:18px;">
-      <h4 style="font-size:13px;font-weight:700;color:#1a2340;">Sin datos (${sinDatos.length})</h4>
-      <p style="font-size:12px;color:#9ca3af;margin-top:2px;">Iglesias/grupos sin ningún movimiento este trimestre (membresía inicial = total).</p>
-      ${sinDatos.length ? `<div style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px;font-size:12px;color:#6b7280;">
-        ${sinDatos.map(f=>`<div>${escHtml(f.nombre)} <span style="color:#c5cbe0;">(${escHtml(f.zona||'—')}/${escHtml(f.distrito||'—')})</span></div>`).join('')}
-      </div>` : ''}
-    </div>
-  </div>`;
-}
-
-function buildGosAjusteModal() {
-  const f = RAW.iglesias.find(i=>i.cod===S.gosAjusteIglesiaCod);
-  const nombre = f?.nombre || S.gosAjusteIglesiaCod || '';
-  return `<div id="gos-ajuste-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;">
-    <div style="background:white;border-radius:16px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:modalIn .2s ease;">
-      <div style="padding:24px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <h2 style="font-size:16px;font-weight:700;color:#1a2340;">Ajuste — ${escHtml(nombre)}</h2>
-          <button id="gos-btn-ajuste-close" style="background:transparent;border:none;cursor:pointer;padding:6px;color:#9ca3af;">${icons.x}</button>
-        </div>
-        <p style="font-size:12px;color:#9ca3af;margin-bottom:16px;">Un ajuste positivo suma a la membresía, uno negativo resta.</p>
-        <div style="display:flex;flex-direction:column;gap:12px;">
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Cantidad (con signo)</label>
-            <input id="gos-ajuste-cantidad" type="number" placeholder="ej. -2 o 3" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;" />
-          </div>
-          <div>
-            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Motivo (obligatorio)</label>
-            <textarea id="gos-ajuste-nota" rows="3" style="width:100%;padding:10px 12px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;"></textarea>
-          </div>
-        </div>
-        ${S.gosAjusteError ? `<p style="margin-top:10px;font-size:12px;color:#b91c1c;">${escHtml(S.gosAjusteError)}</p>` : ''}
-      </div>
-      <div style="padding:16px 24px;border-top:1px solid #f0f2f7;display:flex;gap:10px;justify-content:flex-end;">
-        <button id="gos-btn-ajuste-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
-        <button id="gos-btn-ajuste-guardar" style="padding:10px 20px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;">${S.gosAjusteGuardando?'Guardando...':'Guardar ajuste'}</button>
-      </div>
-    </div>
-  </div>`;
-}
-
-function buildGosCerrarConfirm() {
-  return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;">
-    <div style="background:white;border-radius:16px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;padding:28px;">
-      <h3 style="font-size:17px;font-weight:700;color:#1a2340;margin-bottom:8px;">Cerrar trimestre</h3>
-      <p style="font-size:14px;color:#6b7280;margin-bottom:22px;">Después de cerrarlo no se podrán registrar más ajustes ni cargas para este trimestre. ¿Continuar?</p>
-      <div style="display:flex;gap:10px;justify-content:flex-end;">
-        <button id="gos-btn-cerrar-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
-        <button id="gos-btn-cerrar-confirm" style="padding:10px 20px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;">Cerrar trimestre</button>
-      </div>
-    </div>
-  </div>`;
-}
-function buildGosReabrirConfirm() {
-  return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;">
-    <div style="background:white;border-radius:16px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;padding:28px;">
-      <h3 style="font-size:17px;font-weight:700;color:#1a2340;margin-bottom:8px;">Reabrir trimestre</h3>
-      <p style="font-size:14px;color:#6b7280;margin-bottom:22px;">¿Reabrir este trimestre cerrado para permitir más ediciones?</p>
-      <div style="display:flex;gap:10px;justify-content:flex-end;">
-        <button id="gos-btn-reabrir-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
-        <button id="gos-btn-reabrir-confirm" style="padding:10px 20px;border-radius:8px;border:none;background:#d97706;color:white;font-size:14px;cursor:pointer;font-weight:500;">Reabrir</button>
-      </div>
-    </div>
-  </div>`;
 }
 
 /* =====================================================================

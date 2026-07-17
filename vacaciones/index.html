@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Formulario de Vacaciones — Asoc. Dom. Sureste</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f2f7;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px}
+.card{background:white;border-radius:16px;box-shadow:0 4px 24px rgba(30,53,100,.10);max-width:560px;width:100%;overflow:hidden}
+.header{background:#1e3564;padding:28px 32px}
+.header h1{color:white;font-size:22px;margin-bottom:4px}
+.header p{color:#93c5fd;font-size:13px}
+.body{padding:32px;display:flex;flex-direction:column;gap:16px}
+label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px}
+input,select,textarea{width:100%;padding:11px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;font-family:inherit;outline:none;transition:border-color .15s;background:white}
+input:focus,select:focus,textarea:focus{border-color:#1e3564}
+input[readonly]{background:#f8f9fc;color:#6b7280}
+textarea{resize:vertical;min-height:70px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.required{color:#ef4444;margin-left:2px}
+.hint{font-size:12px;color:#9ca3af;margin-top:4px;}
+.btn{width:100%;padding:14px;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;background:#1e3564;color:white;margin-top:4px}
+.btn:hover{background:#162a4d}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.btn-secundario{background:transparent;color:#1e3564;border:1.5px solid #e8eaf2;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;border-radius:6px;width:auto;}
+.msg{padding:14px;border-radius:8px;font-size:14px;display:none}
+.msg.ok{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
+.msg.err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+.info-box{font-size:13px;color:#374151;background:#f8f9fc;border-radius:8px;padding:10px 14px;}
+.info-box strong{color:#1a2340;}
+.info-box.warn{background:#fef9c3;color:#854d0e;}
+.info-box.danger{background:#fee2e2;color:#991b1b;}
+.radio-row{display:flex;gap:20px;padding:4px 0;}
+.radio-opt{display:flex;align-items:center;gap:8px;font-size:14px;color:#1a2340;font-weight:500;cursor:pointer;}
+.radio-opt input{width:auto;accent-color:#1e3564;}
+.firma-wrap{border:1.5px solid #e8eaf2;border-radius:8px;padding:8px;background:#fafbff;}
+.firma-wrap canvas{width:100%;height:150px;display:block;border-radius:6px;background:white;touch-action:none;cursor:crosshair;}
+.firma-footer{display:flex;justify-content:flex-end;margin-top:8px;}
+.historial-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:10px;border:1px solid #e8eaf2;border-radius:6px;margin-bottom:8px;background:#fafbff;font-size:13px;align-items:center}
+.historial-row-header{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:10px;background:#f3f4f6;border-radius:6px;margin-bottom:8px;font-weight:600;color:#6b7280;font-size:12px}
+.estado-badge{display:inline-block;padding:4px 10px;border-radius:4px;font-weight:600;font-size:11px}
+.estado-badge.pendiente{background:#fef9c3;color:#a16207}
+.estado-badge.aprobado{background:#dcfce7;color:#166534}
+.estado-badge.rechazado{background:#fee2e2;color:#991b1b}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <h1>Formulario de Vacaciones</h1>
+    <p>Asociación Dominicana del Sureste de los Adventistas del Séptimo Día</p>
+  </div>
+  <div class="body" id="form-body">
+    <div id="historial-section" style="display:none;margin-bottom:8px;border-bottom:1px solid #e8eaf2;padding-bottom:24px;">
+      <h2 style="font-size:16px;font-weight:700;color:#1a2340;margin-bottom:12px;">Mis Solicitudes Anteriores</h2>
+      <div id="historial-tabla" style="width:100%;border-collapse:collapse;font-size:13px;"></div>
+    </div>
+
+    <div>
+      <label>Hora y fecha de solicitud</label>
+      <input id="fecha-solicitud-display" type="text" readonly />
+    </div>
+
+    <div style="position:relative;">
+      <label>Nombre del solicitante <span class="required">*</span></label>
+      <input id="nombre" type="text" placeholder="Escribe tu nombre o apellido…" autocomplete="off" />
+      <div id="lista-pastores" style="display:none;position:absolute;background:white;border:1.5px solid #e8eaf2;border-top:none;border-radius:0 0 8px 8px;width:100%;max-height:200px;overflow-y:auto;z-index:10;"></div>
+    </div>
+
+    <div>
+      <label>Correo electrónico (si desea recibir comprobante) <span class="required">*</span></label>
+      <input id="email" type="email" placeholder="correo@ejemplo.com" />
+    </div>
+
+    <div>
+      <label>Celular del solicitante <span class="required">*</span></label>
+      <input id="celular" type="tel" placeholder="(000) 000-0000" />
+    </div>
+
+    <div class="info-box" id="antiguedad-info" style="display:none;"></div>
+
+    <div>
+      <label>¿Cuántas semanas va a tomar de vacaciones? <span class="required">*</span></label>
+      <select id="semanas">
+        <option value="">Seleccione…</option>
+        <option value="1">1 semana</option>
+        <option value="2">2 semanas</option>
+        <option value="3">3 semanas</option>
+        <option value="4">4 semanas</option>
+      </select>
+    </div>
+
+    <div>
+      <label>¿Hay días feriados en el período de sus vacaciones? Si es así, escriba cuántos</label>
+      <input id="feriados" type="number" min="0" step="1" placeholder="Por ej., 1" />
+      <p class="hint">Los días feriados dentro del período no son descontados de sus vacaciones.</p>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Fecha de salida <span class="required">*</span></label>
+        <input id="fecha_inicio" type="date" />
+      </div>
+      <div>
+        <label>Fecha de entrada <span class="required">*</span></label>
+        <input id="fecha_fin" type="date" />
+      </div>
+    </div>
+
+    <div class="info-box" id="dias-info" style="display:none;"></div>
+
+    <div>
+      <label>Lugar donde pasará las vacaciones</label>
+      <input id="lugar" type="text" placeholder="Lugar (opcional)" />
+    </div>
+
+    <div>
+      <label>Observaciones</label>
+      <textarea id="observaciones" placeholder="Información adicional…"></textarea>
+    </div>
+
+    <div>
+      <label>Confirmo que he consultado con el pastor Gabriel Paulino, presidente, y certifico que él autorizó estas vacaciones <span class="required">*</span></label>
+      <div class="radio-row">
+        <label class="radio-opt"><input type="radio" name="confirmacion" value="si" /> Sí</label>
+        <label class="radio-opt"><input type="radio" name="confirmacion" value="no" /> No</label>
+      </div>
+      <div class="info-box danger" id="confirmacion-warn" style="display:none;">Debes consultar con el pastor Gabriel Paulino y obtener su autorización antes de enviar esta solicitud.</div>
+    </div>
+
+    <div>
+      <label>Firma del solicitante <span class="required">*</span></label>
+      <div class="firma-wrap">
+        <canvas id="firma-canvas" width="480" height="150"></canvas>
+        <div class="firma-footer"><button type="button" class="btn-secundario" id="btn-limpiar-firma">Limpiar</button></div>
+      </div>
+    </div>
+
+    <div class="msg" id="msg"></div>
+    <button class="btn" id="btn-enviar" onclick="enviar()">Enviar</button>
+  </div>
+</div>
+
+<script>
+const SB_URL = 'https://gvbknabnrlliofbchczv.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2YmtuYWJucmxsaW9mYmNoY3p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMjg3MTcsImV4cCI6MjA5NjkwNDcxN30.v7IXmkGpidbpCPZsDh_wFh_pLsP13QhTueYtiLfkH9Q';
+let pastoresList = []; // { cod, nombre, email, telefono }
+let pastoresMap = {};
+let selectedPastor = null;
+
+// Hora y fecha de solicitud (solo visual)
+(function() {
+  const ahora = new Date();
+  const dd = String(ahora.getDate()).padStart(2,'0');
+  const mm = String(ahora.getMonth()+1).padStart(2,'0');
+  const yyyy = ahora.getFullYear();
+  const hh = String(ahora.getHours()).padStart(2,'0');
+  const min = String(ahora.getMinutes()).padStart(2,'0');
+  document.getElementById('fecha-solicitud-display').value = `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+})();
+
+async function cargarPastores() {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/pastores?select=cod,nombre,email,telefono&order=nombre`, {
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
+    });
+    pastoresList = await r.json();
+    pastoresList.forEach(p => { pastoresMap[p.nombre] = p; });
+  } catch(e) {
+    console.error('Error cargando pastores:', e);
+  }
+}
+cargarPastores();
+
+function mostrarLista(query = '') {
+  const lista = document.getElementById('lista-pastores');
+  if (!query.trim()) { lista.style.display = 'none'; return; }
+  const q = query.toLowerCase();
+  const filtered = pastoresList.filter(p =>
+    p.nombre.toLowerCase().includes(q) || (p.email || '').toLowerCase().includes(q)
+  ).slice(0, 10);
+  if (filtered.length === 0) {
+    lista.innerHTML = '<div style="padding:10px 14px;color:#9ca3af;font-size:13px;">No encontrado</div>';
+    lista.style.display = 'block';
+    return;
+  }
+  lista.innerHTML = filtered.map((p, i) => `
+    <div data-pastor-idx="${i}" style="padding:10px 14px;border-bottom:1px solid #f0f2f7;cursor:pointer;background:white;" onmouseover="this.style.background='#f8f9ff'" onmouseout="this.style.background='white'">
+      <div style="font-weight:500;color:#1a2340;">${p.nombre}</div>
+      <div style="font-size:12px;color:#9ca3af;">${p.email || '(sin email registrado)'}</div>
+    </div>`).join('');
+  lista.style.display = 'block';
+  lista.querySelectorAll('[data-pastor-idx]').forEach(el => {
+    el.addEventListener('click', () => {
+      const p = filtered[parseInt(el.dataset.pastorIdx)];
+      document.getElementById('nombre').value = p.nombre;
+      document.getElementById('email').value = p.email || '';
+      document.getElementById('celular').value = p.telefono || '';
+      selectedPastor = p;
+      lista.style.display = 'none';
+      cargarHistorialPastor(p.nombre);
+      mostrarAntiguedad(p.cod);
+    });
+  });
+}
+document.getElementById('nombre').addEventListener('input', e => mostrarLista(e.target.value));
+document.getElementById('nombre').addEventListener('blur', () => setTimeout(() => { document.getElementById('lista-pastores').style.display = 'none'; }, 150));
+document.getElementById('nombre').addEventListener('focus', e => { if (e.target.value.trim()) mostrarLista(e.target.value); });
+
+async function mostrarAntiguedad(cod) {
+  const info = document.getElementById('antiguedad-info');
+  if (!cod) { info.style.display = 'none'; return; }
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/vacaciones_balance?pastor_cod=eq.${encodeURIComponent(cod)}&select=*`, {
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
+    });
+    const rows = await r.json();
+    const b = Array.isArray(rows) ? rows[0] : null;
+    info.style.display = 'block';
+    if (!b || b.dias_asignados_anio == null) {
+      info.className = 'info-box warn';
+      info.innerHTML = 'No se pudo calcular sus semanas por antigüedad (falta su fecha de ingreso en el sistema). Contacte a la secretaría.';
+      return;
+    }
+    const semanas = Math.round(b.dias_asignados_anio / 7);
+    const disponibles = b.dias_asignados_anio - b.dias_tomados_anio;
+    info.className = 'info-box';
+    info.innerHTML = `Según los años de servicio que usted tiene le corresponden <strong>${semanas} semanas</strong> este año. Disponibles: <strong>${disponibles}</strong> de ${b.dias_asignados_anio} días (${b.dias_tomados_anio} ya tomados).`;
+  } catch(e) {
+    info.style.display = 'none';
+  }
+}
+
+async function cargarHistorialPastor(nombre) {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/vacaciones_solicitudes?nombre=eq.${encodeURIComponent(nombre)}&select=*&order=fecha_solicitud.desc`, {
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
+    });
+    const solicitudes = await r.json();
+    if (!Array.isArray(solicitudes) || !solicitudes.length) {
+      document.getElementById('historial-section').style.display = 'none';
+      return;
+    }
+    const formatFecha = d => new Date(d + 'T12:00:00').toLocaleDateString('es-DO', { day:'2-digit', month:'short', year:'numeric' });
+    let html = '<div class="historial-row-header"><div>Período</div><div>Días</div><div>Estado</div></div>';
+    html += solicitudes.map(s => `
+      <div class="historial-row">
+        <div>${formatFecha(s.fecha_inicio)} — ${formatFecha(s.fecha_fin)}</div>
+        <div style="color:#6b7280;">${s.dias_solicitados}</div>
+        <div><span class="estado-badge ${s.estado}">${s.estado.charAt(0).toUpperCase() + s.estado.slice(1)}</span></div>
+      </div>`).join('');
+    document.getElementById('historial-tabla').innerHTML = html;
+    document.getElementById('historial-section').style.display = 'block';
+  } catch(e) {
+    console.error('Error cargando historial:', e);
+  }
+}
+
+function calcularDias() {
+  const semanas = parseInt(document.getElementById('semanas').value) || 0;
+  const feriados = parseInt(document.getElementById('feriados').value) || 0;
+  const info = document.getElementById('dias-info');
+  if (!semanas) { info.style.display = 'none'; return 0; }
+  const dias = Math.max(0, semanas * 7 - feriados);
+  info.style.display = 'block';
+  info.innerHTML = `Días a descontar de su balance: <strong>${dias}</strong> (${semanas} semanas${feriados ? ' menos ' + feriados + ' feriado(s)' : ''}).`;
+  return dias;
+}
+document.getElementById('semanas').addEventListener('change', calcularDias);
+document.getElementById('feriados').addEventListener('input', calcularDias);
+
+document.querySelectorAll('input[name=confirmacion]').forEach(r => {
+  r.addEventListener('change', () => {
+    document.getElementById('confirmacion-warn').style.display = (r.value === 'no' && r.checked) ? 'block' : 'none';
+  });
+});
+
+// Firma digital (canvas)
+const firmaCanvas = document.getElementById('firma-canvas');
+const firmaCtx = firmaCanvas.getContext('2d');
+firmaCtx.lineWidth = 2; firmaCtx.lineCap = 'round'; firmaCtx.strokeStyle = '#1a2340';
+let dibujando = false, tieneFirma = false;
+function firmaPos(e) {
+  const rect = firmaCanvas.getBoundingClientRect();
+  const scaleX = firmaCanvas.width / rect.width, scaleY = firmaCanvas.height / rect.height;
+  const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+  const cy = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+  return { x: cx * scaleX, y: cy * scaleY };
+}
+function firmaStart(e) { dibujando = true; tieneFirma = true; const p = firmaPos(e); firmaCtx.beginPath(); firmaCtx.moveTo(p.x, p.y); e.preventDefault(); }
+function firmaMove(e) { if (!dibujando) return; const p = firmaPos(e); firmaCtx.lineTo(p.x, p.y); firmaCtx.stroke(); e.preventDefault(); }
+function firmaEnd() { dibujando = false; }
+firmaCanvas.addEventListener('mousedown', firmaStart);
+firmaCanvas.addEventListener('mousemove', firmaMove);
+window.addEventListener('mouseup', firmaEnd);
+firmaCanvas.addEventListener('touchstart', firmaStart, { passive:false });
+firmaCanvas.addEventListener('touchmove', firmaMove, { passive:false });
+firmaCanvas.addEventListener('touchend', firmaEnd);
+document.getElementById('btn-limpiar-firma').addEventListener('click', () => {
+  firmaCtx.clearRect(0, 0, firmaCanvas.width, firmaCanvas.height);
+  tieneFirma = false;
+});
+
+// Fecha de salida por defecto: hoy
+document.getElementById('fecha_inicio').value = new Date().toISOString().slice(0, 10);
+
+async function enviar() {
+  const nombre       = document.getElementById('nombre').value.trim();
+  const email        = document.getElementById('email').value.trim();
+  const celular      = document.getElementById('celular').value.trim();
+  const semanas      = parseInt(document.getElementById('semanas').value) || 0;
+  const feriados     = parseInt(document.getElementById('feriados').value) || 0;
+  const fecha_inicio = document.getElementById('fecha_inicio').value;
+  const fecha_fin    = document.getElementById('fecha_fin').value;
+  const lugar        = document.getElementById('lugar').value.trim();
+  const observaciones = document.getElementById('observaciones').value.trim();
+  const confirmacion = document.querySelector('input[name=confirmacion]:checked')?.value || '';
+
+  if (!nombre) { mostrar('Selecciona tu nombre de la lista.', 'err'); return; }
+  if (!email) { mostrar('El correo electrónico es requerido.', 'err'); return; }
+  if (!celular) { mostrar('El celular es requerido.', 'err'); return; }
+  if (!semanas) { mostrar('Selecciona cuántas semanas de vacaciones tomarás.', 'err'); return; }
+  if (!fecha_inicio || !fecha_fin) { mostrar('Completa las fechas de salida y entrada.', 'err'); return; }
+  if (!confirmacion) { mostrar('Indica si consultaste con el pastor Gabriel Paulino.', 'err'); return; }
+  if (confirmacion === 'no') { mostrar('Debes consultar con el pastor Gabriel Paulino y obtener su autorización antes de enviar esta solicitud.', 'err'); return; }
+  if (!tieneFirma) { mostrar('Debes firmar la solicitud antes de enviarla.', 'err'); return; }
+
+  const dias_solicitados = calcularDias();
+  const firma_data_url = firmaCanvas.toDataURL('image/png');
+  const pastor_cod = (selectedPastor || pastoresMap[nombre] || {}).cod || null;
+
+  const btn = document.getElementById('btn-enviar');
+  btn.disabled = true;
+  btn.textContent = 'Enviando…';
+  ocultarMsg();
+
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/vacaciones_solicitudes`, {
+      method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        pastor_cod, nombre, email, celular,
+        fecha_solicitud: new Date().toISOString().slice(0, 10),
+        fecha_inicio, fecha_fin, dias_solicitados,
+        semanas_solicitadas: semanas, feriados_periodo: feriados,
+        confirmo_autorizacion_presidente: true,
+        firma_data_url,
+        lugar: lugar || null, observaciones: observaciones || null,
+        estado: 'pendiente'
+      })
+    });
+    if (!r.ok) { const text = await r.text(); throw new Error('Error al enviar: ' + text); }
+
+    document.getElementById('form-body').innerHTML = `
+      <div style="text-align:center;padding:40px 20px;">
+        <div style="font-size:64px;margin-bottom:20px;">☀️</div>
+        <h2 style="font-size:22px;font-weight:700;color:#1a2340;margin-bottom:12px;">¡Solicitud enviada!</h2>
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin-bottom:16px;">
+          <p style="font-size:15px;color:#166534;margin:0;line-height:1.5;">
+            <strong>Hemos recibido tu solicitud de vacaciones.</strong><br>
+            Será revisada por Secretaría Ejecutiva.
+          </p>
+        </div>
+        <p style="font-size:13px;color:#6b7280;margin:0;margin-bottom:20px;">Te notificaremos la decisión por WhatsApp.</p>
+        <a href="https://wa.me/8296799031?text=Saludos%20pastor%20Francis%20acabo%20de%20realizar%20una%20solicitud%20de%20vacaciones" target="_blank" style="display:inline-block;background:#25d366;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;border:none;cursor:pointer;">📲 Notificar por WhatsApp</a>
+      </div>`;
+    setTimeout(() => { window.open('https://wa.me/8296799031?text=Saludos%20pastor%20Francis%20acabo%20de%20realizar%20una%20solicitud%20de%20vacaciones', '_blank'); }, 500);
+  } catch(e) {
+    mostrar(e.message, 'err');
+    btn.disabled = false;
+    btn.textContent = 'Enviar';
+  }
+}
+
+function mostrar(msg, tipo) {
+  const el = document.getElementById('msg');
+  el.textContent = msg;
+  el.className = 'msg ' + tipo;
+  el.style.display = 'block';
+}
+function ocultarMsg() {
+  document.getElementById('msg').style.display = 'none';
+}
+</script>
+</body>
+</html>

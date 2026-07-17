@@ -1154,6 +1154,7 @@ function buildVacaciones() {
   if (!canDo('ver_vacaciones')) return NO_ACCESO;
   const items = S._vacaciones || [];
   const loading = S._vacacionesLoading;
+  const hoyVacStr = new Date().toISOString().slice(0,10);
   const estadoInfo = { pendiente:{ label:'Pendiente', bg:'#fef9c3', color:'#854d0e' }, aprobado:{ label:'Aprobado', bg:'#dcfce7', color:'#166534' }, rechazado:{ label:'Rechazado', bg:'#fee2e2', color:'#991b1b' } };
   let contenido;
   if (loading) {
@@ -1178,6 +1179,8 @@ function buildVacaciones() {
         const btnAprobar  = canGest && v.estado !== 'aprobado'  ? `<button data-aprobar-vacacion="${escHtml(v.id)}" style="background:#dcfce7;color:#166534;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">✓ Aprobar</button>` : '';
         const btnRechazar = canGest && v.estado !== 'rechazado' ? `<button data-rechazar-vacacion="${escHtml(v.id)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">✕ Rechazar</button>` : '';
         const btnPrint = `<button data-print-vacacion="${escHtml(v.id)}" style="background:#eef2ff;color:#1e3564;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">🖨️ Imprimir</button>`;
+        const puedeReubicar = canGest && v.estado !== 'rechazado' && v.fecha_fin >= hoyVacStr;
+        const btnReubicar = puedeReubicar ? `<button data-reubicar-vacacion="${escHtml(v.id)}" style="background:#fef3c7;color:#92400e;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">↻ Reubicar</button>` : '';
         const btnEdit = canGest ? `<button data-edit-vacacion="${escHtml(v.id)}" style="background:#f3f4f6;color:#374151;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">✎</button>` : '';
         const btnDel  = canGest ? `<button data-del-vacacion="${escHtml(v.id)}" data-del-vacacion-nombre="${escHtml(v.nombre)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;">✕</button>` : '';
         return `<tr style="border-bottom:1px solid #f0f2f7;">
@@ -1186,7 +1189,7 @@ function buildVacaciones() {
           <td style="padding:12px 16px;color:#374151;">${v.dias_solicitados}</td>
           <td style="padding:12px 16px;color:#6b7280;font-size:12px;">${fmtDisponible(bal)}</td>
           <td style="padding:12px 16px;"><span style="background:${est.bg};color:${est.color};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;">${est.label}</span></td>
-          <td style="padding:12px 16px;">${btnAprobar}${btnRechazar}${btnPrint}${btnEdit}${btnDel}</td>
+          <td style="padding:12px 16px;">${btnAprobar}${btnRechazar}${btnReubicar}${btnPrint}${btnEdit}${btnDel}</td>
         </tr>`;
       }).join('')}</tbody>
     </table></div>`;
@@ -1209,6 +1212,7 @@ function buildVacaciones() {
 
 function buildVacacionModal() {
   const editing = S.vacacionModalMode === 'edit';
+  const reubicando = S.vacacionModalMode === 'reubicar';
   const f = S.formVacacion;
   const dias = diasEntre(f.fecha_inicio, f.fecha_fin);
   const bal = getVacBalance(f.pastor_cod);
@@ -1234,10 +1238,11 @@ function buildVacacionModal() {
   return `<div id="vacacion-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;">
     <div style="background:white;border-radius:16px;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:modalIn .2s ease;max-height:92vh;overflow-y:auto;">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:22px 24px 0;">
-        <h3 style="font-size:17px;font-weight:700;color:#1a2340;">${editing?'Editar Solicitud':'Nueva Solicitud de Vacaciones'}</h3>
+        <h3 style="font-size:17px;font-weight:700;color:#1a2340;">${reubicando?'Reubicar Solicitud':editing?'Editar Solicitud':'Nueva Solicitud de Vacaciones'}</h3>
         <button id="btn-vacacion-close" style="background:transparent;border:none;cursor:pointer;color:#9ca3af;font-size:20px;line-height:1;">×</button>
       </div>
       <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px;">
+        ${reubicando ? `<div style="font-size:13px;color:#92400e;background:#fef3c7;border-radius:8px;padding:10px 14px;">Elige la nueva fecha. Al guardar, la solicitud vuelve a quedar <strong>pendiente</strong> de aprobación con las nuevas fechas.</div>` : ''}
         <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Pastor <span style="color:#ef4444;">*</span></label>
           <select id="vacacion-pastor-cod" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;">
             <option value="">Selecciona un pastor…</option>
@@ -1262,7 +1267,7 @@ function buildVacacionModal() {
       </div>
       <div style="padding:0 24px 24px;display:flex;gap:10px;justify-content:flex-end;">
         <button id="btn-vacacion-cancel" style="padding:10px 20px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;font-weight:500;">Cancelar</button>
-        <button id="btn-vacacion-save" style="padding:10px 20px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;">${editing?'Guardar cambios':'Registrar'}</button>
+        <button id="btn-vacacion-save" style="padding:10px 20px;border-radius:8px;border:none;background:#1e3564;color:white;font-size:14px;cursor:pointer;font-weight:500;">${reubicando?'Guardar reubicación':editing?'Guardar cambios':'Registrar'}</button>
       </div>
     </div>
   </div>`;
@@ -2476,9 +2481,9 @@ function bindEvents() {
     S.formVacacion={ pastor_cod:'', nombre:'', email:'', fecha_solicitud:new Date().toISOString().slice(0,10), fecha_inicio:'', fecha_fin:'', estado:'pendiente', observaciones:'' };
     render();
   }));
-  q('#btn-vacacion-close',  el => el.addEventListener('click', () => { S.showVacacionModal=false; render(); }));
-  q('#btn-vacacion-cancel', el => el.addEventListener('click', () => { S.showVacacionModal=false; render(); }));
-  q('#vacacion-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el){S.showVacacionModal=false;render();} }));
+  q('#btn-vacacion-close',  el => el.addEventListener('click', () => { S.showVacacionModal=false; S.reubicarOriginal=null; render(); }));
+  q('#btn-vacacion-cancel', el => el.addEventListener('click', () => { S.showVacacionModal=false; S.reubicarOriginal=null; render(); }));
+  q('#vacacion-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el){S.showVacacionModal=false;S.reubicarOriginal=null;render();} }));
   q('#vacacion-pastor-cod', el => el.addEventListener('change', () => {
     const p = RAW.pastores.find(p=>p.cod===el.value);
     S.formVacacion.pastor_cod = el.value;
@@ -2495,12 +2500,18 @@ function bindEvents() {
     const email           = document.getElementById('vacacion-email')?.value.trim()||'';
     const fecha_inicio    = document.getElementById('vacacion-fecha-inicio')?.value||'';
     const fecha_fin       = document.getElementById('vacacion-fecha-fin')?.value||'';
-    const estado          = document.getElementById('vacacion-estado')?.value||'pendiente';
-    const observaciones   = document.getElementById('vacacion-observaciones')?.value.trim()||'';
+    let estado           = document.getElementById('vacacion-estado')?.value||'pendiente';
+    let observaciones    = document.getElementById('vacacion-observaciones')?.value.trim()||'';
     if (!pastor_cod) { showToast('Selecciona un pastor','error'); return; }
     if (!fecha_inicio || !fecha_fin) { showToast('Las fechas de inicio y fin son requeridas','error'); return; }
     const dias_solicitados = diasEntre(fecha_inicio, fecha_fin);
     if (dias_solicitados < 1) { showToast('La fecha fin debe ser posterior o igual a la fecha inicio','error'); return; }
+    if (S.vacacionModalMode==='reubicar' && S.reubicarOriginal) {
+      const fFmt = d => d ? new Date(d+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+      estado = 'pendiente';
+      const nota = `Reubicada desde ${fFmt(S.reubicarOriginal.inicio)} — ${fFmt(S.reubicarOriginal.fin)} el ${fFmt(new Date().toISOString().slice(0,10))}.`;
+      observaciones = observaciones ? `${observaciones}\n${nota}` : nota;
+    }
     const payload = { pastor_cod, nombre, email: email||null, fecha_inicio, fecha_fin, dias_solicitados, estado, observaciones: observaciones||null };
     if (S.vacacionModalMode==='add') {
       const { data, error } = await S.sbClient.from('vacaciones_solicitudes').insert([payload]).select();
@@ -2512,7 +2523,9 @@ function bindEvents() {
       S._vacaciones = (S._vacaciones||[]).map(v => v.id===S.editVacacionId ? {...v,...payload} : v);
     }
     S.showVacacionModal=false;
-    showToast(S.vacacionModalMode==='add'?'Solicitud registrada':'Solicitud actualizada','success');
+    S.reubicarOriginal=null;
+    const msgOk = S.vacacionModalMode==='add' ? 'Solicitud registrada' : S.vacacionModalMode==='reubicar' ? 'Solicitud reubicada — vuelve a estar pendiente de aprobación' : 'Solicitud actualizada';
+    showToast(msgOk,'success');
     loadVacBalance();
     render();
   }));
@@ -2552,6 +2565,13 @@ function bindEvents() {
   document.querySelectorAll('[data-edit-vacacion]').forEach(el => el.addEventListener('click', () => {
     const v = (S._vacaciones||[]).find(v=>v.id===el.dataset.editVacacion); if(!v) return;
     S.showVacacionModal=true; S.vacacionModalMode='edit'; S.editVacacionId=v.id;
+    S.formVacacion={ pastor_cod:v.pastor_cod||'', nombre:v.nombre, email:v.email||'', fecha_inicio:v.fecha_inicio||'', fecha_fin:v.fecha_fin||'', estado:v.estado||'pendiente', observaciones:v.observaciones||'' };
+    render();
+  }));
+  document.querySelectorAll('[data-reubicar-vacacion]').forEach(el => el.addEventListener('click', () => {
+    const v = (S._vacaciones||[]).find(v=>v.id===el.dataset.reubicarVacacion); if(!v) return;
+    S.showVacacionModal=true; S.vacacionModalMode='reubicar'; S.editVacacionId=v.id;
+    S.reubicarOriginal={ inicio:v.fecha_inicio, fin:v.fecha_fin };
     S.formVacacion={ pastor_cod:v.pastor_cod||'', nombre:v.nombre, email:v.email||'', fecha_inicio:v.fecha_inicio||'', fecha_fin:v.fecha_fin||'', estado:v.estado||'pendiente', observaciones:v.observaciones||'' };
     render();
   }));

@@ -3054,8 +3054,8 @@ function imprimirVacacion(id) {
           </div>` : ''}
 
           ${v.confirmo_autorizacion_presidente ? `<div class="field">
-            <div class="label">Autorización de Presidencia</div>
-            <div class="value">El solicitante certificó haber consultado con el Pastor Gabriel Paulino (Presidente) y contar con su autorización.</div>
+            <div class="label">Autorización Consultada</div>
+            <div class="value">El solicitante certificó haber consultado con ${v.autoridad_consultada==='secretario' ? 'el Secretario Ejecutivo (Francis Contreras)' : 'el Pastor Gabriel Paulino (Presidente)'} y contar con su autorización.</div>
           </div>` : ''}
 
           <div class="estado-box">

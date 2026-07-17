@@ -116,12 +116,12 @@ textarea{resize:vertical;min-height:70px}
     </div>
 
     <div>
-      <label>Confirmo que he consultado con el pastor Gabriel Paulino, presidente, y certifico que él autorizó estas vacaciones <span class="required">*</span></label>
+      <label id="confirmacion-label">Confirmo que he consultado con el pastor Gabriel Paulino, presidente, y certifico que él autorizó estas vacaciones <span class="required">*</span></label>
       <div class="radio-row">
         <label class="radio-opt"><input type="radio" name="confirmacion" value="si" /> Sí</label>
         <label class="radio-opt"><input type="radio" name="confirmacion" value="no" /> No</label>
       </div>
-      <div class="info-box danger" id="confirmacion-warn" style="display:none;">Debes consultar con el pastor Gabriel Paulino y obtener su autorización antes de enviar esta solicitud.</div>
+      <div class="info-box danger" id="confirmacion-warn" style="display:none;"></div>
     </div>
 
     <div>
@@ -140,9 +140,23 @@ textarea{resize:vertical;min-height:70px}
 <script>
 const SB_URL = 'https://gvbknabnrlliofbchczv.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2YmtuYWJucmxsaW9mYmNoY3p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMjg3MTcsImV4cCI6MjA5NjkwNDcxN30.v7IXmkGpidbpCPZsDh_wFh_pLsP13QhTueYtiLfkH9Q';
-let pastoresList = []; // { cod, nombre, email, telefono }
+let pastoresList = []; // { cod, nombre, email, telefono, rol }
 let pastoresMap = {};
 let selectedPastor = null;
+let autoridadRequerida = 'presidente'; // 'presidente' | 'secretario'
+
+function actualizarAutoridad(rol) {
+  autoridadRequerida = (rol === 'oficina') ? 'secretario' : 'presidente';
+  const label = document.getElementById('confirmacion-label');
+  const warn = document.getElementById('confirmacion-warn');
+  if (autoridadRequerida === 'secretario') {
+    label.innerHTML = 'Confirmo que he consultado con el Secretario Ejecutivo, Francis Contreras, y certifico que él autorizó estas vacaciones <span class="required">*</span>';
+    warn.textContent = 'Debes consultar con el Secretario Ejecutivo y obtener su autorización antes de enviar esta solicitud.';
+  } else {
+    label.innerHTML = 'Confirmo que he consultado con el pastor Gabriel Paulino, presidente, y certifico que él autorizó estas vacaciones <span class="required">*</span>';
+    warn.textContent = 'Debes consultar con el pastor Gabriel Paulino y obtener su autorización antes de enviar esta solicitud.';
+  }
+}
 
 // Hora y fecha de solicitud (solo visual)
 (function() {
@@ -157,7 +171,7 @@ let selectedPastor = null;
 
 async function cargarPastores() {
   try {
-    const r = await fetch(`${SB_URL}/rest/v1/pastores?select=cod,nombre,email,telefono&order=nombre`, {
+    const r = await fetch(`${SB_URL}/rest/v1/pastores?select=cod,nombre,email,telefono,rol&order=nombre`, {
       headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
     });
     pastoresList = await r.json();
@@ -196,6 +210,7 @@ function mostrarLista(query = '') {
       lista.style.display = 'none';
       cargarHistorialPastor(p.nombre);
       mostrarAntiguedad(p.cod);
+      actualizarAutoridad(p.rol);
     });
   });
 }
@@ -326,8 +341,9 @@ async function enviar() {
   if (!celular) { mostrar('El celular es requerido.', 'err'); return; }
   if (!semanas) { mostrar('Selecciona cuántas semanas de vacaciones tomarás.', 'err'); return; }
   if (!fecha_inicio || !fecha_fin) { mostrar('Completa las fechas de salida y entrada.', 'err'); return; }
-  if (!confirmacion) { mostrar('Indica si consultaste con el pastor Gabriel Paulino.', 'err'); return; }
-  if (confirmacion === 'no') { mostrar('Debes consultar con el pastor Gabriel Paulino y obtener su autorización antes de enviar esta solicitud.', 'err'); return; }
+  const autoridadNombre = autoridadRequerida === 'secretario' ? 'el Secretario Ejecutivo' : 'el pastor Gabriel Paulino';
+  if (!confirmacion) { mostrar(`Indica si consultaste con ${autoridadNombre}.`, 'err'); return; }
+  if (confirmacion === 'no') { mostrar(`Debes consultar con ${autoridadNombre} y obtener su autorización antes de enviar esta solicitud.`, 'err'); return; }
   if (!tieneFirma) { mostrar('Debes firmar la solicitud antes de enviarla.', 'err'); return; }
 
   const dias_solicitados = calcularDias();
@@ -349,6 +365,7 @@ async function enviar() {
         fecha_inicio, fecha_fin, dias_solicitados,
         semanas_solicitadas: semanas, feriados_periodo: feriados,
         confirmo_autorizacion_presidente: true,
+        autoridad_consultada: autoridadRequerida,
         firma_data_url,
         observaciones: observaciones || null,
         estado: 'pendiente'

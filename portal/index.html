@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/png" href="/logo.png">
 <title>Portal del Empleado — Asoc. Dom. Sureste</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -56,7 +57,10 @@ p.sub{font-size:13px;color:#6b7280;margin-bottom:8px}
 <body>
 <div class="card">
   <div class="header">
-    <div><h1 id="hdr-title">Portal del Empleado</h1><p id="hdr-sub">Asociación Dominicana del Sureste</p></div>
+    <div style="display:flex;align-items:center;gap:14px;min-width:0;">
+      <img src="/logo.png" alt="Iglesia Adventista del Séptimo Día" style="width:46px;height:46px;flex-shrink:0;background:white;border-radius:50%;padding:3px;" />
+      <div style="min-width:0;"><h1 id="hdr-title">Portal del Empleado</h1><p id="hdr-sub">Asociación Dominicana del Sureste</p></div>
+    </div>
     <button class="logout" id="btn-logout" style="display:none;" onclick="logout()">Salir</button>
   </div>
   <div class="body" id="view"></div>

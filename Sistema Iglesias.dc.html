@@ -506,13 +506,13 @@ function buildSidebar() {
     if (!childrenHtml) return '';
     const open = S.navGroupOpen[id] !== false;
     return `
-    <div>
-      <button data-nav-group="${id}" style="display:flex;align-items:center;gap:10px;width:100%;padding:8px 12px;border:none;background:transparent;cursor:pointer;text-align:left;">
+    <div style="background:${bg}66;border-left:3px solid ${color};border-radius:0 10px 10px 0;margin:2px 0;padding-left:5px;">
+      <button data-nav-group="${id}" style="display:flex;align-items:center;gap:10px;width:100%;padding:8px 12px 8px 7px;border:none;background:transparent;cursor:pointer;text-align:left;">
         ${chip(iconHtml,bg,color)}
         <span style="font-size:13px;font-weight:700;color:#1a2340;flex:1;">${label}</span>
-        <span style="color:#a3adc2;transition:transform .15s;transform:rotate(${open?'0deg':'-90deg'});display:flex;">${icons.chevronDown}</span>
+        <span style="color:${color};transition:transform .15s;transform:rotate(${open?'0deg':'-90deg'});display:flex;">${icons.chevronDown}</span>
       </button>
-      <div style="display:${open?'flex':'none'};flex-direction:column;gap:2px;padding:2px 4px 6px;">${childrenHtml}</div>
+      <div style="display:${open?'flex':'none'};flex-direction:column;gap:2px;padding:2px 4px 8px 3px;">${childrenHtml}</div>
     </div>`;
   };
 
@@ -652,7 +652,7 @@ function buildDashboard() {
   const licenciados = pastoresCampo.filter(p=>p.estado==='licenciado').length;
 
   const maxIg = Math.max(...RAW.zonas.map(z => z._igCount||0), 1);
-  const colors = ['#1e3564','#2d5090','#d4a820','#3a6ab0','#e8c040','#4a7ac0','#f0d060'];
+  const colors = ['#1e40af','#2563eb','#3b82f6','#60a5fa','#93c5fd'];
   const bars = RAW.zonas.map((z,i) => {
     const cnt = z._igCount||0; const pct = Math.max((cnt/maxIg)*100,4);
     return `<div data-nav-zona-ig="${z.cod}" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
@@ -786,7 +786,7 @@ function buildDashboard() {
 
 /* ---- ZONAS ---- */
 function buildZonas() {
-  const colors=['#1e3564','#2d5090','#d4a820','#3a6ab0','#e8c040','#4a7ac0','#c9991a'];
+  const colors=['#1e40af','#2563eb','#3b82f6','#60a5fa','#93c5fd'];
   const cards = RAW.zonas.map((z,i) => `
   <div style="background:white;border-radius:14px;padding:22px;box-shadow:0 1px 4px rgba(16,24,40,.06);border:1px solid #e8eaf2;animation:fadeUp .2s ease;">
     <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;">

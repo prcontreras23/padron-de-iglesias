@@ -160,6 +160,7 @@ const icons = {
   clipboard: ic('<path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>'),
   barChart: ic('<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>'),
   church:  ic('<path d="M12 2v3"/><path d="M10.5 3.5h3"/><path d="M4 21V10l8-5 8 5v11"/><path d="M9 21v-6a3 3 0 016 0v6"/>'),
+  briefcase: ic('<rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>'),
   info:    ic('<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',13),
 };
 
@@ -527,7 +528,7 @@ function buildSidebar() {
 
   const rrhhChildren = [
     canDo('ver_permisos')||canDo('ver_vacaciones') ? navItem('calendario','Calendario de Ausencias',icons.calendar,'#dbeafe','#1e40af') : '',
-    canDo('ver_permisos')   ? navItem('permisos','Permisos de Ausencia',icons.calendar,'#fce7f3','#9d174d') : '',
+    canDo('ver_permisos')   ? navItem('permisos','Permisos de Ausencia',icons.clipboard,'#fce7f3','#9d174d') : '',
     canDo('ver_vacaciones') ? navItem('vacaciones','Vacaciones',icons.sun,'#fef3c7','#92400e') : '',
     canDo('ver_pastores')   ? navItem('pastores','Personal',icons.user,'#ede9fe','#5b21b6',RAW.pastores.length) : '',
     canDo('ver_pastores')   ? navItem('notas','Notas',icons.note,'#dcfce7','#166534') : '',
@@ -559,8 +560,8 @@ function buildSidebar() {
     </div>
     <nav style="flex:1;padding:12px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;">
       ${canDo('ver_dashboard') ? navItem('dashboard','Dashboard',icons.grid,'#eef2ff','#1e3564') : ''}
-      ${navGroup('rrhh','RRHH',icons.users,'#ede9fe','#6d28d9',rrhhChildren)}
-      ${navGroup('iglesias','Iglesias',icons.home,'#dbeafe','#2563eb',iglesiasChildren)}
+      ${navGroup('rrhh','RRHH',icons.briefcase,'#ede9fe','#6d28d9',rrhhChildren)}
+      ${navGroup('iglesias','Iglesias',icons.church,'#dbeafe','#2563eb',iglesiasChildren)}
       ${(canDo('ver_historial')||canDo('ver_configuracion')) ? sectionLabel('Sistema') : ''}
       ${canDo('ver_historial')     ? navItem('historial','Historial',icons.clock,'#f1f5f9','#475569') : ''}
       ${canDo('ver_configuracion') ? navItem('configuracion','Configuración',icons.settings,'#f1f5f9','#475569') : ''}

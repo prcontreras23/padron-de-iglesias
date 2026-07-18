@@ -20,6 +20,7 @@
   @keyframes modalIn { from { opacity:0; transform:scale(.96); }        to { opacity:1; transform:scale(1); } }
   @keyframes spin    { to { transform: rotate(360deg); } }
   @keyframes toastIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes slideInRight { from { transform:translateX(100%); } to { transform:translateX(0); } }
 </style>
 </head>
 <body>
@@ -56,6 +57,8 @@ let S = {
   showDeleteVacacionConfirm: false, deleteVacacionId: null, deleteVacacionNombre: null,
   // Calendario de Ausencias
   calMonth: new Date().getMonth(), calYear: new Date().getFullYear(),
+  calFiltroZona: 'all', calFiltroTipo: 'all', calFiltroEstado: 'activos',
+  showCalDiaPanel: false, calDiaSel: null,
   // Organización de Iglesias
   _organizaciones: null, _organizacionesLoading: false,
   showOrganizacionModal: false, organizacionModalMode: 'add', editOrganizacionId: null,
@@ -489,6 +492,7 @@ function buildHTML() {
   ${S.showDeletePermisoConfirm ? buildDeletePermisoConfirm() : ''}
   ${S.showVacacionModal ? buildVacacionModal() : ''}
   ${S.showDeleteVacacionConfirm ? buildDeleteVacacionConfirm() : ''}
+  ${S.showCalDiaPanel ? buildCalDiaPanel() : ''}
   ${S.showOrganizacionModal ? buildOrganizacionModal() : ''}
   ${S.showDeleteOrganizacionConfirm ? buildDeleteOrganizacionConfirm() : ''}
   ${S.showNotaModal ? buildNotaModal() : ''}
@@ -1180,6 +1184,11 @@ function buildPermisoModal() {
         <button id="btn-permiso-close" style="background:transparent;border:none;cursor:pointer;color:#9ca3af;font-size:20px;line-height:1;">×</button>
       </div>
       <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px;">
+        <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Vincular con personal <span style="font-weight:400;color:#9ca3af;">(recomendado — habilita alertas de zona)</span></label>
+          <select id="permiso-pastor-cod" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;">
+            <option value="">— Escribir nombre manualmente —</option>
+            ${[...RAW.pastores].sort((a,b)=>a.nombre.localeCompare(b.nombre,'es')).map(p=>`<option value="${escHtml(p.cod)}" ${f.nombre===p.nombre?'selected':''}>${escHtml(p.nombre)}${p.zona?' · '+escHtml(p.zona):''}</option>`).join('')}
+          </select></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Nombre <span style="color:#ef4444;">*</span></label>
             <input id="permiso-nombre" type="text" value="${escHtml(f.nombre)}" placeholder="Nombre del empleado" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
@@ -1450,15 +1459,63 @@ function buildDeleteVacacionConfirm() {
 const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DIAS_SEMANA_ES = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 
-function calPillHtml(nombre, tipo, estado) {
-  const colores = { permiso: { bg:'#eff4ff', color:'#2563eb' }, vacacion: { bg:'#fef3c7', color:'#92400e' } };
-  const c = colores[tipo];
-  let extra = '';
-  if (estado === 'rechazado') extra = 'opacity:.45;text-decoration:line-through;';
-  else if (estado === 'pendiente') extra = `opacity:.8;box-shadow:inset 0 0 0 1px ${c.color}66;`;
-  const icono = tipo === 'permiso' ? icons.calendar.replace('currentColor','#2563eb') : icons.sun.replace('currentColor','#92400e');
-  const primerNombre = escHtml((nombre||'').split(',')[0]);
-  return `<div title="${escHtml(nombre||'')}" style="background:${c.bg};color:${c.color};${extra}font-size:10px;line-height:1.4;padding:1px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${icono} ${primerNombre}</div>`;
+// Paleta estable por zona (una zona = un color fijo)
+const CAL_ZONA_PALETTE = [
+  { bg:'#eff6ff', bd:'#3b82f6', tx:'#1d4ed8' },
+  { bg:'#ecfdf5', bd:'#10b981', tx:'#047857' },
+  { bg:'#faf5ff', bd:'#a855f7', tx:'#7e22ce' },
+  { bg:'#fff7ed', bd:'#f97316', tx:'#c2410c' },
+  { bg:'#f0fdfa', bd:'#14b8a6', tx:'#0f766e' },
+  { bg:'#fdf2f8', bd:'#ec4899', tx:'#be185d' },
+  { bg:'#fefce8', bd:'#ca8a04', tx:'#a16207' },
+];
+const CAL_ZONA_GRIS = { bg:'#f1f5f9', bd:'#94a3b8', tx:'#475569' };
+function calZonaColor(zona) {
+  if (!zona) return CAL_ZONA_GRIS;
+  const zonas = (RAW.zonas||[]).slice().sort((a,b)=>String(a.cod).localeCompare(String(b.cod)));
+  const idx = zonas.findIndex(z => z.nombre === zona);
+  if (idx < 0) return CAL_ZONA_GRIS;
+  return CAL_ZONA_PALETTE[idx % CAL_ZONA_PALETTE.length];
+}
+// Resuelve zona/distrito de un registro (por pastor_cod o por nombre)
+function calPersona(rec) {
+  const ps = RAW.pastores || [];
+  let pastor = rec.pastor_cod ? ps.find(p => p.cod === rec.pastor_cod) : null;
+  if (!pastor && rec.nombre) pastor = ps.find(p => p.nombre === rec.nombre);
+  return { zona: pastor ? pastor.zona : null, distrito: pastor ? pastor.distrito : null, cod: pastor ? pastor.cod : null, matched: !!pastor };
+}
+// Lista combinada de eventos (respeta permisos de visibilidad)
+function calEventos() {
+  const evs = [];
+  if (canDo('ver_permisos')) (S._permisos||[]).forEach(p => { if (p.fecha_ausencia) { const per = calPersona(p); evs.push({ tipo:'permiso', nombre:p.nombre||'', estado:p.estado||'pendiente', inicio:p.fecha_ausencia, fin:p.fecha_ausencia, motivo:p.motivo, lugar:p.lugar, zona:per.zona, distrito:per.distrito, matched:per.matched }); } });
+  if (canDo('ver_vacaciones')) (S._vacaciones||[]).forEach(v => { if (v.fecha_inicio && v.fecha_fin) { const per = calPersona(v); evs.push({ tipo:'vacacion', nombre:v.nombre||'', estado:v.estado||'pendiente', inicio:v.fecha_inicio, fin:v.fecha_fin, dias:v.dias_solicitados, zona:per.zona, distrito:per.distrito, matched:per.matched }); } });
+  return evs;
+}
+function calEnFecha(evs, dateStr) { return evs.filter(e => e.inicio <= dateStr && dateStr <= e.fin); }
+// Conflictos por zona en un día: zonas con ≥2 personas distintas ausentes (no rechazadas)
+function calConflictos(eventosDia) {
+  const byZona = {};
+  eventosDia.filter(e => e.estado !== 'rechazado' && e.zona).forEach(e => { (byZona[e.zona] = byZona[e.zona] || new Set()).add(e.nombre); });
+  return Object.entries(byZona).filter(([z,s]) => s.size >= 2).map(([z,s]) => ({ zona:z, nombres:[...s] }));
+}
+// Otras ausencias de la misma zona que solapan un rango (para avisar al aprobar)
+function calConflictoRango(zona, inicio, fin, excluirNombre) {
+  if (!zona) return [];
+  return calEventos().filter(e => e.estado !== 'rechazado' && e.zona === zona && e.nombre !== excluirNombre && e.inicio <= fin && inicio <= e.fin);
+}
+function calTipoIcon(tipo, color, size) {
+  const sun = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.4 1.4M17.6 17.6L19 19M19 5l-1.4 1.4M6.4 17.6L5 19"/>';
+  const cal = '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/>';
+  return ic(tipo === 'vacacion' ? sun : cal, size||11, color, 2.2);
+}
+function calPill(e) {
+  const c = calZonaColor(e.zona);
+  let style = `background:${c.bg};color:${c.tx};border-left:3px solid ${c.bd};`;
+  if (e.estado === 'rechazado') style += 'opacity:.5;text-decoration:line-through;';
+  else if (e.estado === 'pendiente') style += `border:1px dashed ${c.bd};border-left:3px dashed ${c.bd};`;
+  const nom = escHtml((e.nombre||'').split(' ').slice(0,2).join(' '));
+  const title = `${escHtml(e.nombre||'')}${e.zona?' · '+escHtml(e.zona):' · (sin vincular)'} · ${e.tipo==='vacacion'?'Vacaciones':'Permiso'} (${e.estado})`;
+  return `<div title="${title}" style="${style}display:flex;align-items:center;gap:3px;font-size:10.5px;line-height:1.5;padding:1px 4px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${calTipoIcon(e.tipo,c.tx)}<span style="overflow:hidden;text-overflow:ellipsis;">${nom}</span></div>`;
 }
 
 function buildCalendarioAusencias() {
@@ -1467,47 +1524,181 @@ function buildCalendarioAusencias() {
   const diasEnMes = new Date(year, month+1, 0).getDate();
   const offset = new Date(year, month, 1).getDay();
   const hoyStr = new Date().toISOString().slice(0,10);
-
-  const permisos = canDo('ver_permisos') ? (S._permisos||[]) : [];
-  const vacaciones = canDo('ver_vacaciones') ? (S._vacaciones||[]) : [];
   const cargando = (canDo('ver_permisos') && S._permisosLoading) || (canDo('ver_vacaciones') && S._vacacionesLoading);
 
+  const todos = calEventos();
+  // Filtros de visualización
+  const fZona = S.calFiltroZona, fTipo = S.calFiltroTipo, fEstado = S.calFiltroEstado;
+  const visibles = todos.filter(e => {
+    if (fZona !== 'all' && (e.zona||'—') !== fZona) return false;
+    if (fTipo !== 'all' && e.tipo !== fTipo) return false;
+    if (fEstado === 'activos' && e.estado === 'rechazado') return false;
+    else if (fEstado !== 'all' && fEstado !== 'activos' && e.estado !== fEstado) return false;
+    return true;
+  });
+
+  // ---- Panel de administrador (resumen inteligente) ----
+  const canGest = canDo('gestionar_permisos') || canDo('gestionar_vacaciones');
+  const activos = todos.filter(e => e.estado !== 'rechazado');
+  const enFecha = ds => activos.filter(e => e.inicio <= ds && ds <= e.fin);
+  const ausentesHoy = new Set(enFecha(hoyStr).map(e => e.nombre));
+  const sem = []; for (let i=0;i<7;i++){ const d=new Date(); d.setDate(d.getDate()+i); sem.push(d.toISOString().slice(0,10)); }
+  const ausentesSemana = new Set(); sem.forEach(ds => enFecha(ds).forEach(e => ausentesSemana.add(e.nombre)));
+  // Conflictos del mes en curso
+  const diasConflicto = [];
+  for (let d=1; d<=diasEnMes; d++) {
+    const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const cf = calConflictos(enFecha(ds));
+    if (cf.length) diasConflicto.push({ dia:d, ds, zonas:cf });
+  }
+  const pendientes = todos.filter(e => e.estado === 'pendiente').length;
+  const sinVincular = [...new Set(activos.filter(e => !e.matched).map(e => e.nombre))];
+
+  const statCard = (valor, label, color, bg) => `<div style="flex:1;min-width:130px;background:${bg};border-radius:12px;padding:14px 16px;">
+    <div style="font-size:24px;font-weight:700;color:${color};line-height:1;">${valor}</div>
+    <div style="font-size:12px;color:#64748b;margin-top:4px;">${label}</div></div>`;
+
+  const panel = `<div style="display:flex;flex-wrap:wrap;gap:12px;">
+    ${statCard(ausentesHoy.size, 'Ausentes hoy', '#1d4ed8', '#eff6ff')}
+    ${statCard(ausentesSemana.size, 'Ausentes próximos 7 días', '#0f766e', '#f0fdfa')}
+    ${statCard(diasConflicto.length, `Días con posible descubierto en ${MESES_ES[month]}`, diasConflicto.length?'#b91c1c':'#15803d', diasConflicto.length?'#fef2f2':'#f0fdf4')}
+    ${canGest ? statCard(pendientes, 'Solicitudes pendientes', pendientes?'#b45309':'#15803d', pendientes?'#fffbeb':'#f0fdf4') : ''}
+  </div>`;
+
+  const alertaConflictos = diasConflicto.length ? `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:14px 16px;">
+    <div style="display:flex;align-items:center;gap:8px;font-weight:600;color:#b91c1c;font-size:13px;margin-bottom:8px;">${icons.warning.replace('currentColor','#b91c1c')} Posible descubierto de zona este mes</div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      ${diasConflicto.map(dc => `<div style="font-size:12.5px;color:#7f1d1d;"><strong>${dc.dia} de ${MESES_ES[month]}:</strong> ${dc.zonas.map(z => `${escHtml(z.zona)} (${z.nombres.map(escHtml).join(', ')})`).join(' · ')}</div>`).join('')}
+    </div></div>` : '';
+
+  const alertaDatos = (canGest && sinVincular.length) ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:12px 16px;font-size:12.5px;color:#92400e;">
+    <div style="display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:4px;">${icons.info.replace('currentColor','#92400e')} ${sinVincular.length} nombre(s) no coinciden con el personal registrado</div>
+    <div style="color:#a16207;">No se les puede calcular la zona para las alertas: ${sinVincular.slice(0,8).map(escHtml).join(', ')}${sinVincular.length>8?'…':''}. Revisa que el nombre coincida exacto con la ficha del personal.</div></div>` : '';
+
+  // ---- Filtros ----
+  const zonasOrden = (RAW.zonas||[]).slice().sort((a,b)=>String(a.cod).localeCompare(String(b.cod)));
+  const filtros = `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+    <select id="cal-filtro-zona" style="padding:7px 12px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:13px;background:white;color:#374151;">
+      <option value="all" ${fZona==='all'?'selected':''}>Todas las zonas</option>
+      ${zonasOrden.map(z=>`<option value="${escHtml(z.nombre)}" ${fZona===z.nombre?'selected':''}>${escHtml(z.nombre)}</option>`).join('')}
+    </select>
+    <select id="cal-filtro-tipo" style="padding:7px 12px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:13px;background:white;color:#374151;">
+      <option value="all" ${fTipo==='all'?'selected':''}>Permisos y vacaciones</option>
+      <option value="permiso" ${fTipo==='permiso'?'selected':''}>Solo permisos</option>
+      <option value="vacacion" ${fTipo==='vacacion'?'selected':''}>Solo vacaciones</option>
+    </select>
+    <select id="cal-filtro-estado" style="padding:7px 12px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:13px;background:white;color:#374151;">
+      <option value="activos" ${fEstado==='activos'?'selected':''}>Aprobados y pendientes</option>
+      <option value="aprobado" ${fEstado==='aprobado'?'selected':''}>Solo aprobados</option>
+      <option value="pendiente" ${fEstado==='pendiente'?'selected':''}>Solo pendientes</option>
+      <option value="all" ${fEstado==='all'?'selected':''}>Todos (incluye rechazados)</option>
+    </select>
+  </div>`;
+
+  // ---- Leyenda de zonas ----
+  const leyendaZonas = zonasOrden.map(z => { const c = calZonaColor(z.nombre); return `<div style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:3px;background:${c.bg};border-left:3px solid ${c.bd};display:inline-block;"></span>${escHtml(z.nombre)}</div>`; }).join('');
+
+  // ---- Grilla ----
   const celdas = [];
-  for (let i=0;i<offset;i++) celdas.push(`<div style="background:#fafbff;border-radius:8px;min-height:90px;"></div>`);
+  for (let i=0;i<offset;i++) celdas.push(`<div style="background:transparent;min-height:96px;"></div>`);
   for (let d=1; d<=diasEnMes; d++) {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const evP = permisos.filter(p => p.fecha_ausencia === dateStr);
-    const evV = vacaciones.filter(v => v.fecha_inicio && v.fecha_fin && v.fecha_inicio <= dateStr && dateStr <= v.fecha_fin);
+    const dow = (offset + d - 1) % 7;
+    const finde = dow === 0 || dow === 6;
+    const evDia = visibles.filter(e => e.inicio <= dateStr && dateStr <= e.fin);
+    const conflictos = calConflictos(enFecha(dateStr));
     const esHoy = dateStr === hoyStr;
-    const pills = evP.map(p => calPillHtml(p.nombre,'permiso',p.estado)).join('') + evV.map(v => calPillHtml(v.nombre,'vacacion',v.estado)).join('');
-    celdas.push(`<div style="background:white;border:1px solid ${esHoy?'#2563eb':'#e8eaf2'};border-radius:8px;min-height:90px;padding:6px;overflow-y:auto;">
-      <div style="font-size:11px;font-weight:700;color:${esHoy?'#2563eb':'#9ca3af'};margin-bottom:4px;">${d}</div>
-      ${pills}
+    const mostrar = evDia.slice(0, 3);
+    const extra = evDia.length - mostrar.length;
+    const bg = finde ? '#f8fafc' : 'white';
+    const borde = esHoy ? '#2563eb' : (conflictos.length ? '#fca5a5' : '#e8eaf2');
+    const badgeConf = conflictos.length ? `<span title="Posible descubierto: ${conflictos.map(z=>escHtml(z.zona)).join(', ')}" style="background:#fee2e2;color:#b91c1c;font-size:9px;font-weight:700;border-radius:10px;padding:1px 6px;display:inline-flex;align-items:center;gap:2px;">${icons.warning.replace('currentColor','#b91c1c').replace('width="18" height="18"','width="9" height="9"')}${conflictos.length}</span>` : '';
+    celdas.push(`<div data-cal-dia="${dateStr}" style="background:${bg};border:1px solid ${borde};${esHoy?'box-shadow:inset 0 0 0 1px #2563eb;':''}border-radius:8px;min-height:96px;padding:6px;cursor:pointer;transition:box-shadow .12s;overflow:hidden;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-size:11px;font-weight:700;color:${esHoy?'#2563eb':(finde?'#94a3b8':'#9ca3af')};">${d}</span>
+        ${badgeConf}
+      </div>
+      ${mostrar.map(calPill).join('')}
+      ${extra>0?`<div style="font-size:10px;color:#64748b;font-weight:600;padding:1px 4px;">+${extra} más</div>`:''}
     </div>`);
   }
 
   return `<div style="padding:24px;display:flex;flex-direction:column;gap:16px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
       <div>
         <h2 style="font-size:18px;font-weight:700;color:#1a2340;margin-bottom:4px;">Calendario de Ausencias</h2>
-        <p style="font-size:13px;color:#6b7280;">Permisos de Ausencia y Vacaciones combinados, vista mensual.</p>
+        <p style="font-size:13px;color:#6b7280;">Permisos y Vacaciones combinados. Color por zona · clic en un día para ver el detalle.</p>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <button id="btn-cal-prev" style="background:#f0f2f7;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;color:#374151;font-weight:600;">←</button>
-        <div style="font-size:14px;font-weight:700;color:#1a2340;min-width:160px;text-align:center;">${MESES_ES[month]} ${year}</div>
+        <div style="font-size:14px;font-weight:700;color:#1a2340;min-width:150px;text-align:center;">${MESES_ES[month]} ${year}</div>
         <button id="btn-cal-next" style="background:#f0f2f7;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;color:#374151;font-weight:600;">→</button>
         <button id="btn-cal-hoy" style="background:#eff4ff;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;color:#2563eb;font-weight:600;font-size:13px;">Hoy</button>
       </div>
     </div>
-    <div style="display:flex;gap:16px;font-size:12px;color:#374151;">
-      <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:3px;background:#eff4ff;border:1px solid #2563eb;display:inline-block;"></span> Permiso de Ausencia</div>
-      <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:3px;background:#fef3c7;border:1px solid #92400e;display:inline-block;"></span> Vacaciones</div>
-      <div style="color:#9ca3af;">(atenuado = pendiente · tachado = rechazado)</div>
+    ${panel}
+    ${alertaConflictos}
+    ${alertaDatos}
+    <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;">
+      ${filtros}
+      <div style="display:flex;gap:14px;font-size:11.5px;color:#374151;align-items:center;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:4px;">${calTipoIcon('permiso','#64748b',13)} Permiso</div>
+        <div style="display:flex;align-items:center;gap:4px;">${calTipoIcon('vacacion','#64748b',13)} Vacaciones</div>
+        <div style="color:#94a3b8;">borde punteado = pendiente</div>
+      </div>
     </div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;font-size:11.5px;color:#475569;padding:2px;">${leyendaZonas}</div>
     ${cargando ? `<div style="text-align:center;padding:20px;color:#6b7280;">Cargando…</div>` : ''}
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;">
-      ${DIAS_SEMANA_ES.map(d=>`<div style="text-align:center;font-size:11px;font-weight:700;color:#6b7280;padding:4px;">${d}</div>`).join('')}
+      ${DIAS_SEMANA_ES.map((d,i)=>`<div style="text-align:center;font-size:11px;font-weight:700;color:${i===0||i===6?'#94a3b8':'#6b7280'};padding:4px;">${d}</div>`).join('')}
       ${celdas.join('')}
+    </div>
+  </div>`;
+}
+
+function buildCalDiaPanel() {
+  const ds = S.calDiaSel; if (!ds) return '';
+  const [yy,mm,dd] = ds.split('-').map(Number);
+  const fechaLbl = `${dd} de ${MESES_ES[mm-1]} ${yy}`;
+  const evs = calEnFecha(calEventos(), ds).sort((a,b)=> (a.zona||'zzz').localeCompare(b.zona||'zzz') || a.nombre.localeCompare(b.nombre));
+  const conflictos = calConflictos(evs);
+  const zonasConflicto = new Set(conflictos.map(c=>c.zona));
+  const motivoLabel = { enfermedad:'Enfermedad', cita_medica:'Cita Médica', asuntos_familiares:'Asuntos Familiares', asuntos_oficiales:'Asuntos Oficiales', asuntos_personales:'Asuntos Personales' };
+  const estadoInfo = { pendiente:{ label:'Pendiente', bg:'#fef9c3', color:'#854d0e' }, aprobado:{ label:'Aprobado', bg:'#dcfce7', color:'#166534' }, rechazado:{ label:'Rechazado', bg:'#fee2e2', color:'#991b1b' } };
+  const fFmt = d => new Date(d+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'short'});
+
+  const filas = evs.length ? evs.map(e => {
+    const c = calZonaColor(e.zona);
+    const est = estadoInfo[e.estado] || { label:e.estado, bg:'#f3f4f6', color:'#374151' };
+    const conf = e.zona && zonasConflicto.has(e.zona) && e.estado !== 'rechazado';
+    const periodo = e.tipo==='vacacion' ? `${fFmt(e.inicio)} — ${fFmt(e.fin)}` : fFmt(e.inicio);
+    const sub = e.tipo==='vacacion' ? `Vacaciones · ${periodo}` : `Permiso${e.motivo?' · '+(motivoLabel[e.motivo]||e.motivo):''}${e.lugar?' · '+escHtml(e.lugar):''}`;
+    return `<div style="border:1px solid ${conf?'#fca5a5':'#eef0f5'};border-left:4px solid ${c.bd};border-radius:10px;padding:10px 12px;background:${conf?'#fef2f2':'white'};">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div style="font-weight:600;color:#1e3564;font-size:13.5px;display:flex;align-items:center;gap:5px;">${calTipoIcon(e.tipo,c.tx,13)} ${escHtml(e.nombre||'—')}</div>
+        <span style="background:${est.bg};color:${est.color};border-radius:20px;padding:2px 9px;font-size:11px;font-weight:600;">${est.label}</span>
+      </div>
+      <div style="font-size:11.5px;color:#64748b;margin-top:3px;">${escHtml(e.zona||'Sin zona vinculada')}${e.distrito?' · '+escHtml(e.distrito):''}</div>
+      <div style="font-size:11.5px;color:#6b7280;margin-top:2px;">${sub}</div>
+    </div>`;
+  }).join('') : `<div style="text-align:center;padding:40px 0;color:#9ca3af;font-size:13px;">Sin ausencias este día.</div>`;
+
+  const avisoConf = conflictos.length ? `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;font-size:12.5px;color:#b91c1c;margin-bottom:12px;">
+    <div style="display:flex;align-items:center;gap:6px;font-weight:600;">${icons.warning.replace('currentColor','#b91c1c')} Posible descubierto de zona</div>
+    <div style="color:#7f1d1d;margin-top:4px;">${conflictos.map(z=>`${escHtml(z.zona)}: ${z.nombres.map(escHtml).join(', ')}`).join(' · ')}</div></div>` : '';
+
+  return `<div id="cal-dia-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:300;display:flex;justify-content:flex-end;">
+    <div style="background:#f8f9fc;width:100%;max-width:420px;height:100%;box-shadow:-8px 0 30px rgba(0,0,0,.15);display:flex;flex-direction:column;animation:slideInRight .2s ease;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 22px;background:white;border-bottom:1px solid #eef0f5;">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:#1a2340;">${fechaLbl}</div>
+          <div style="font-size:12px;color:#6b7280;">${evs.length} ausencia(s) registrada(s)</div>
+        </div>
+        <button id="btn-cal-dia-close" style="background:#f0f2f7;border:none;border-radius:8px;width:34px;height:34px;cursor:pointer;color:#6b7280;font-size:18px;">×</button>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:10px;">
+        ${avisoConf}${filas}
+      </div>
     </div>
   </div>`;
 }
@@ -2578,6 +2769,11 @@ function bindEvents() {
     S.formPermiso={ nombre:'', fecha_solicitud:new Date().toISOString().slice(0,10), motivo:'enfermedad', lugar:'', fecha_ausencia:'', estado:'pendiente', observaciones:'' };
     render();
   }));
+  q('#permiso-pastor-cod', el => el.addEventListener('change', () => {
+    const p = RAW.pastores.find(x => x.cod === el.value);
+    const nomI = document.getElementById('permiso-nombre'), mailI = document.getElementById('permiso-email');
+    if (p) { if(nomI) nomI.value = p.nombre; if(mailI && p.email) mailI.value = p.email; }
+  }));
   q('#btn-permiso-close',  el => el.addEventListener('click', () => { S.showPermisoModal=false; render(); }));
   q('#btn-permiso-cancel', el => el.addEventListener('click', () => { S.showPermisoModal=false; render(); }));
   q('#permiso-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el){S.showPermisoModal=false;render();} }));
@@ -2609,6 +2805,15 @@ function bindEvents() {
   }));
   async function decidirPermiso(id, nuevoEstado) {
     const p = (S._permisos||[]).find(p=>p.id===id); if(!p) return;
+    if (nuevoEstado === 'aprobado') {
+      const per = calPersona(p);
+      const solapan = calConflictoRango(per.zona, p.fecha_ausencia, p.fecha_ausencia, p.nombre);
+      if (solapan.length) {
+        const det = solapan.map(e => `• ${e.nombre} (${e.tipo==='vacacion'?'vacaciones':'permiso'}, ${e.inicio}${e.fin!==e.inicio?' a '+e.fin:''})`).join('\n');
+        const ok = confirm(`Atención: en la zona ${per.zona} ya hay ${solapan.length} persona(s) ausente(s) el ${p.fecha_ausencia}:\n\n${det}\n\nAprobar podría dejar la zona sin cobertura. ¿Aprobar de todas formas?`);
+        if (!ok) return;
+      }
+    }
     const { error } = await S.sbClient.from('permisos_ausencia').update({ estado: nuevoEstado }).eq('id', id);
     if (error) { showToast('Error: '+error.message,'error'); return; }
     S._permisos = (S._permisos||[]).map(x => x.id===id ? {...x, estado: nuevoEstado} : x);
@@ -2767,6 +2972,13 @@ function bindEvents() {
           if (!ok) return;
         }
       }
+      const per = calPersona(v);
+      const solapan = calConflictoRango(per.zona, v.fecha_inicio, v.fecha_fin, v.nombre);
+      if (solapan.length) {
+        const det = solapan.map(e => `• ${e.nombre} (${e.tipo==='vacacion'?'vacaciones':'permiso'}, ${e.inicio}${e.fin!==e.inicio?' a '+e.fin:''})`).join('\n');
+        const ok = confirm(`Atención: en la zona ${per.zona} ya hay ${solapan.length} persona(s) ausente(s) en fechas que solapan con esta solicitud:\n\n${det}\n\nAprobar podría dejar la zona sin cobertura. ¿Aprobar de todas formas?`);
+        if (!ok) return;
+      }
     }
     const { error } = await S.sbClient.from('vacaciones_solicitudes').update({ estado: nuevoEstado }).eq('id', id);
     if (error) { showToast('Error: '+error.message,'error'); return; }
@@ -2828,6 +3040,14 @@ function bindEvents() {
   q('#btn-cal-hoy', el => el.addEventListener('click', () => {
     S.calMonth = new Date().getMonth(); S.calYear = new Date().getFullYear(); render();
   }));
+  q('#cal-filtro-zona',   el => el.addEventListener('change', () => { S.calFiltroZona = el.value; render(); }));
+  q('#cal-filtro-tipo',   el => el.addEventListener('change', () => { S.calFiltroTipo = el.value; render(); }));
+  q('#cal-filtro-estado', el => el.addEventListener('change', () => { S.calFiltroEstado = el.value; render(); }));
+  document.querySelectorAll('[data-cal-dia]').forEach(el => el.addEventListener('click', () => {
+    S.calDiaSel = el.dataset.calDia; S.showCalDiaPanel = true; render();
+  }));
+  q('#btn-cal-dia-close', el => el.addEventListener('click', () => { S.showCalDiaPanel=false; S.calDiaSel=null; render(); }));
+  q('#cal-dia-bg', el => el.addEventListener('click', e => { if(e.target===el){ S.showCalDiaPanel=false; S.calDiaSel=null; render(); } }));
 
   /* ORGANIZACIÓN DE IGLESIAS */
   if (S.view==='organizacion' && !S._organizaciones && !S._organizacionesLoading) { S._organizacionesLoading=true; loadOrganizaciones(); }

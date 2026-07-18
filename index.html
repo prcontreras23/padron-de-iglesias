@@ -152,6 +152,15 @@ const icons = {
   note:    ic('<path d="M14 3v4a1 1 0 001 1h4"/><path d="M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2z"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/>'),
   chevronDown: ic('<polyline points="6 9 12 15 18 9"/>',14),
   upload:  ic('<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>'),
+  check:   ic('<polyline points="20 6 9 17 4 12"/>'),
+  printer: ic('<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>'),
+  refresh: ic('<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>'),
+  warning: ic('<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'),
+  key:     ic('<circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2L11.6 11.4"/><path d="M15.5 7.5l3 3L22 7l-3-3"/>'),
+  clipboard: ic('<path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>'),
+  barChart: ic('<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>'),
+  church:  ic('<path d="M12 2v3"/><path d="M10.5 3.5h3"/><path d="M4 21V10l8-5 8 5v11"/><path d="M9 21v-6a3 3 0 016 0v6"/>'),
+  info:    ic('<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',13),
 };
 
 /* =====================================================================
@@ -265,7 +274,7 @@ function buildLoginScreen() {
   if (S.loginResetSent) return `
   <div style="min-height:100vh;background:linear-gradient(135deg,#eff4ff 0%,#ffffff 55%,#f5f3ff 100%);display:flex;align-items:center;justify-content:center;padding:20px;">
     <div style="background:white;border-radius:20px;padding:40px;width:100%;max-width:400px;box-shadow:0 24px 80px rgba(0,0,0,.3);text-align:center;">
-      <div style="font-size:48px;margin-bottom:16px;">📧</div>
+      <div style="width:56px;height:56px;margin:0 auto 16px;border-radius:14px;background:#eff4ff;color:#2563eb;display:flex;align-items:center;justify-content:center;">${icons.mail}</div>
       <div style="font-size:18px;font-weight:700;color:#1a2340;margin-bottom:8px;">Revisa tu correo</div>
       <p style="font-size:14px;color:#6b7280;line-height:1.6;">Te enviamos un enlace para restablecer tu contraseña a <strong>${escHtml(S.loginEmail)}</strong>.<br><br>Haz clic en el enlace del correo para continuar.</p>
       <button id="btn-back-login" style="margin-top:24px;padding:10px 24px;border-radius:8px;border:1.5px solid #e8eaf2;background:white;color:#6b7280;font-size:14px;cursor:pointer;">← Volver al login</button>
@@ -276,7 +285,7 @@ function buildLoginScreen() {
   <div style="min-height:100vh;background:linear-gradient(135deg,#eff4ff 0%,#ffffff 55%,#f5f3ff 100%);display:flex;align-items:center;justify-content:center;padding:20px;">
     <div style="background:white;border-radius:20px;padding:40px;width:100%;max-width:400px;box-shadow:0 24px 80px rgba(0,0,0,.3);animation:fadeUp .3s ease;">
       <div style="text-align:center;margin-bottom:28px;">
-        <div style="font-size:36px;margin-bottom:8px;">🔑</div>
+        <div style="width:52px;height:52px;margin:0 auto 8px;border-radius:14px;background:#eff4ff;color:#2563eb;display:flex;align-items:center;justify-content:center;">${icons.key}</div>
         <div style="font-size:18px;font-weight:700;color:#1a2340;">Nueva contraseña</div>
       </div>
       ${S.loginError ? `<div style="background:#fee2e2;color:#b91c1c;border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px;">${escHtml(S.loginError)}</div>` : ''}
@@ -296,7 +305,7 @@ function buildLoginScreen() {
   <div style="min-height:100vh;background:linear-gradient(135deg,#eff4ff 0%,#ffffff 55%,#f5f3ff 100%);display:flex;align-items:center;justify-content:center;padding:20px;">
     <div style="background:white;border-radius:20px;padding:40px;width:100%;max-width:400px;box-shadow:0 24px 80px rgba(0,0,0,.3);animation:fadeUp .3s ease;">
       <div style="text-align:center;margin-bottom:28px;">
-        <div style="font-size:36px;margin-bottom:8px;">🔐</div>
+        <div style="width:52px;height:52px;margin:0 auto 8px;border-radius:14px;background:#eff4ff;color:#2563eb;display:flex;align-items:center;justify-content:center;">${icons.lock}</div>
         <div style="font-size:18px;font-weight:700;color:#1a2340;">Restablecer contraseña</div>
         <div style="font-size:13px;color:#9ca3af;margin-top:4px;">Te enviaremos un enlace por correo</div>
       </div>
@@ -685,7 +694,7 @@ function buildDashboard() {
       : '';
     return `<div data-alerta="${action}" style="padding:12px 16px;background:${bg};border-radius:10px;cursor:pointer;">
       <div style="display:flex;align-items:center;gap:12px;">
-        <span style="width:20px;height:20px;border-radius:50%;background:${color};color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${icon}</span>
+        <span style="width:22px;height:22px;border-radius:50%;background:${color};color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${icon.replace('currentColor','white')}</span>
         <span style="font-size:13px;font-weight:600;color:${color};flex:1;">${title}</span>
         <span style="font-size:12px;color:${color};">Ver &rsaquo;</span>
       </div>
@@ -694,10 +703,10 @@ function buildDashboard() {
   }
 
   const alertItems = [];
-  if (sinRevision>0) alertItems.push(buildAlertCard('⚠',sinRevision+' iglesia'+(sinRevision!==1?'s':'')+' pendiente'+(sinRevision!==1?'s':'')+' de revisión','#991b1b','#fee2e2','iglesias',igPendientes.map(i=>i.nombre)));
-  if (sinPastor>0) alertItems.push(buildAlertCard('!',sinPastor+' iglesia'+(sinPastor!==1?'s':'')+' sin pastor asignado','#854d0e','#fef9c3','iglesias-sin-pastor',igSinPastor.map(i=>i.nombre)));
-  if (sinDistrito>0) alertItems.push(buildAlertCard('!',sinDistrito+' pastor'+(sinDistrito!==1?'es':'')+' sin distrito asignado','#9a3412','#ffedd5','pastores',pastSinDistrito.map(p=>p.nombre)));
-  if (distSinIg>0) alertItems.push(buildAlertCard('i',distSinIg+' distrito'+(distSinIg!==1?'s':'')+' sin iglesias registradas','#1e40af','#dbeafe','distritos',distsSinIg.map(d=>d.nombre)));
+  if (sinRevision>0) alertItems.push(buildAlertCard(icons.warning,sinRevision+' iglesia'+(sinRevision!==1?'s':'')+' pendiente'+(sinRevision!==1?'s':'')+' de revisión','#991b1b','#fee2e2','iglesias',igPendientes.map(i=>i.nombre)));
+  if (sinPastor>0) alertItems.push(buildAlertCard(icons.warning,sinPastor+' iglesia'+(sinPastor!==1?'s':'')+' sin pastor asignado','#854d0e','#fef9c3','iglesias-sin-pastor',igSinPastor.map(i=>i.nombre)));
+  if (sinDistrito>0) alertItems.push(buildAlertCard(icons.warning,sinDistrito+' pastor'+(sinDistrito!==1?'es':'')+' sin distrito asignado','#9a3412','#ffedd5','pastores',pastSinDistrito.map(p=>p.nombre)));
+  if (distSinIg>0) alertItems.push(buildAlertCard(icons.info,distSinIg+' distrito'+(distSinIg!==1?'s':'')+' sin iglesias registradas','#1e40af','#dbeafe','distritos',distsSinIg.map(d=>d.nombre)));
   const asociados  = pastoresCampo.filter(p=>p.rol==='asociado'||p.rol==='plantador').length;
   const oficina    = RAW.pastores.filter(p=>p.rol==='departamental'||p.rol==='administrador'||p.rol==='oficina').length;
   const totalPastoresCampo = pastoresCampo.length;
@@ -869,7 +878,7 @@ function buildIglesias() {
       <span style="font-size:12px;opacity:.7;">Cambiar tipo a:</span>
       <button id="btn-bulk-ig-iglesia" style="background:#1e40af;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Iglesia</button>
       <button id="btn-bulk-ig-grupo" style="background:#92400e;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Grupo</button>
-      <button id="btn-bulk-ig-clear" style="background:rgba(255,255,255,.15);color:white;border:none;border-radius:7px;padding:7px 12px;font-size:13px;cursor:pointer;">✕ Cancelar</button>
+      <button id="btn-bulk-ig-clear" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);color:white;border:none;border-radius:7px;padding:7px 12px;font-size:13px;cursor:pointer;">${icons.x.replace('currentColor','white')} Cancelar</button>
     </div>` : '';
 
   const rows = slice.map(ig => {
@@ -877,7 +886,7 @@ function buildIglesias() {
     const driveLink = ig.carpeta_drive ? `<a href="${escHtml(ig.carpeta_drive)}" target="_blank" title="Abrir carpeta Drive" style="color:#1a73e8;display:flex;align-items:center;">${icons.link}</a>` : '';
     const tipoColor = ig.tipo==='grupo'?'#fef3c7':ig.tipo==='pendiente_revision'?'#fee2e2':'#dbeafe';
     const tipoTextColor = ig.tipo==='grupo'?'#92400e':ig.tipo==='pendiente_revision'?'#991b1b':'#1e40af';
-    const tipoLabel = ig.tipo==='pendiente_revision'?'⚠ Revisar':ig.tipo||'iglesia';
+    const tipoLabel = ig.tipo==='pendiente_revision'?'Revisar':ig.tipo||'iglesia';
     const igChecked = selIg.has(ig.cod);
 return `<tr style="border-bottom:1px solid #f0f2f7;background:${igChecked?'#eef2ff':''}" onmouseover="this.style.background='${igChecked?'#e0e7ff':'#f8f9fc'}'" onmouseout="this.style.background='${igChecked?'#eef2ff':''}'">
       <td style="padding:8px 8px 8px 16px;"><input type="checkbox" data-chk-iglesia="${escHtml(ig.cod)}" ${igChecked?'checked':''} style="width:15px;height:15px;cursor:pointer;accent-color:#2563eb;" /></td>
@@ -954,7 +963,7 @@ function buildPastores() {
       <span style="font-size:12px;opacity:.7;">Cambiar estado a:</span>
       <button id="btn-bulk-pastor-ordenado" style="background:#166534;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Ordenado</button>
       <button id="btn-bulk-pastor-licenciado" style="background:#991b1b;color:white;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;">Licenciado</button>
-      <button id="btn-bulk-pastor-clear" style="background:rgba(255,255,255,.15);color:white;border:none;border-radius:7px;padding:7px 12px;font-size:13px;cursor:pointer;">✕ Cancelar</button>
+      <button id="btn-bulk-pastor-clear" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);color:white;border:none;border-radius:7px;padding:7px 12px;font-size:13px;cursor:pointer;">${icons.x.replace('currentColor','white')} Cancelar</button>
     </div>` : '';
 
   const rolCfg = {
@@ -985,7 +994,7 @@ function buildPastores() {
           ${!esOficina&&p.distrito?`<span style="font-size:11px;color:#9ca3af;">${escHtml(p.distrito)}</span>`:''}
           ${!esOficina?`<span style="background:#eff4ff;color:#2563eb;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:600;">${igByPastor[p.nombre]||0} igl.</span>`:''}
           ${ppNombre?`<span style="font-size:11px;color:#6b7280;">→ ${escHtml(ppNombre)}</span>`:''}
-          ${igNombre?`<span style="font-size:11px;color:#6b7280;">⛪ ${escHtml(igNombre)}</span>`:''}
+          ${igNombre?`<span style="font-size:11px;color:#6b7280;display:inline-flex;align-items:center;gap:3px;">${icons.church} ${escHtml(igNombre)}</span>`:''}
         </div>
         ${p.telefono?`<div style="font-size:12px;color:#9ca3af;margin-top:3px;display:flex;align-items:center;gap:4px;">${icons.phone} ${escHtml(p.telefono)}</div>`:''}
         ${p.email?`<div style="font-size:12px;color:#9ca3af;margin-top:1px;display:flex;align-items:center;gap:4px;">${icons.mail} ${escHtml(p.email)}</div>`:''}
@@ -1025,7 +1034,7 @@ function buildSolicitudes() {
     contenido = `<div style="text-align:center;padding:60px;color:#6b7280;">Cargando solicitudes…</div>`;
   } else if (!items.length) {
     contenido = `<div style="text-align:center;padding:60px;">
-      <div style="font-size:40px;margin-bottom:12px;">📋</div>
+      <div style="width:56px;height:56px;margin:0 auto 12px;border-radius:14px;background:#eff4ff;color:#2563eb;display:flex;align-items:center;justify-content:center;">${icons.clipboard}</div>
       <div style="color:#6b7280;font-size:15px;">No hay solicitudes aún.</div>
       <div style="margin-top:16px;"><a href="/nueva-congregacion" target="_blank" style="color:#2563eb;font-weight:600;font-size:14px;">Compartir enlace del formulario →</a></div>
     </div>`;
@@ -1052,9 +1061,9 @@ function buildSolicitudes() {
             };
             const enlace = enlaceMap[s.estado];
             const btnCopiar = enlace
-              ? `<button onclick="navigator.clipboard.writeText(location.origin+'${enlace}').then(()=>{ this.textContent='✓ Copiado'; setTimeout(()=>this.textContent='🔗 Copiar enlace',2000) })" style="background:#eff4ff;color:#2563eb;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;">🔗 Copiar enlace</button>`
+              ? `<button onclick="navigator.clipboard.writeText(location.origin+'${enlace}').then(()=>{ this.textContent='Copiado'; setTimeout(()=>this.textContent='Copiar enlace',2000) })" style="background:#eff4ff;color:#2563eb;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;">Copiar enlace</button>`
               : '';
-            const btnEliminar = `<button data-del-sol="${escHtml(s.id)}" data-del-sol-nombre="${escHtml(s.nombre_congregacion)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-left:4px;">✕</button>`;
+            const btnEliminar = `<button data-del-sol="${escHtml(s.id)}" data-del-sol-nombre="${escHtml(s.nombre_congregacion)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-left:4px;display:inline-flex;align-items:center;">${icons.x.replace('currentColor','#991b1b')}</button>`;
             return `<tr style="border-bottom:1px solid #f0f2f7;">
               <td style="padding:12px 16px;font-weight:600;color:#1e3564;">${escHtml(s.nombre_congregacion)}</td>
               <td style="padding:12px 16px;color:#374151;">${escHtml(s.nombre_pastor)}</td>
@@ -1077,8 +1086,8 @@ function buildSolicitudes() {
         <p style="font-size:13px;color:#6b7280;">Seguimiento del flujo de aprobación de nuevas congregaciones.</p>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <a href="/nueva-congregacion" target="_blank" style="display:flex;align-items:center;gap:6px;background:#2563eb;color:white;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;text-decoration:none;">🔗 Compartir enlace al pastor</a>
-        <button id="btn-reload-solicitudes" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">↻ Actualizar</button>
+        <a href="/nueva-congregacion" target="_blank" style="display:flex;align-items:center;gap:6px;background:#2563eb;color:white;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;text-decoration:none;">${icons.link.replace('currentColor','white')} Compartir enlace al pastor</a>
+        <button id="btn-reload-solicitudes" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">${icons.refresh.replace('currentColor','#374151')} Actualizar</button>
       </div>
     </div>
     <div style="background:white;border-radius:14px;border:1px solid #e8eaf2;overflow:hidden;">
@@ -1101,7 +1110,7 @@ function buildPermisos() {
   if (loading) {
     contenido = `<div style="text-align:center;padding:60px;color:#6b7280;">Cargando permisos…</div>`;
   } else if (!items.length) {
-    contenido = `<div style="text-align:center;padding:60px;"><div style="font-size:40px;margin-bottom:12px;">📋</div><div style="color:#6b7280;font-size:15px;">No hay permisos registrados.</div></div>`;
+    contenido = `<div style="text-align:center;padding:60px;"><div style="width:56px;height:56px;margin:0 auto 12px;border-radius:14px;background:#eff4ff;color:#2563eb;display:flex;align-items:center;justify-content:center;">${icons.clipboard}</div><div style="color:#6b7280;font-size:15px;">No hay permisos registrados.</div></div>`;
   } else {
     contenido = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;">
       <thead><tr style="background:#f8f9fc;">
@@ -1116,11 +1125,11 @@ function buildPermisos() {
         const est = estadoInfo[p.estado] || { label:p.estado, bg:'#f3f4f6', color:'#374151' };
         const fechaAus = p.fecha_ausencia ? new Date(p.fecha_ausencia+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'}) : '—';
         const canGest = canDo('gestionar_permisos');
-        const btnAprobar  = canGest && p.estado !== 'aprobado'  ? `<button data-aprobar-permiso="${escHtml(p.id)}" style="background:#dcfce7;color:#166534;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">✓ Aprobar</button>` : '';
-        const btnRechazar = canGest && p.estado !== 'rechazado' ? `<button data-rechazar-permiso="${escHtml(p.id)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">✕ Rechazar</button>` : '';
-        const btnPrint = `<button data-print-permiso="${escHtml(p.id)}" style="background:#eff4ff;color:#2563eb;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">🖨️ Imprimir</button>`;
-        const btnEdit = canGest ? `<button data-edit-permiso="${escHtml(p.id)}" style="background:#f3f4f6;color:#374151;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">✎</button>` : '';
-        const btnDel  = canGest ? `<button data-del-permiso="${escHtml(p.id)}" data-del-permiso-nombre="${escHtml(p.nombre)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;">✕</button>` : '';
+        const btnAprobar  = canGest && p.estado !== 'aprobado'  ? `<button data-aprobar-permiso="${escHtml(p.id)}" style="background:#dcfce7;color:#166534;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">${icons.check.replace('currentColor','#166534')} Aprobar</button>` : '';
+        const btnRechazar = canGest && p.estado !== 'rechazado' ? `<button data-rechazar-permiso="${escHtml(p.id)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">${icons.x.replace('currentColor','#991b1b')} Rechazar</button>` : '';
+        const btnPrint = `<button data-print-permiso="${escHtml(p.id)}" style="background:#eff4ff;color:#2563eb;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">${icons.printer.replace('currentColor','#2563eb')} Imprimir</button>`;
+        const btnEdit = canGest ? `<button data-edit-permiso="${escHtml(p.id)}" style="background:#f3f4f6;color:#374151;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;display:inline-flex;align-items:center;">${icons.edit.replace('currentColor','#374151')}</button>` : '';
+        const btnDel  = canGest ? `<button data-del-permiso="${escHtml(p.id)}" data-del-permiso-nombre="${escHtml(p.nombre)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;">${icons.x.replace('currentColor','#991b1b')}</button>` : '';
         return `<tr style="border-bottom:1px solid #f0f2f7;">
           <td style="padding:12px 16px;font-weight:600;color:#1e3564;">${escHtml(p.nombre)}</td>
           <td style="padding:12px 16px;color:#374151;">${motivoLabel[p.motivo]||p.motivo}</td>
@@ -1139,9 +1148,9 @@ function buildPermisos() {
         <p style="font-size:13px;color:#6b7280;">Registro de permisos de ausencia del personal.</p>
       </div>
       <div style="display:flex;gap:10px;">
-        <a href="/permiso-ausencia" target="_blank" style="display:flex;align-items:center;gap:6px;background:#2563eb;color:white;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;text-decoration:none;">🔗 Compartir enlace al pastor</a>
+        <a href="/permiso-ausencia" target="_blank" style="display:flex;align-items:center;gap:6px;background:#2563eb;color:white;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;text-decoration:none;">${icons.link.replace('currentColor','white')} Compartir enlace al pastor</a>
         ${canDo('gestionar_permisos') ? `<button id="btn-add-permiso" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">${icons.plus} Registrar manualmente</button>` : ''}
-        <button id="btn-reload-permisos" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">↻ Actualizar</button>
+        <button id="btn-reload-permisos" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">${icons.refresh.replace('currentColor','#374151')} Actualizar</button>
       </div>
     </div>
     <div style="background:white;border-radius:14px;border:1px solid #e8eaf2;overflow:hidden;">${contenido}</div>
@@ -1319,7 +1328,7 @@ function buildVacaciones() {
   if (loading) {
     contenido = `<div style="text-align:center;padding:60px;color:#6b7280;">Cargando vacaciones…</div>`;
   } else if (!items.length) {
-    contenido = `<div style="text-align:center;padding:60px;"><div style="font-size:40px;margin-bottom:12px;">☀️</div><div style="color:#6b7280;font-size:15px;">No hay solicitudes de vacaciones registradas.</div></div>`;
+    contenido = `<div style="text-align:center;padding:60px;"><div style="width:56px;height:56px;margin:0 auto 12px;border-radius:14px;background:#fef3c7;color:#92400e;display:flex;align-items:center;justify-content:center;">${icons.sun}</div><div style="color:#6b7280;font-size:15px;">No hay solicitudes de vacaciones registradas.</div></div>`;
   } else {
     contenido = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;">
       <thead><tr style="background:#f8f9fc;">
@@ -1335,13 +1344,13 @@ function buildVacaciones() {
         const fFmt = d => d ? new Date(d+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'}) : '—';
         const canGest = canDo('gestionar_vacaciones');
         const bal = getVacBalance(v.pastor_cod);
-        const btnAprobar  = canGest && v.estado !== 'aprobado'  ? `<button data-aprobar-vacacion="${escHtml(v.id)}" style="background:#dcfce7;color:#166534;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">✓ Aprobar</button>` : '';
-        const btnRechazar = canGest && v.estado !== 'rechazado' ? `<button data-rechazar-vacacion="${escHtml(v.id)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">✕ Rechazar</button>` : '';
-        const btnPrint = `<button data-print-vacacion="${escHtml(v.id)}" style="background:#eff4ff;color:#2563eb;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">🖨️ Imprimir</button>`;
+        const btnAprobar  = canGest && v.estado !== 'aprobado'  ? `<button data-aprobar-vacacion="${escHtml(v.id)}" style="background:#dcfce7;color:#166534;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">${icons.check.replace('currentColor','#166534')} Aprobar</button>` : '';
+        const btnRechazar = canGest && v.estado !== 'rechazado' ? `<button data-rechazar-vacacion="${escHtml(v.id)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">${icons.x.replace('currentColor','#991b1b')} Rechazar</button>` : '';
+        const btnPrint = `<button data-print-vacacion="${escHtml(v.id)}" style="background:#eff4ff;color:#2563eb;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">${icons.printer.replace('currentColor','#2563eb')} Imprimir</button>`;
         const puedeReubicar = canGest && v.estado !== 'rechazado' && v.fecha_fin >= hoyVacStr;
-        const btnReubicar = puedeReubicar ? `<button data-reubicar-vacacion="${escHtml(v.id)}" style="background:#fef3c7;color:#92400e;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">↻ Reubicar</button>` : '';
-        const btnEdit = canGest ? `<button data-edit-vacacion="${escHtml(v.id)}" style="background:#f3f4f6;color:#374151;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;">✎</button>` : '';
-        const btnDel  = canGest ? `<button data-del-vacacion="${escHtml(v.id)}" data-del-vacacion-nombre="${escHtml(v.nombre)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;">✕</button>` : '';
+        const btnReubicar = puedeReubicar ? `<button data-reubicar-vacacion="${escHtml(v.id)}" style="background:#fef3c7;color:#92400e;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;margin-right:4px;">${icons.refresh.replace('currentColor','#92400e')} Reubicar</button>` : '';
+        const btnEdit = canGest ? `<button data-edit-vacacion="${escHtml(v.id)}" style="background:#f3f4f6;color:#374151;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;margin-right:4px;display:inline-flex;align-items:center;">${icons.edit.replace('currentColor','#374151')}</button>` : '';
+        const btnDel  = canGest ? `<button data-del-vacacion="${escHtml(v.id)}" data-del-vacacion-nombre="${escHtml(v.nombre)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;">${icons.x.replace('currentColor','#991b1b')}</button>` : '';
         return `<tr style="border-bottom:1px solid #f0f2f7;">
           <td style="padding:12px 16px;font-weight:600;color:#1e3564;">${escHtml(v.nombre)}</td>
           <td style="padding:12px 16px;color:#6b7280;">${fFmt(v.fecha_inicio)} — ${fFmt(v.fecha_fin)}</td>
@@ -1360,9 +1369,9 @@ function buildVacaciones() {
         <p style="font-size:13px;color:#6b7280;">Solicitudes de vacaciones del personal, sujetas a aprobación de Presidencia y Secretaría Ejecutiva. Acumulación anual según antigüedad (Reglamento CB 20 05): 14 días (0-5 años) · 21 días (6-9 años) · 28 días (+9 años). No aplica arrastre de un año a otro.</p>
       </div>
       <div style="display:flex;gap:10px;">
-        <a href="/vacaciones" target="_blank" style="display:flex;align-items:center;gap:6px;background:#2563eb;color:white;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;text-decoration:none;">🔗 Compartir enlace al pastor</a>
+        <a href="/vacaciones" target="_blank" style="display:flex;align-items:center;gap:6px;background:#2563eb;color:white;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;text-decoration:none;">${icons.link.replace('currentColor','white')} Compartir enlace al pastor</a>
         ${canDo('gestionar_vacaciones') ? `<button id="btn-add-vacacion" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">${icons.plus} Registrar manualmente</button>` : ''}
-        <button id="btn-reload-vacaciones" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">↻ Actualizar</button>
+        <button id="btn-reload-vacaciones" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">${icons.refresh.replace('currentColor','#374151')} Actualizar</button>
       </div>
     </div>
     <div style="background:white;border-radius:14px;border:1px solid #e8eaf2;overflow:hidden;">${contenido}</div>
@@ -1384,13 +1393,13 @@ function buildVacacionModal() {
   let balanceLine = '';
   if (f.pastor_cod) {
     if (!bal || bal.dias_asignados_anio == null) {
-      balanceLine = `<div style="font-size:13px;color:#ca8a04;background:#fef9c3;border-radius:8px;padding:10px 14px;">⚠️ Este pastor no tiene fecha de ingreso registrada — no se puede calcular su balance de vacaciones. Agrégala en la ficha del pastor.</div>`;
+      balanceLine = `<div style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:#ca8a04;background:#fef9c3;border-radius:8px;padding:10px 14px;">${icons.warning.replace('currentColor','#ca8a04')}<span>Este pastor no tiene fecha de ingreso registrada — no se puede calcular su balance de vacaciones. Agrégala en la ficha del pastor.</span></div>`;
     } else {
       const disp = bal.dias_asignados_anio - bal.dias_tomados_anio;
       const excede = dias > 0 && dias > disp;
       balanceLine = `<div style="font-size:13px;color:${excede?'#991b1b':'#374151'};background:${excede?'#fee2e2':'#f8f9fc'};border-radius:8px;padding:10px 14px;">
         Disponibles este año: <strong>${disp}</strong> de ${bal.dias_asignados_anio} días (${bal.dias_tomados_anio} ya tomados).
-        ${excede ? '<br>⚠️ Esta solicitud excede los días disponibles.' : ''}
+        ${excede ? '<br>Esta solicitud excede los días disponibles.' : ''}
       </div>`;
     }
   }
@@ -1446,7 +1455,7 @@ function calPillHtml(nombre, tipo, estado) {
   let extra = '';
   if (estado === 'rechazado') extra = 'opacity:.45;text-decoration:line-through;';
   else if (estado === 'pendiente') extra = `opacity:.8;box-shadow:inset 0 0 0 1px ${c.color}66;`;
-  const icono = tipo === 'permiso' ? '🗓️' : '☀️';
+  const icono = tipo === 'permiso' ? icons.calendar.replace('currentColor','#2563eb') : icons.sun.replace('currentColor','#92400e');
   const primerNombre = escHtml((nombre||'').split(',')[0]);
   return `<div title="${escHtml(nombre||'')}" style="background:${c.bg};color:${c.color};${extra}font-size:10px;line-height:1.4;padding:1px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${icono} ${primerNombre}</div>`;
 }
@@ -1490,8 +1499,8 @@ function buildCalendarioAusencias() {
       </div>
     </div>
     <div style="display:flex;gap:16px;font-size:12px;color:#374151;">
-      <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:3px;background:#eff4ff;border:1px solid #2563eb;display:inline-block;"></span> 🗓️ Permiso de Ausencia</div>
-      <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:3px;background:#fef3c7;border:1px solid #92400e;display:inline-block;"></span> ☀️ Vacaciones</div>
+      <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:3px;background:#eff4ff;border:1px solid #2563eb;display:inline-block;"></span> Permiso de Ausencia</div>
+      <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:3px;background:#fef3c7;border:1px solid #92400e;display:inline-block;"></span> Vacaciones</div>
       <div style="color:#9ca3af;">(atenuado = pendiente · tachado = rechazado)</div>
     </div>
     ${cargando ? `<div style="text-align:center;padding:20px;color:#6b7280;">Cargando…</div>` : ''}
@@ -1549,12 +1558,12 @@ function buildOrganizacionCard(o, canGest) {
   const completado = doneCount === 5;
   const actual = fases.find(f => !f.done);
   const badge = completado
-    ? `<span style="background:#dcfce7;color:#166534;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:600;">✓ Completado</span>`
+    ? `<span style="background:#dcfce7;color:#166534;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px;">${icons.check.replace('currentColor','#166534')} Completado</span>`
     : `<span style="background:#fef9c3;color:#854d0e;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:600;">Fase ${actual.n}: ${actual.label}</span>`;
   const barSegs = fases.map(f => `<div style="flex:1;height:6px;border-radius:3px;background:${f.done?'#2563eb':'#e8eaf2'};"></div>`).join('');
   const quickBtn = (!completado && canGest) ? `<button data-org-avanzar="${escHtml(o.id)}" style="background:#2563eb;color:white;border:none;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:500;">Marcar Fase ${actual.n} completada →</button>` : '';
   const gestBtn = `<button data-org-edit="${escHtml(o.id)}" style="background:#f3f4f6;color:#374151;border:none;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:500;">${canGest?'Gestionar':'Ver'}</button>`;
-  const delBtn = canGest ? `<button data-org-del="${escHtml(o.id)}" data-org-del-nombre="${escHtml(o.iglesia_nombre)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;font-weight:500;">✕</button>` : '';
+  const delBtn = canGest ? `<button data-org-del="${escHtml(o.id)}" data-org-del-nombre="${escHtml(o.iglesia_nombre)}" style="background:#fee2e2;color:#991b1b;border:none;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;">${icons.x.replace('currentColor','#991b1b')}</button>` : '';
   const fechaCer = o.fecha_ceremonia ? new Date(o.fecha_ceremonia+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'}) : '';
   return `<div style="background:white;border-radius:14px;padding:18px 20px;box-shadow:0 1px 4px rgba(16,24,40,.06);border:1px solid #e8eaf2;display:flex;flex-direction:column;gap:10px;">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
@@ -1585,7 +1594,7 @@ function buildOrganizacion() {
   if (loading) {
     contenido = `<div style="text-align:center;padding:60px;color:#6b7280;">Cargando…</div>`;
   } else if (!list.length) {
-    contenido = `<div style="text-align:center;padding:60px;"><div style="font-size:40px;margin-bottom:12px;">⛪</div><div style="color:#6b7280;font-size:15px;">No hay grupos en proceso de organización.</div></div>`;
+    contenido = `<div style="text-align:center;padding:60px;"><div style="width:56px;height:56px;margin:0 auto 12px;border-radius:14px;background:#dbeafe;color:#1e40af;display:flex;align-items:center;justify-content:center;">${icons.church}</div><div style="color:#6b7280;font-size:15px;">No hay grupos en proceso de organización.</div></div>`;
   } else {
     contenido = `<div style="display:flex;flex-direction:column;gap:14px;">${list.map(o => buildOrganizacionCard(o, canGest)).join('')}</div>`;
   }
@@ -1599,7 +1608,7 @@ function buildOrganizacion() {
         <h2 style="font-size:18px;font-weight:700;color:#1a2340;margin-bottom:4px;">Organización de Iglesias</h2>
         <p style="font-size:13px;color:#6b7280;">Seguimiento del proceso de organización de un grupo/misión como iglesia (5 fases).</p>
       </div>
-      <button id="btn-reload-organizacion" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">↻ Actualizar</button>
+      <button id="btn-reload-organizacion" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">${icons.refresh.replace('currentColor','#374151')} Actualizar</button>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       ${filtros.map(o => `<button data-org-filter="${o.v}" style="padding:6px 14px;border-radius:20px;border:1.5px solid ${fFase===o.v?'#2563eb':'#e8eaf2'};background:${fFase===o.v?'#2563eb':'white'};color:${fFase===o.v?'white':'#374151'};font-size:12px;font-weight:500;cursor:pointer;">${o.label}</button>`).join('')}
@@ -1623,7 +1632,7 @@ function buildOrganizacionModal() {
     <div style="border:1px solid #e8eaf2;border-radius:12px;overflow:hidden;flex-shrink:0;">
       <div style="background:${f[doneKey]?'#f0fdf4':'#f8f9fc'};padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
         <div style="display:flex;align-items:center;gap:8px;">
-          <span style="width:22px;height:22px;border-radius:50%;background:${f[doneKey]?'#166534':'#2563eb'};color:white;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${f[doneKey]?'✓':num}</span>
+          <span style="width:22px;height:22px;border-radius:50%;background:${f[doneKey]?'#166534':'#2563eb'};color:white;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${f[doneKey]?icons.check.replace('currentColor','white'):num}</span>
           <span style="font-weight:600;font-size:14px;color:#1a2340;">${title}</span>
         </div>
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer;">
@@ -1793,7 +1802,7 @@ function buildUsuariosSection() {
       <td style="padding:12px 12px;">
         <div style="display:flex;gap:6px;justify-content:flex-end;">
           <button data-edit-profile="${escHtml(pr.id)}" style="background:transparent;border:1px solid #e8eaf2;border-radius:6px;padding:5px 8px;cursor:pointer;color:#6b7280;display:flex;align-items:center;">${icons.edit}</button>
-          ${!isMe ? `<button data-toggle-profile="${escHtml(pr.id)}" data-activo="${pr.activo!==false?'1':'0'}" style="background:transparent;border:1px solid ${pr.activo!==false?'#fee2e2':'#d1fae5'};border-radius:6px;padding:5px 10px;cursor:pointer;color:${pr.activo!==false?'#ef4444':'#16a34a'};font-size:12px;">${pr.activo!==false?'Desactivar':'Activar'}</button><button data-delete-profile="${escHtml(pr.id)}" data-email="${escHtml(pr.email)}" style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:5px 8px;cursor:pointer;color:#dc2626;display:flex;align-items:center;" title="Eliminar usuario">${icons.trash||'🗑'}</button>` : ''}
+          ${!isMe ? `<button data-toggle-profile="${escHtml(pr.id)}" data-activo="${pr.activo!==false?'1':'0'}" style="background:transparent;border:1px solid ${pr.activo!==false?'#fee2e2':'#d1fae5'};border-radius:6px;padding:5px 10px;cursor:pointer;color:${pr.activo!==false?'#ef4444':'#16a34a'};font-size:12px;">${pr.activo!==false?'Desactivar':'Activar'}</button><button data-delete-profile="${escHtml(pr.id)}" data-email="${escHtml(pr.email)}" style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:5px 8px;cursor:pointer;color:#dc2626;display:flex;align-items:center;" title="Eliminar usuario">${icons.trash}</button>` : ''}
         </div>
       </td>
     </tr>`;
@@ -2068,7 +2077,7 @@ function buildImportModal() {
         ${!p && !res ? `
         <p style="font-size:13px;color:#6b7280;margin-bottom:18px;">Sube un archivo Excel con hojas llamadas <strong>Zonas</strong>, <strong>Distritos</strong>, <strong>Iglesias</strong> y/o <strong>Pastores</strong>. Los registros existentes se actualizaran por codigo.</p>
         <div id="import-drop-zone" style="border:2px dashed #d4a820;border-radius:12px;padding:40px;text-align:center;cursor:pointer;background:#fffdf0;">
-          <div style="font-size:32px;margin-bottom:10px;">📊</div>
+          <div style="width:52px;height:52px;margin:0 auto 10px;border-radius:14px;background:#fff8e6;color:#d4a820;display:flex;align-items:center;justify-content:center;">${icons.upload}</div>
           <div style="font-weight:600;color:#1a2340;margin-bottom:6px;">Arrastra tu archivo aqui</div>
           <div style="font-size:13px;color:#9ca3af;">o haz clic para seleccionar</div>
           <input id="import-file-input" type="file" accept=".xlsx,.xls" style="display:none;" />
@@ -2086,14 +2095,14 @@ function buildImportModal() {
         ${p && !res ? `
         <div style="display:flex;flex-direction:column;gap:12px;">
           ${p.zonas?.length    ? previewCard('Zonas',    p.zonas,    '#1e3564') : ''}
-          ${p.distritos?.length ? previewCard('Distritos', p.distritos, '#2d5090') : ''}
-          ${p.iglesias?.length  ? previewCard('Iglesias',  p.iglesias,  '#d4a820') : ''}
-          ${p.pastores?.length  ? previewCard('Pastores',  p.pastores,  '#3a6ab0') : ''}
+          ${p.distritos?.length ? previewCard('Distritos', p.distritos, '#d4a820') : ''}
+          ${p.iglesias?.length  ? previewCard('Iglesias',  p.iglesias,  '#1e40af') : ''}
+          ${p.pastores?.length  ? previewCard('Pastores',  p.pastores,  '#5b21b6') : ''}
           ${!p.zonas?.length && !p.distritos?.length && !p.iglesias?.length && !p.pastores?.length ? '<div style="text-align:center;color:#ef4444;padding:20px;">No se encontraron hojas reconocidas en el archivo.</div>' : ''}
         </div>` : ''}
         ${res ? `
         <div style="text-align:center;padding:20px;">
-          <div style="font-size:40px;margin-bottom:12px;">${res.error ? '❌' : '✅'}</div>
+          <div style="width:56px;height:56px;margin:0 auto 12px;border-radius:50%;background:${res.error?'#fee2e2':'#dcfce7'};color:${res.error?'#991b1b':'#166534'};display:flex;align-items:center;justify-content:center;">${res.error ? icons.x.replace('currentColor','#991b1b') : icons.check.replace('currentColor','#166534')}</div>
           <div style="font-size:16px;font-weight:600;color:#1a2340;margin-bottom:8px;">${res.error ? 'Error al importar' : 'Importacion completada'}</div>
           <div style="font-size:13px;color:#6b7280;">${res.msg}</div>
         </div>` : ''}

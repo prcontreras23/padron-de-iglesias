@@ -894,7 +894,7 @@ function buildPastores() {
     const initials = parts.slice(0,2).map(w=>w[0].toUpperCase()).join('');
     const checked = sel.has(p.cod);
     const rc = rolCfg[p.rol||'pastor'] || rolCfg.pastor;
-    const esOficina = p.rol==='departamental'||p.rol==='administrador';
+    const esOficina = p.rol==='departamental'||p.rol==='administrador'||p.rol==='oficina';
     const ppNombre = p.rol==='asociado' && p.pastor_principal_cod ? RAW.pastores.find(x=>x.cod===p.pastor_principal_cod)?.nombre : null;
     const igNombre = p.rol==='plantador' && p.iglesia_asignada_cod ? RAW.iglesias.find(x=>x.cod===p.iglesia_asignada_cod)?.nombre : null;
     return `<div style="background:white;border-radius:12px;padding:16px 18px;box-shadow:0 1px 4px rgba(30,53,100,.07);border:${checked?'2px solid #1e3564':'1px solid #e8eaf2'};display:flex;align-items:flex-start;gap:14px;">
@@ -1806,7 +1806,7 @@ function buildDistritoModal() {
 function buildPastorModal() {
   const f = S.formPastor;
   const rol = f.rol || 'pastor';
-  const esOficina = rol === 'departamental' || rol === 'administrador';
+  const esOficina = rol === 'departamental' || rol === 'administrador' || rol === 'oficina';
   const esAsociado = rol === 'asociado';
   const esPlantador = rol === 'plantador';
   const distritoOpts = f.codZona ? RAW.distritos.filter(d=>d.codZona===f.codZona) : RAW.distritos;
@@ -1824,6 +1824,7 @@ function buildPastorModal() {
               <option value="plantador" ${rol==='plantador'?'selected':''}>Plantador</option>
               <option value="departamental" ${rol==='departamental'?'selected':''}>Departamental (Oficina)</option>
               <option value="administrador" ${rol==='administrador'?'selected':''}>Administrador (Oficina)</option>
+              <option value="oficina" ${rol==='oficina'?'selected':''}>Personal de Oficina</option>
             </select></div>
           ${formField('Codigo','pastor-cod',f.cod,'text','P001','monospace')}
           ${formField('Nombre completo','pastor-nombre',f.nombre,'text','Apellido, Nombre','',true)}
@@ -1855,6 +1856,7 @@ function buildPastorModal() {
             <select id="pastor-estado" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
               <option value="ordenado" ${f.estado==='ordenado'||!f.estado?'selected':''}>Ordenado</option>
               <option value="licenciado" ${f.estado==='licenciado'?'selected':''}>Licenciado</option>
+              <option value="no_aplica" ${f.estado==='no_aplica'?'selected':''}>No aplica (no ministerial)</option>
             </select></div>
         </div>
       </div>
@@ -2172,7 +2174,7 @@ function bindEvents() {
   q('#pastor-zona', el => el.addEventListener('change', e => { const cod=e.target.value;const z=RAW.zonas.find(z=>z.cod===cod);S.formPastor={...S.formPastor,codZona:cod,zona:z?z.nombre:'',codDistrito:'',distrito:''};render(); }));
   q('#pastor-distrito', el => el.addEventListener('change', e => { const cod=e.target.value;const d=RAW.distritos.find(d=>d.cod===cod);S.formPastor={...S.formPastor,codDistrito:cod,distrito:d?d.nombre:''}; }));
   q('#btn-pastor-save', el => el.addEventListener('click', async () => {
-    const nombre=document.getElementById('pastor-nombre')?.value.trim()||''; const cod=document.getElementById('pastor-cod')?.value.trim().toUpperCase()||''; const telefono=document.getElementById('pastor-telefono')?.value.trim()||''; const email=document.getElementById('pastor-email')?.value.trim()||''; const rol=document.getElementById('pastor-rol')?.value||'pastor'; const esOficina=rol==='departamental'||rol==='administrador'; const esPlantador=rol==='plantador'; const pastor_principal_cod=!esPlantador?(document.getElementById('pastor-principal-cod')?.value||null):null; const iglesia_asignada_cod=esPlantador?(document.getElementById('pastor-iglesia-cod')?.value||null):null; const codZona=esOficina||esPlantador?'':document.getElementById('pastor-zona')?.value||''; const zona=RAW.zonas.find(z=>z.cod===codZona)?.nombre||''; const codDistrito=esOficina||esPlantador?'':document.getElementById('pastor-distrito')?.value||''; const distrito=RAW.distritos.find(d=>d.cod===codDistrito)?.nombre||''; const estado=document.getElementById('pastor-estado')?.value||'ordenado'; const fecha_ingreso=document.getElementById('pastor-fecha-ingreso')?.value||'';
+    const nombre=document.getElementById('pastor-nombre')?.value.trim()||''; const cod=document.getElementById('pastor-cod')?.value.trim().toUpperCase()||''; const telefono=document.getElementById('pastor-telefono')?.value.trim()||''; const email=document.getElementById('pastor-email')?.value.trim()||''; const rol=document.getElementById('pastor-rol')?.value||'pastor'; const esOficina=rol==='departamental'||rol==='administrador'||rol==='oficina'; const esPlantador=rol==='plantador'; const pastor_principal_cod=!esPlantador?(document.getElementById('pastor-principal-cod')?.value||null):null; const iglesia_asignada_cod=esPlantador?(document.getElementById('pastor-iglesia-cod')?.value||null):null; const codZona=esOficina||esPlantador?'':document.getElementById('pastor-zona')?.value||''; const zona=RAW.zonas.find(z=>z.cod===codZona)?.nombre||''; const codDistrito=esOficina||esPlantador?'':document.getElementById('pastor-distrito')?.value||''; const distrito=RAW.distritos.find(d=>d.cod===codDistrito)?.nombre||''; const estado=document.getElementById('pastor-estado')?.value||'ordenado'; const fecha_ingreso=document.getElementById('pastor-fecha-ingreso')?.value||'';
     S.formPastor={...S.formPastor,nombre,cod,telefono,email,codZona,codDistrito,estado,rol,pastor_principal_cod,iglesia_asignada_cod,fecha_ingreso};
     if(!nombre){showToast('El nombre es requerido','error');return;} if(!cod){showToast('El codigo es requerido','error');return;}
     if(S.pastorModalMode==='add'&&RAW.pastores.find(p=>p.cod===cod)){showToast('El codigo ya existe','error');return;}

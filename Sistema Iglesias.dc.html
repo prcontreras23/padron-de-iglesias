@@ -216,6 +216,25 @@ function debounce(fn, ms) {
 }
 const debouncedRender = debounce(render, 160);
 
+// render() replaces the whole #app tree, which would steal focus/cursor from
+// whatever input the user is actively typing in. Save and restore it around
+// the render so live-filter inputs (like #main-search) don't feel broken.
+function renderPreservingFocus() {
+  const active = document.activeElement;
+  const id = active && active.id;
+  const start = active && typeof active.selectionStart === 'number' ? active.selectionStart : null;
+  const end = active && typeof active.selectionEnd === 'number' ? active.selectionEnd : null;
+  render();
+  if (id) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.focus();
+      if (start !== null && el.setSelectionRange) { try { el.setSelectionRange(start, end); } catch(e) {} }
+    }
+  }
+}
+const debouncedRenderPreservingFocus = debounce(renderPreservingFocus, 160);
+
 /* =====================================================================
    PERMISOS
    ===================================================================== */
@@ -487,7 +506,7 @@ function buildSidebar() {
       ${canDo('ver_zonas')     ? navItem('zonas','Zonas',icons.globe,RAW.zonas.length) : ''}
       ${canDo('ver_distritos') ? navItem('distritos','Distritos',icons.users,RAW.distritos.length) : ''}
       ${canDo('ver_iglesias')  ? navItem('iglesias','Iglesias',icons.home,RAW.iglesias.filter(i=>i.tipo!=='pendiente_revision'&&i.pastor&&i.pastor.trim()).length) : ''}
-      ${canDo('ver_pastores')  ? navItem('pastores','Pastores',icons.user,RAW.pastores.length) : ''}
+      ${canDo('ver_pastores')  ? navItem('pastores','Personal',icons.user,RAW.pastores.length) : ''}
       <div style="color:rgba(255,255,255,.3);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:10px 10px 4px;">Sistema</div>
       ${canDo('ver_solicitudes')   ? navItem('solicitudes','Solicitudes',icons.plus) : ''}
       ${canDo('ver_permisos')      ? navItem('permisos','Permisos de Ausencia',icons.calendar) : ''}
@@ -526,7 +545,7 @@ function buildSidebar() {
 
 /* ---- HEADER ---- */
 function buildHeader() {
-  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Pastores', solicitudes:'Solicitudes de Congregación', permisos:'Permisos de Ausencia', vacaciones:'Vacaciones', calendario:'Calendario de Ausencias', organizacion:'Organización de Iglesias', configuracion:'Configuracion' };
+  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Personal', solicitudes:'Solicitudes de Congregación', permisos:'Permisos de Ausencia', vacaciones:'Vacaciones', calendario:'Calendario de Ausencias', organizacion:'Organización de Iglesias', configuracion:'Configuracion' };
   const needsSearch = ['iglesias','distritos','pastores'].includes(S.view);
   const addBtn = (id,label) => `<button id="${id}" style="display:flex;align-items:center;gap:6px;background:#1e3564;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;">${icons.plus.replace('currentColor','white')} ${label}</button>`;
   const searchBtn = `<button id="btn-global-search" title="Ctrl+K" style="background:#f0f2f7;border:none;border-radius:8px;padding:8px;cursor:pointer;color:#6b7280;display:flex;align-items:center;">${icons.search}</button>`;
@@ -887,6 +906,7 @@ function buildPastores() {
     plantador:     { label:'Plantador',     bg:'#d1fae5', color:'#065f46' },
     departamental: { label:'Departamental', bg:'#fef3c7', color:'#92400e' },
     administrador: { label:'Administrador', bg:'#ede9fe', color:'#5b21b6' },
+    oficina:       { label:'Oficina',       bg:'#fce7f3', color:'#9d174d' },
   };
 
   function pastorCard(p) {
@@ -904,7 +924,7 @@ function buildPastores() {
         <div style="font-weight:600;font-size:14px;color:#1a2340;">${escHtml(p.nombre)}</div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;">
           <span style="background:${rc.bg};color:${rc.color};border-radius:20px;padding:1px 8px;font-size:11px;font-weight:600;">${rc.label}</span>
-          <span style="background:${(p.estado||'ordenado')==='licenciado'?'#fecaca':'#e0e7ef'};color:${(p.estado||'ordenado')==='licenciado'?'#991b1b':'#374151'};border-radius:20px;padding:1px 8px;font-size:11px;font-weight:600;text-transform:capitalize;">${p.estado||'ordenado'}</span>
+          <span style="background:${(p.estado||'ordenado')==='licenciado'?'#fecaca':'#e0e7ef'};color:${(p.estado||'ordenado')==='licenciado'?'#991b1b':'#374151'};border-radius:20px;padding:1px 8px;font-size:11px;font-weight:600;text-transform:capitalize;">${(p.estado||'ordenado').replace('_',' ')}</span>
           ${!esOficina&&p.distrito?`<span style="font-size:11px;color:#9ca3af;">${escHtml(p.distrito)}</span>`:''}
           ${!esOficina?`<span style="background:#eef2ff;color:#1e3564;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:600;">${igByPastor[p.nombre]||0} igl.</span>`:''}
           ${ppNombre?`<span style="font-size:11px;color:#6b7280;">→ ${escHtml(ppNombre)}</span>`:''}
@@ -2068,7 +2088,7 @@ function bindEvents() {
   }));
   document.querySelectorAll('[data-filter-zona]').forEach(el => el.addEventListener('click', () => { S.fZona=el.dataset.filterZona; S.page=1; render(); }));
   document.querySelectorAll('[data-ver-distrito]').forEach(el => el.addEventListener('click', () => { S.view='iglesias'; S.fZona=el.dataset.verZona; S.fDistrito=el.dataset.verDistrito; S.search=''; S.page=1; render(); }));
-  q('#main-search', el => el.addEventListener('input', e => { S.search=e.target.value; S.page=1; debouncedRender(); }));
+  q('#main-search', el => el.addEventListener('input', e => { S.search=e.target.value; S.page=1; debouncedRenderPreservingFocus(); }));
   q('#sel-zona', el => el.addEventListener('change', e => { S.fZona=e.target.value; S.fDistrito='all'; S.page=1; render(); }));
   q('#sel-distrito', el => el.addEventListener('change', e => { S.fDistrito=e.target.value; S.page=1; render(); }));
   q('#btn-prev', el => el.addEventListener('click', () => { if(S.page>1){S.page--;render();} }));

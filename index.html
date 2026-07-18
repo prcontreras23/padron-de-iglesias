@@ -59,6 +59,8 @@ let S = {
   calMonth: new Date().getMonth(), calYear: new Date().getFullYear(),
   calFiltroZona: 'all', calFiltroTipo: 'all', calFiltroEstado: 'activos',
   showCalDiaPanel: false, calDiaSel: null,
+  // Perfil de empleado (panel con pestañas)
+  showPerfilPanel: false, perfilCod: null, perfilTab: 'general',
   // Organización de Iglesias
   _organizaciones: null, _organizacionesLoading: false,
   showOrganizacionModal: false, organizacionModalMode: 'add', editOrganizacionId: null,
@@ -493,6 +495,7 @@ function buildHTML() {
   ${S.showVacacionModal ? buildVacacionModal() : ''}
   ${S.showDeleteVacacionConfirm ? buildDeleteVacacionConfirm() : ''}
   ${S.showCalDiaPanel ? buildCalDiaPanel() : ''}
+  ${S.showPerfilPanel ? buildPerfilPanel() : ''}
   ${S.showOrganizacionModal ? buildOrganizacionModal() : ''}
   ${S.showDeleteOrganizacionConfirm ? buildDeleteOrganizacionConfirm() : ''}
   ${S.showNotaModal ? buildNotaModal() : ''}
@@ -1005,6 +1008,7 @@ function buildPastores() {
         ${p.email?`<div style="font-size:12px;color:#9ca3af;margin-top:1px;display:flex;align-items:center;gap:4px;">${icons.mail} ${escHtml(p.email)}</div>`:''}
       </div>
       <div style="display:flex;gap:5px;flex-shrink:0;">
+        <button data-ver-perfil="${escHtml(p.cod)}" title="Ver perfil" style="background:#eff4ff;border:1px solid #dbe4ff;border-radius:6px;padding:5px 8px;cursor:pointer;color:#2563eb;display:flex;align-items:center;">${icons.user.replace('currentColor','#2563eb')}</button>
         ${canDo('editar_pastores') ? `<button data-notas-pastor="${escHtml(p.cod)}" title="Agregar nota" style="background:transparent;border:1px solid #eef0f5;border-radius:6px;padding:5px 8px;cursor:pointer;color:#166534;display:flex;align-items:center;">${icons.note}</button>` : ''}
         <button data-edit-pastor="${escHtml(p.cod)}" style="background:transparent;border:1px solid #e8eaf2;border-radius:6px;padding:5px 8px;cursor:pointer;color:#6b7280;display:flex;align-items:center;">${icons.edit}</button>
         <button data-del-pastor="${escHtml(p.cod)}" style="background:transparent;border:1px solid #fee2e2;border-radius:6px;padding:5px 8px;cursor:pointer;color:#ef4444;display:flex;align-items:center;">${icons.trash}</button>
@@ -1726,6 +1730,120 @@ function buildCalDiaPanel() {
       <div style="flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:10px;">
         ${avisoConf}${filas}
       </div>
+    </div>
+  </div>`;
+}
+
+/* ---- PERFIL DE EMPLEADO (panel con pestañas) ---- */
+function buildPerfilPanel() {
+  const cod = S.perfilCod;
+  const p = (RAW.pastores||[]).find(x => x.cod === cod);
+  if (!p) return '';
+  const tab = S.perfilTab || 'general';
+  const rolCfg = {
+    pastor:{label:'Pastor',bg:'#dbeafe',color:'#1e40af'}, asociado:{label:'Asociado',bg:'#dcfce7',color:'#166534'},
+    plantador:{label:'Plantador',bg:'#d1fae5',color:'#065f46'}, departamental:{label:'Departamental',bg:'#fef3c7',color:'#92400e'},
+    administrador:{label:'Administrador',bg:'#ede9fe',color:'#5b21b6'}, oficina:{label:'Oficina',bg:'#fce7f3',color:'#9d174d'},
+  };
+  const estadoLbl = { ordenado:'Ordenado', licenciado:'Licenciado', no_aplica:'No aplica' };
+  const motivoLabel = { enfermedad:'Enfermedad', cita_medica:'Cita Médica', asuntos_familiares:'Asuntos Familiares', asuntos_oficiales:'Asuntos Oficiales', asuntos_personales:'Asuntos Personales' };
+  const estadoInfo = { pendiente:{label:'Pendiente',bg:'#fef9c3',color:'#854d0e'}, aprobado:{label:'Aprobado',bg:'#dcfce7',color:'#166534'}, rechazado:{label:'Rechazado',bg:'#fee2e2',color:'#991b1b'} };
+  const fFmt = d => d ? new Date(d+'T12:00:00').toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+
+  const rc = rolCfg[p.rol||'pastor'] || rolCfg.pastor;
+  const iniciales = p.nombre.split(/[\s,]+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('') || '?';
+  const igCount = (RAW.iglesias||[]).filter(i=>i.pastor===p.nombre).length;
+
+  // Datos ligados a la persona
+  const vacs  = (S._vacaciones||[]).filter(v => v.pastor_cod===cod || v.nombre===p.nombre);
+  const perms = (S._permisos||[]).filter(x => x.nombre===p.nombre);
+  const notas = (S._notas||[]).filter(n => n.pastor_cod===cod);
+  const bal   = getVacBalance(cod);
+  const loadingV = S._vacacionesLoading, loadingP = S._permisosLoading, loadingN = S._notasLoading;
+
+  const puedeVerVac = canDo('ver_vacaciones'), puedeVerPer = canDo('ver_permisos');
+
+  const tabs = [
+    { k:'general',   label:'General' },
+    { k:'vacaciones',label:`Vacaciones${puedeVerVac?` (${vacs.length})`:''}` },
+    { k:'ausencias', label:`Ausencias${puedeVerPer?` (${perms.length})`:''}` },
+    { k:'notas',     label:`Notas (${notas.length})` },
+  ];
+  const tabBar = `<div style="display:flex;gap:2px;background:#eef0f5;border-radius:10px;padding:3px;">
+    ${tabs.map(t=>`<button data-perfil-tab="${t.k}" style="flex:1;padding:7px 4px;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;background:${tab===t.k?'white':'transparent'};color:${tab===t.k?'#2563eb':'#6b7280'};box-shadow:${tab===t.k?'0 1px 3px rgba(16,24,40,.1)':'none'};white-space:nowrap;">${t.label}</button>`).join('')}
+  </div>`;
+
+  const infoRow = (label,val) => `<div style="display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #f0f2f7;font-size:13px;"><span style="color:#6b7280;">${label}</span><span style="color:#1a2340;font-weight:500;text-align:right;">${val||'—'}</span></div>`;
+  const balTxt = bal && bal.dias_asignados_anio!=null ? `${bal.dias_asignados_anio-bal.dias_tomados_anio} de ${bal.dias_asignados_anio} días (${bal.dias_tomados_anio} tomados)` : 'Sin fecha de ingreso';
+
+  let contenido = '';
+  if (tab === 'general') {
+    contenido = `<div>
+      ${infoRow('Rol', `<span style="background:${rc.bg};color:${rc.color};border-radius:20px;padding:1px 10px;font-size:11px;font-weight:600;">${rc.label}</span>`)}
+      ${infoRow('Estado ministerial', estadoLbl[p.estado||'ordenado']||p.estado)}
+      ${!esPersonalOficina(p) ? infoRow('Zona', p.zona) + infoRow('Distrito', p.distrito) : ''}
+      ${infoRow('Fecha de ingreso', p.fecha_ingreso ? fFmt(p.fecha_ingreso) : '—')}
+      ${infoRow('Teléfono', p.telefono ? `<a href="tel:${escHtml(p.telefono)}" style="color:#2563eb;text-decoration:none;">${escHtml(p.telefono)}</a>` : '—')}
+      ${infoRow('Correo', p.email ? `<a href="mailto:${escHtml(p.email)}" style="color:#2563eb;text-decoration:none;">${escHtml(p.email)}</a>` : '—')}
+      ${!esPersonalOficina(p) ? infoRow('Iglesias asignadas', igCount) : ''}
+      ${puedeVerVac ? infoRow('Vacaciones disponibles', balTxt) : ''}
+    </div>`;
+  } else if (tab === 'vacaciones') {
+    if (!puedeVerVac) contenido = `<div style="text-align:center;padding:40px 0;color:#9ca3af;font-size:13px;">No tienes acceso a vacaciones.</div>`;
+    else if (loadingV && !S._vacaciones) contenido = `<div style="text-align:center;padding:40px 0;color:#9ca3af;font-size:13px;">Cargando…</div>`;
+    else {
+      const banner = `<div style="background:#f0fdfa;border:1px solid #ccfbf1;border-radius:10px;padding:10px 12px;font-size:12.5px;color:#0f766e;margin-bottom:12px;">Balance ${new Date().getFullYear()}: <strong>${balTxt}</strong></div>`;
+      const lista = vacs.length ? vacs.slice().sort((a,b)=>(b.fecha_inicio||'').localeCompare(a.fecha_inicio||'')).map(v => {
+        const est = estadoInfo[v.estado]||{label:v.estado,bg:'#f3f4f6',color:'#374151'};
+        return `<div style="border:1px solid #eef0f5;border-left:4px solid #14b8a6;border-radius:10px;padding:10px 12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <div style="font-weight:600;color:#1a2340;font-size:13px;">${fFmt(v.fecha_inicio)} — ${fFmt(v.fecha_fin)}</div>
+            <span style="background:${est.bg};color:${est.color};border-radius:20px;padding:2px 9px;font-size:11px;font-weight:600;">${est.label}</span>
+          </div>
+          <div style="font-size:11.5px;color:#6b7280;margin-top:3px;">${v.dias_solicitados||'—'} día(s)</div>
+        </div>`;
+      }).join('') : `<div style="text-align:center;padding:30px 0;color:#9ca3af;font-size:13px;">Sin vacaciones registradas.</div>`;
+      contenido = banner + `<div style="display:flex;flex-direction:column;gap:8px;">${lista}</div>`;
+    }
+  } else if (tab === 'ausencias') {
+    if (!puedeVerPer) contenido = `<div style="text-align:center;padding:40px 0;color:#9ca3af;font-size:13px;">No tienes acceso a permisos.</div>`;
+    else if (loadingP && !S._permisos) contenido = `<div style="text-align:center;padding:40px 0;color:#9ca3af;font-size:13px;">Cargando…</div>`;
+    else contenido = perms.length ? `<div style="display:flex;flex-direction:column;gap:8px;">${perms.slice().sort((a,b)=>(b.fecha_ausencia||'').localeCompare(a.fecha_ausencia||'')).map(x => {
+        const est = estadoInfo[x.estado]||{label:x.estado,bg:'#f3f4f6',color:'#374151'};
+        return `<div style="border:1px solid #eef0f5;border-left:4px solid #2563eb;border-radius:10px;padding:10px 12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <div style="font-weight:600;color:#1a2340;font-size:13px;">${fFmt(x.fecha_ausencia)}</div>
+            <span style="background:${est.bg};color:${est.color};border-radius:20px;padding:2px 9px;font-size:11px;font-weight:600;">${est.label}</span>
+          </div>
+          <div style="font-size:11.5px;color:#6b7280;margin-top:3px;">${motivoLabel[x.motivo]||x.motivo||'—'}${x.lugar?' · '+escHtml(x.lugar):''}</div>
+        </div>`;
+      }).join('')}</div>` : `<div style="text-align:center;padding:30px 0;color:#9ca3af;font-size:13px;">Sin permisos de ausencia registrados.</div>`;
+  } else if (tab === 'notas') {
+    const btnNueva = canDo('editar_pastores') ? `<button data-perfil-nueva-nota="${escHtml(cod)}" style="display:flex;align-items:center;gap:6px;background:#2563eb;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:500;cursor:pointer;margin-bottom:12px;">${icons.plus.replace('currentColor','white')} Nueva nota</button>` : '';
+    if (loadingN && !S._notas) contenido = btnNueva + `<div style="text-align:center;padding:40px 0;color:#9ca3af;font-size:13px;">Cargando…</div>`;
+    else contenido = btnNueva + (notas.length ? `<div style="display:flex;flex-direction:column;gap:8px;">${notas.map(n => {
+        const fecha = n.created_at ? new Date(n.created_at).toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+        return `<div style="background:white;border:1px solid #eef0f5;border-radius:10px;padding:12px 14px;">
+          <div style="font-size:11.5px;color:#9ca3af;margin-bottom:5px;">${fecha}${n.autor?' · '+escHtml(n.autor):''}</div>
+          <div style="font-size:13px;color:#374151;white-space:pre-wrap;line-height:1.5;">${escHtml(n.nota)}</div>
+        </div>`;
+      }).join('')}</div>` : `<div style="text-align:center;padding:30px 0;color:#9ca3af;font-size:13px;">Sin notas registradas.</div>`);
+  }
+
+  return `<div id="perfil-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:280;display:flex;justify-content:flex-end;">
+    <div style="background:#f8f9fc;width:100%;max-width:440px;height:100%;box-shadow:-8px 0 30px rgba(0,0,0,.15);display:flex;flex-direction:column;animation:slideInRight .2s ease;">
+      <div style="padding:20px 22px;background:white;border-bottom:1px solid #eef0f5;">
+        <div style="display:flex;align-items:flex-start;gap:14px;">
+          <div style="width:52px;height:52px;border-radius:50%;background:${esPersonalOficina(p)?'#ede9fe':'#dbeafe'};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;color:${esPersonalOficina(p)?'#5b21b6':'#1e40af'};flex-shrink:0;">${iniciales}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:16px;font-weight:700;color:#1a2340;">${escHtml(p.nombre)}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px;">${rc.label}${!esPersonalOficina(p)&&p.distrito?' · '+escHtml(p.distrito):''}${!esPersonalOficina(p)&&p.zona?' · '+escHtml(p.zona):''}</div>
+          </div>
+          <button id="btn-perfil-close" style="background:#f0f2f7;border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;color:#6b7280;font-size:18px;flex-shrink:0;">×</button>
+        </div>
+        <div style="margin-top:16px;">${tabBar}</div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:16px 18px;">${contenido}</div>
     </div>
   </div>`;
 }
@@ -2890,6 +3008,24 @@ function bindEvents() {
   document.querySelectorAll('[data-notas-pastor]').forEach(el => el.addEventListener('click', () => {
     S.view='notas'; S.notaFiltroPastor='all'; S.showNotaModal=true; S.notaModalMode='add'; S.editNotaId=null;
     S.formNota={ pastor_cod: el.dataset.notasPastor, nota:'' };
+    render();
+  }));
+
+  /* PERFIL DE EMPLEADO (panel con pestañas) */
+  document.querySelectorAll('[data-ver-perfil]').forEach(el => el.addEventListener('click', () => {
+    S.perfilCod = el.dataset.verPerfil; S.perfilTab = 'general'; S.showPerfilPanel = true;
+    // Cargar datos ligados si aún no están
+    if (canDo('ver_vacaciones') && !S._vacaciones && !S._vacacionesLoading) { S._vacacionesLoading=true; loadVacaciones(); }
+    if (canDo('ver_permisos')   && !S._permisos   && !S._permisosLoading)   { S._permisosLoading=true;   loadPermisos(); }
+    if (!S._notas && !S._notasLoading) { S._notasLoading=true; loadNotas(); }
+    render();
+  }));
+  document.querySelectorAll('[data-perfil-tab]').forEach(el => el.addEventListener('click', () => { S.perfilTab = el.dataset.perfilTab; render(); }));
+  q('#btn-perfil-close', el => el.addEventListener('click', () => { S.showPerfilPanel=false; S.perfilCod=null; render(); }));
+  q('#perfil-bg', el => el.addEventListener('click', e => { if(e.target===el){ S.showPerfilPanel=false; S.perfilCod=null; render(); } }));
+  document.querySelectorAll('[data-perfil-nueva-nota]').forEach(el => el.addEventListener('click', () => {
+    S.showNotaModal=true; S.notaModalMode='add'; S.editNotaId=null;
+    S.formNota={ pastor_cod: el.dataset.perfilNuevaNota, nota:'' };
     render();
   }));
   q('#btn-nota-close',  el => el.addEventListener('click', () => { S.showNotaModal=false; render(); }));

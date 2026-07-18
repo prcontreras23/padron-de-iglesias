@@ -61,6 +61,7 @@ let S = {
   showCalDiaPanel: false, calDiaSel: null,
   // Perfil de empleado (panel con pestañas)
   showPerfilPanel: false, perfilCod: null, perfilTab: 'general',
+  pinGuardando: false, pinMsg: '',
   // Organización de Iglesias
   _organizaciones: null, _organizacionesLoading: false,
   showOrganizacionModal: false, organizacionModalMode: 'add', editOrganizacionId: null,
@@ -100,7 +101,7 @@ let S = {
   showDeleteDistritoConfirm: false, deleteDistritoCod: null,
   // Pastor modal
   showPastorModal: false, pastorModalMode: 'add', editPastorCod: null,
-  formPastor: { cod:'', nombre:'', telefono:'', email:'', codZona:'', zona:'', codDistrito:'', distrito:'', fecha_ingreso:'' },
+  formPastor: { cod:'', nombre:'', telefono:'', email:'', codZona:'', zona:'', codDistrito:'', distrito:'', fecha_ingreso:'', fecha_nacimiento:'' },
   showDeletePastorConfirm: false, deletePastorCod: null,
   // Campo modal
   showCampoModal: false, campoModalMode: 'add', editCampoIdx: null,
@@ -1735,6 +1736,25 @@ function buildCalDiaPanel() {
 }
 
 /* ---- PERFIL DE EMPLEADO (panel con pestañas) ---- */
+// Fecha de nacimiento (YYYY-MM-DD) -> PIN sugerido MMAAAA (ej. 1987-02-15 -> "021987")
+function fechaNacToPin(fnac) {
+  if (!fnac || !/^\d{4}-\d{2}-\d{2}/.test(fnac)) return '';
+  const [y,m] = fnac.split('-');
+  return `${m}${y}`;
+}
+function buildPortalPinSection(p) {
+  const sugerido = fechaNacToPin(p.fecha_nacimiento);
+  return `<div style="margin-top:16px;border-top:1px solid #f0f2f7;padding-top:14px;">
+    <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Acceso al Portal del Empleado</div>
+    <div style="font-size:12px;color:#6b7280;margin-bottom:10px;">Código de acceso: <strong style="color:#1a2340;font-family:monospace;">${escHtml(p.cod)}</strong> · con este código y su PIN el empleado entra al portal a solicitar vacaciones, permisos y organización de iglesias.</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <input id="perfil-pin-input" inputmode="numeric" maxlength="6" placeholder="PIN de 6 dígitos" value="${escHtml(sugerido)}" style="width:150px;padding:9px 12px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:15px;letter-spacing:4px;font-family:monospace;text-align:center;outline:none;" />
+      <button id="perfil-pin-save" ${S.pinGuardando?'disabled':''} style="background:#2563eb;color:white;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;${S.pinGuardando?'opacity:.6;':''}">${S.pinGuardando?'Guardando…':'Guardar PIN'}</button>
+    </div>
+    <div style="font-size:11px;color:#9ca3af;margin-top:6px;">${sugerido ? 'Sugerido según la fecha de nacimiento (mes y año, MMAAAA). Puedes cambiarlo.' : 'Consejo: registra la fecha de nacimiento del empleado (botón Editar) y el PIN se sugiere solo con su mes y año.'}</div>
+    ${S.pinMsg ? `<div style="margin-top:8px;font-size:12.5px;font-weight:600;color:${S.pinMsg.startsWith('✓')?'#166534':'#b91c1c'};background:${S.pinMsg.startsWith('✓')?'#dcfce7':'#fee2e2'};border-radius:8px;padding:8px 12px;">${escHtml(S.pinMsg)}</div>` : ''}
+  </div>`;
+}
 function buildPerfilPanel() {
   const cod = S.perfilCod;
   const p = (RAW.pastores||[]).find(x => x.cod === cod);
@@ -1787,7 +1807,8 @@ function buildPerfilPanel() {
       ${infoRow('Correo', p.email ? `<a href="mailto:${escHtml(p.email)}" style="color:#2563eb;text-decoration:none;">${escHtml(p.email)}</a>` : '—')}
       ${!esPersonalOficina(p) ? infoRow('Iglesias asignadas', igCount) : ''}
       ${puedeVerVac ? infoRow('Vacaciones disponibles', balTxt) : ''}
-    </div>`;
+    </div>
+    ${(isAdmin()||canDo('editar_pastores')) ? buildPortalPinSection(p) : ''}`;
   } else if (tab === 'vacaciones') {
     if (!puedeVerVac) contenido = `<div style="text-align:center;padding:40px 0;color:#9ca3af;font-size:13px;">No tienes acceso a vacaciones.</div>`;
     else if (loadingV && !S._vacaciones) contenido = `<div style="text-align:center;padding:40px 0;color:#9ca3af;font-size:13px;">Cargando…</div>`;
@@ -2337,6 +2358,8 @@ function buildPastorModal() {
           ${formField('Correo electronico','pastor-email',f.email||'','email','pastor@iglesia.org')}
           <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Fecha de ingreso <span style="font-weight:400;color:#9ca3af;">(para calcular vacaciones por antigüedad)</span></label>
             <input id="pastor-fecha-ingreso" type="date" value="${escHtml(f.fecha_ingreso||'')}" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
+          <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Fecha de nacimiento <span style="font-weight:400;color:#9ca3af;">(sugiere el PIN del portal: mes y año)</span></label>
+            <input id="pastor-fecha-nacimiento" type="date" value="${escHtml(f.fecha_nacimiento||'')}" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;" /></div>
           ${esAsociado ? `<div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Pastor principal</label>
             <select id="pastor-principal-cod" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;color:#374151;cursor:pointer;">
               <option value="">Sin asignar</option>
@@ -2672,7 +2695,7 @@ function bindEvents() {
 
   /* PASTORES */
   q('#btn-add-pastor', el => el.addEventListener('click', () => { S.showPastorModal=true;S.pastorModalMode='add';S.editPastorCod=null;S.formPastor={cod:nextPastorCod(),nombre:'',telefono:'',email:'',codZona:'',zona:'',codDistrito:'',distrito:'',estado:'ordenado',rol:'pastor',pastor_principal_cod:'',iglesia_asignada_cod:'',fecha_ingreso:''};render(); }));
-  document.querySelectorAll('[data-edit-pastor]').forEach(el => el.addEventListener('click', () => { const p=RAW.pastores.find(p=>p.cod===el.dataset.editPastor);if(!p)return;S.showPastorModal=true;S.pastorModalMode='edit';S.editPastorCod=p.cod;S.formPastor={cod:p.cod,nombre:p.nombre,telefono:p.telefono||'',email:p.email||'',codZona:p.codZona||'',zona:p.zona||'',codDistrito:p.codDistrito||'',distrito:p.distrito||'',estado:p.estado||'ordenado',rol:p.rol||'pastor',pastor_principal_cod:p.pastor_principal_cod||'',iglesia_asignada_cod:p.iglesia_asignada_cod||'',fecha_ingreso:p.fecha_ingreso||''};render(); }));
+  document.querySelectorAll('[data-edit-pastor]').forEach(el => el.addEventListener('click', () => { const p=RAW.pastores.find(p=>p.cod===el.dataset.editPastor);if(!p)return;S.showPastorModal=true;S.pastorModalMode='edit';S.editPastorCod=p.cod;S.formPastor={cod:p.cod,nombre:p.nombre,telefono:p.telefono||'',email:p.email||'',codZona:p.codZona||'',zona:p.zona||'',codDistrito:p.codDistrito||'',distrito:p.distrito||'',estado:p.estado||'ordenado',rol:p.rol||'pastor',pastor_principal_cod:p.pastor_principal_cod||'',iglesia_asignada_cod:p.iglesia_asignada_cod||'',fecha_ingreso:p.fecha_ingreso||'',fecha_nacimiento:p.fecha_nacimiento||''};render(); }));
   document.querySelectorAll('[data-del-pastor]').forEach(el => el.addEventListener('click', () => { S.showDeletePastorConfirm=true;S.deletePastorCod=el.dataset.delPastor;render(); }));
   q('#btn-pastor-close',  el => el.addEventListener('click', () => { S.showPastorModal=false;render(); }));
   q('#btn-pastor-cancel', el => el.addEventListener('click', () => { S.showPastorModal=false;render(); }));
@@ -2681,11 +2704,11 @@ function bindEvents() {
   q('#pastor-zona', el => el.addEventListener('change', e => { const cod=e.target.value;const z=RAW.zonas.find(z=>z.cod===cod);S.formPastor={...S.formPastor,codZona:cod,zona:z?z.nombre:'',codDistrito:'',distrito:''};render(); }));
   q('#pastor-distrito', el => el.addEventListener('change', e => { const cod=e.target.value;const d=RAW.distritos.find(d=>d.cod===cod);S.formPastor={...S.formPastor,codDistrito:cod,distrito:d?d.nombre:''}; }));
   q('#btn-pastor-save', el => el.addEventListener('click', async () => {
-    const nombre=document.getElementById('pastor-nombre')?.value.trim()||''; const cod=document.getElementById('pastor-cod')?.value.trim().toUpperCase()||''; const telefono=document.getElementById('pastor-telefono')?.value.trim()||''; const email=document.getElementById('pastor-email')?.value.trim()||''; const rol=document.getElementById('pastor-rol')?.value||'pastor'; const esOficina=rol==='departamental'||rol==='administrador'||rol==='oficina'; const esPlantador=rol==='plantador'; const pastor_principal_cod=!esPlantador?(document.getElementById('pastor-principal-cod')?.value||null):null; const iglesia_asignada_cod=esPlantador?(document.getElementById('pastor-iglesia-cod')?.value||null):null; const codZona=esOficina||esPlantador?'':document.getElementById('pastor-zona')?.value||''; const zona=RAW.zonas.find(z=>z.cod===codZona)?.nombre||''; const codDistrito=esOficina||esPlantador?'':document.getElementById('pastor-distrito')?.value||''; const distrito=RAW.distritos.find(d=>d.cod===codDistrito)?.nombre||''; const estado=document.getElementById('pastor-estado')?.value||'ordenado'; const fecha_ingreso=document.getElementById('pastor-fecha-ingreso')?.value||'';
-    S.formPastor={...S.formPastor,nombre,cod,telefono,email,codZona,codDistrito,estado,rol,pastor_principal_cod,iglesia_asignada_cod,fecha_ingreso};
+    const nombre=document.getElementById('pastor-nombre')?.value.trim()||''; const cod=document.getElementById('pastor-cod')?.value.trim().toUpperCase()||''; const telefono=document.getElementById('pastor-telefono')?.value.trim()||''; const email=document.getElementById('pastor-email')?.value.trim()||''; const rol=document.getElementById('pastor-rol')?.value||'pastor'; const esOficina=rol==='departamental'||rol==='administrador'||rol==='oficina'; const esPlantador=rol==='plantador'; const pastor_principal_cod=!esPlantador?(document.getElementById('pastor-principal-cod')?.value||null):null; const iglesia_asignada_cod=esPlantador?(document.getElementById('pastor-iglesia-cod')?.value||null):null; const codZona=esOficina||esPlantador?'':document.getElementById('pastor-zona')?.value||''; const zona=RAW.zonas.find(z=>z.cod===codZona)?.nombre||''; const codDistrito=esOficina||esPlantador?'':document.getElementById('pastor-distrito')?.value||''; const distrito=RAW.distritos.find(d=>d.cod===codDistrito)?.nombre||''; const estado=document.getElementById('pastor-estado')?.value||'ordenado'; const fecha_ingreso=document.getElementById('pastor-fecha-ingreso')?.value||''; const fecha_nacimiento=document.getElementById('pastor-fecha-nacimiento')?.value||'';
+    S.formPastor={...S.formPastor,nombre,cod,telefono,email,codZona,codDistrito,estado,rol,pastor_principal_cod,iglesia_asignada_cod,fecha_ingreso,fecha_nacimiento};
     if(!nombre){showToast('El nombre es requerido','error');return;} if(!cod){showToast('El codigo es requerido','error');return;}
     if(S.pastorModalMode==='add'&&RAW.pastores.find(p=>p.cod===cod)){showToast('El codigo ya existe','error');return;}
-    const row={cod,nombre,telefono,email,codZona,zona,codDistrito,distrito,estado,rol,pastor_principal_cod:pastor_principal_cod||null,iglesia_asignada_cod:iglesia_asignada_cod||null,fecha_ingreso:fecha_ingreso||null};
+    const row={cod,nombre,telefono,email,codZona,zona,codDistrito,distrito,estado,rol,pastor_principal_cod:pastor_principal_cod||null,iglesia_asignada_cod:iglesia_asignada_cod||null,fecha_ingreso:fecha_ingreso||null,fecha_nacimiento:fecha_nacimiento||null};
     if(S.sbClient){const{error}=S.pastorModalMode==='add'?await S.sbClient.from('pastores').insert([row]):await S.sbClient.from('pastores').update(row).eq('cod',cod);if(error){showToast('Error: '+error.message,'error');return;}}
     if(S.pastorModalMode==='add')RAW.pastores.push(row);else{const i=RAW.pastores.findIndex(p=>p.cod===cod);if(i>=0)RAW.pastores[i]=row;}
     registrarHistorial(S.pastorModalMode==='add'?'Creo':'Edito','Pastor',row.cod,row.nombre);S.showPastorModal=false;showToast(S.pastorModalMode==='add'?'Pastor agregado':'Pastor actualizado','success');render();
@@ -3027,7 +3050,26 @@ function bindEvents() {
     if (!S._notas && !S._notasLoading) { S._notasLoading=true; loadNotas(); }
     render();
   }));
-  document.querySelectorAll('[data-perfil-tab]').forEach(el => el.addEventListener('click', () => { S.perfilTab = el.dataset.perfilTab; render(); }));
+  document.querySelectorAll('[data-perfil-tab]').forEach(el => el.addEventListener('click', () => { S.perfilTab = el.dataset.perfilTab; S.pinMsg=''; render(); }));
+  q('#perfil-pin-input', el => el.addEventListener('input', () => { el.value = el.value.replace(/\D/g,'').slice(0,6); }));
+  q('#perfil-pin-save', el => el.addEventListener('click', async () => {
+    const pin = (document.getElementById('perfil-pin-input')?.value||'').trim();
+    if (!/^\d{6}$/.test(pin)) { S.pinMsg='El PIN debe ser de exactamente 6 dígitos.'; render(); return; }
+    S.pinGuardando=true; S.pinMsg=''; render();
+    try {
+      const { data:{ session } } = await S.sbClient.auth.getSession();
+      const r = await fetch('/api/admin-pin', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${session?.access_token||''}` },
+        body: JSON.stringify({ cod: S.perfilCod, pin })
+      });
+      const data = await r.json();
+      S.pinGuardando=false;
+      if (!r.ok) { S.pinMsg = data.error || 'Error al guardar el PIN.'; render(); return; }
+      S.pinMsg = '✓ PIN guardado. El empleado ya puede entrar al portal con su código y este PIN.';
+      render();
+    } catch(e) { S.pinGuardando=false; S.pinMsg='Error de conexión: '+e.message; render(); }
+  }));
   q('#btn-perfil-close', el => el.addEventListener('click', () => { S.showPerfilPanel=false; S.perfilCod=null; render(); }));
   q('#perfil-bg', el => el.addEventListener('click', e => { if(e.target===el){ S.showPerfilPanel=false; S.perfilCod=null; render(); } }));
   document.querySelectorAll('[data-perfil-nueva-nota]').forEach(el => el.addEventListener('click', () => {

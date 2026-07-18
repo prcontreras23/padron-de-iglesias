@@ -68,8 +68,12 @@ p.sub{font-size:13px;color:#6b7280;margin-bottom:8px}
 
 <script>
 const API = '/api/portal-data';
+const SB_URL = 'https://gvbknabnrlliofbchczv.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2YmtuYWJucmxsaW9mYmNoY3p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMjg3MTcsImV4cCI6MjA5NjkwNDcxN30.v7IXmkGpidbpCPZsDh_wFh_pLsP13QhTueYtiLfkH9Q';
 let SESSION = null; // { token, perfil }
 let balance = null;
+let pastoresList = [];   // { cod, nombre, zona }
+let selectedCod = null;  // codigo del empleado elegido en el login
 
 // ── util ──────────────────────────────────────────────────────────────────────
 function el(id){return document.getElementById(id);}
@@ -87,6 +91,13 @@ async function apiData(accion,extra){
 function setHeader(title,sub){el('hdr-title').textContent=title;el('hdr-sub').textContent=sub;}
 
 // ── LOGIN ─────────────────────────────────────────────────────────────────────
+async function cargarPastores(){
+  if(pastoresList.length)return;
+  try{
+    const r=await fetch(`${SB_URL}/rest/v1/pastores?select=cod,nombre,zona&order=nombre`,{headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}});
+    pastoresList=await r.json();
+  }catch(e){}
+}
 function renderLogin(){
   el('btn-logout').style.display='none';
   setHeader('Portal del Empleado','Asociación Dominicana del Sureste');
@@ -94,28 +105,50 @@ function renderLogin(){
     <div class="stack">
       <div>
         <h2 class="sec">Iniciar sesión</h2>
-        <p class="sub">Ingresa con tu código de empleado y tu PIN de 6 dígitos. Si no lo tienes, solicítalo a la Secretaría.</p>
+        <p class="sub">Escribe tu nombre, selecciónalo de la lista y entra con tu PIN de 6 dígitos. Si no lo tienes, solicítalo a la Secretaría.</p>
       </div>
-      <div><label>Código de empleado <span class="required">*</span></label>
-        <input id="cod" type="text" placeholder="Ej: P022" autocomplete="off" style="text-transform:uppercase;letter-spacing:2px;font-family:monospace;" /></div>
+      <div style="position:relative;">
+        <label>Tu nombre <span class="required">*</span></label>
+        <input id="nombre" type="text" placeholder="Escribe tu nombre o apellido…" autocomplete="off" />
+        <div id="lista" style="display:none;position:absolute;background:white;border:1.5px solid #e8eaf2;border-top:none;border-radius:0 0 8px 8px;width:100%;max-height:220px;overflow-y:auto;z-index:10;box-shadow:0 8px 20px rgba(0,0,0,.08);"></div>
+      </div>
       <div><label>PIN (6 dígitos) <span class="required">*</span></label>
         <input id="pin" class="pin-input" inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="off" /></div>
       <div class="msg" id="msg"></div>
       <button class="btn" id="btn-login" onclick="login()">Entrar</button>
     </div>`;
   el('pin').addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D/g,'').slice(0,6);});
-  el('cod').addEventListener('keydown',e=>{if(e.key==='Enter')el('pin').focus();});
   el('pin').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
-  setTimeout(()=>el('cod').focus(),50);
+  const inp=el('nombre');
+  inp.addEventListener('input',()=>{ selectedCod=null; mostrarLista(inp.value); });
+  inp.addEventListener('focus',()=>{ if(inp.value.trim())mostrarLista(inp.value); });
+  inp.addEventListener('blur',()=>setTimeout(()=>{const l=el('lista');if(l)l.style.display='none';},150));
+  cargarPastores();
+  setTimeout(()=>inp.focus(),50);
+}
+function mostrarLista(q){
+  const lista=el('lista'); if(!lista)return;
+  if(!q.trim()){lista.style.display='none';return;}
+  const ql=q.toLowerCase();
+  const f=pastoresList.filter(p=>p.nombre.toLowerCase().includes(ql)).slice(0,12);
+  if(!f.length){lista.innerHTML='<div style="padding:10px 14px;color:#9ca3af;font-size:13px;">No encontrado</div>';lista.style.display='block';return;}
+  lista.innerHTML=f.map((p,i)=>`<div data-i="${i}" style="padding:10px 14px;border-bottom:1px solid #f0f2f7;cursor:pointer;" onmouseover="this.style.background='#f8f9ff'" onmouseout="this.style.background='white'"><div style="font-weight:500;color:#1a2340;">${esc(p.nombre)}</div><div style="font-size:12px;color:#9ca3af;">${esc(p.zona||'')}</div></div>`).join('');
+  lista.style.display='block';
+  lista.querySelectorAll('[data-i]').forEach(elm=>elm.addEventListener('click',()=>{
+    const p=f[parseInt(elm.dataset.i)];
+    el('nombre').value=p.nombre; selectedCod=p.cod; lista.style.display='none'; el('pin').focus();
+  }));
 }
 async function login(){
-  const cod=el('cod').value.trim().toUpperCase();
+  const nombreTxt=el('nombre').value.trim();
   const pin=el('pin').value.trim();
-  if(!cod){msg('Ingresa tu código de empleado.','err');return;}
+  // Si no eligió de la lista pero el texto coincide exacto con un empleado, resolverlo
+  if(!selectedCod && nombreTxt){ const m=pastoresList.find(p=>p.nombre.toLowerCase()===nombreTxt.toLowerCase()); if(m)selectedCod=m.cod; }
+  if(!selectedCod){msg('Escribe tu nombre y selecciónalo de la lista.','err');return;}
   if(!/^\d{6}$/.test(pin)){msg('El PIN debe ser de 6 dígitos.','err');return;}
   const btn=el('btn-login');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';clearMsg();
   try{
-    const r=await fetch('/api/portal-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cod,pin})});
+    const r=await fetch('/api/portal-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cod:selectedCod,pin})});
     const data=await r.json();
     if(!r.ok)throw new Error(data.error||'Error al iniciar sesión');
     SESSION={token:data.token,perfil:data.perfil};

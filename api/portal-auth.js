@@ -1,7 +1,7 @@
 // POST /api/portal-auth { cod, pin }
-//   Verifica el codigo de empleado + PIN de 6 digitos. Nunca expone el hash del PIN
-//   ni datos de otros empleados. Devuelve un token de sesion (45 min) + perfil seguro.
-import { cors, sbAdmin, hashPin, firmarToken } from './_portal_helpers.js';
+//   Verifica el codigo de empleado + PIN de 6 digitos. Nunca expone datos de otros
+//   empleados. Devuelve un token de sesion (45 min) + perfil seguro.
+import { cors, sbAdmin, firmarToken } from './_portal_helpers.js';
 
 const MAX_INTENTOS = 5;
 const BLOQUEO_MINUTOS = 15;
@@ -24,8 +24,7 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: `Demasiados intentos fallidos. Intenta de nuevo en ${min} minuto(s).` });
   }
 
-  const hashIntento = hashPin(cod, String(pin));
-  if (hashIntento !== registro.pin_hash) {
+  if (String(pin) !== String(registro.pin)) {
     const intentos = (registro.intentos_fallidos || 0) + 1;
     const patch = { intentos_fallidos: intentos, updated_at: new Date().toISOString() };
     if (intentos >= MAX_INTENTOS) {

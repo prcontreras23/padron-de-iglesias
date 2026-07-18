@@ -78,6 +78,8 @@ let S = {
   showDeleteOrganizacionConfirm: false, deleteOrganizacionId: null, deleteOrganizacionNombre: null,
   // Notas de personal
   _notas: null, _notasLoading: false,
+  // Accesos al Portal (PINs)
+  _accesos: null, _accesosLoading: false, accesoBusqueda: '', accesoGenerando: false, accesoMsg: '', accesoEditCod: null,
   showNotaModal: false, notaModalMode: 'add', editNotaId: null,
   formNota: { pastor_cod:'', nota:'' },
   showDeleteNotaConfirm: false, deleteNotaId: null,
@@ -541,6 +543,7 @@ function buildSidebar() {
     canDo('ver_vacaciones') ? navItem('vacaciones','Vacaciones',icons.sun,'#fef3c7','#92400e') : '',
     canDo('ver_pastores')   ? navItem('pastores','Personal',icons.user,'#ede9fe','#5b21b6',RAW.pastores.length) : '',
     canDo('ver_pastores')   ? navItem('notas','Notas',icons.note,'#dcfce7','#166534') : '',
+    isAdmin()               ? navItem('accesos','Accesos al Portal',icons.key,'#e0f2fe','#0369a1') : '',
   ].join('');
 
   const procesosChildren = [
@@ -602,7 +605,7 @@ function buildSidebar() {
 
 /* ---- HEADER ---- */
 function buildHeader() {
-  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Personal', solicitudes:'Solicitudes de Congregación', permisos:'Permisos de Ausencia', vacaciones:'Vacaciones', calendario:'Calendario de Ausencias', organizacion:'Organización de Iglesias', notas:'Notas del Personal', configuracion:'Configuracion' };
+  const titles = { dashboard:'Dashboard', zonas:'Zonas', distritos:'Distritos', iglesias:'Iglesias', pastores:'Personal', solicitudes:'Solicitudes de Congregación', permisos:'Permisos de Ausencia', vacaciones:'Vacaciones', calendario:'Calendario de Ausencias', organizacion:'Organización de Iglesias', notas:'Notas del Personal', accesos:'Accesos al Portal del Empleado', configuracion:'Configuracion' };
   const needsSearch = ['iglesias','distritos','pastores'].includes(S.view);
   const addBtn = (id,label) => `<button id="${id}" style="display:flex;align-items:center;gap:6px;background:#2563eb;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;">${icons.plus.replace('currentColor','white')} ${label}</button>`;
   const searchBtn = `<button id="btn-global-search" title="Ctrl+K" style="background:#f0f2f7;border:none;border-radius:8px;padding:8px;cursor:pointer;color:#6b7280;display:flex;align-items:center;">${icons.search}</button>`;
@@ -646,6 +649,7 @@ function buildContent() {
     case 'calendario':    return buildCalendarioAusencias();
     case 'organizacion':  return buildOrganizacion();
     case 'notas':         return buildNotas();
+    case 'accesos':       return isAdmin() ? buildAccesos() : NO_ACCESO;
     case 'configuracion': return buildConfiguracion();
     default:              return buildDashboard();
   }
@@ -1745,7 +1749,7 @@ function buildPortalPinSection(p) {
   const sugerido = fechaNacToPin(p.fecha_nacimiento);
   return `<div style="margin-top:16px;border-top:1px solid #f0f2f7;padding-top:14px;">
     <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Acceso al Portal del Empleado</div>
-    <div style="font-size:12px;color:#6b7280;margin-bottom:10px;">Código de acceso: <strong style="color:#1a2340;font-family:monospace;">${escHtml(p.cod)}</strong> · con este código y su PIN el empleado entra al portal a solicitar vacaciones, permisos y organización de iglesias.</div>
+    <div style="font-size:12px;color:#6b7280;margin-bottom:10px;">El empleado entra al portal con <strong>su nombre</strong> y este PIN para solicitar vacaciones, permisos y ver su organización de iglesias. Puedes ver y cambiar todos los PINs juntos en <strong>Accesos al Portal</strong>.</div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <input id="perfil-pin-input" inputmode="numeric" maxlength="6" placeholder="PIN de 6 dígitos" value="${escHtml(sugerido)}" style="width:150px;padding:9px 12px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:15px;letter-spacing:4px;font-family:monospace;text-align:center;outline:none;" />
       <button id="perfil-pin-save" ${S.pinGuardando?'disabled':''} style="background:#2563eb;color:white;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;${S.pinGuardando?'opacity:.6;':''}">${S.pinGuardando?'Guardando…':'Guardar PIN'}</button>
@@ -1866,6 +1870,85 @@ function buildPerfilPanel() {
       <div style="flex:1;overflow-y:auto;padding:16px 18px;">${contenido}</div>
     </div>
   </div>`;
+}
+
+/* ---- ACCESOS AL PORTAL DEL EMPLEADO (PINs) ---- */
+function buildAccesos() {
+  if (!isAdmin()) return NO_ACCESO;
+  const items = S._accesos;
+  const loading = S._accesosLoading;
+  const q = (S.accesoBusqueda||'').toLowerCase();
+  const filtered = items ? items.filter(x => !q || x.nombre.toLowerCase().includes(q) || (x.cod||'').toLowerCase().includes(q)) : [];
+  const conPin = items ? items.filter(x=>x.pin).length : 0;
+  const sinPin = items ? items.length - conPin : 0;
+
+  let contenido;
+  if (loading || !items) {
+    contenido = `<div style="text-align:center;padding:50px;color:#6b7280;">Cargando accesos…</div>`;
+  } else {
+    const rows = filtered.map(x => {
+      const editing = S.accesoEditCod === x.cod;
+      const rolZona = escHtml(x.zona || (x.rol||'').replace(/^\w/,c=>c.toUpperCase()) || '—');
+      const pinCell = editing
+        ? `<div style="display:flex;gap:6px;align-items:center;">
+             <input id="acceso-pin-input" inputmode="numeric" maxlength="6" value="${escHtml(x.pin||'')}" placeholder="6 dígitos" style="width:100px;padding:6px 10px;border:1.5px solid #2563eb;border-radius:6px;font-size:15px;font-family:monospace;letter-spacing:3px;text-align:center;outline:none;" />
+             <button data-acceso-guardar="${escHtml(x.cod)}" style="background:#2563eb;color:white;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">Guardar</button>
+             <button data-acceso-cancelar="1" style="background:#f0f2f7;color:#6b7280;border:none;border-radius:6px;padding:6px 9px;font-size:14px;cursor:pointer;">×</button>
+           </div>`
+        : `<span style="font-family:monospace;font-size:16px;font-weight:700;letter-spacing:3px;color:${x.pin?'#1a2340':'#cbd5e1'};">${x.pin?escHtml(x.pin):'——————'}</span>
+           ${x.bloqueado?`<span style="background:#fee2e2;color:#991b1b;border-radius:20px;padding:1px 8px;font-size:10px;font-weight:600;margin-left:6px;">Bloqueado</span>`:''}`;
+      const acciones = editing ? '' : `<div style="display:flex;gap:6px;justify-content:flex-end;">
+          <button data-acceso-editar="${escHtml(x.cod)}" style="background:#eff4ff;color:#2563eb;border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;">${x.pin?'Cambiar':'Asignar'}</button>
+          ${x.pin?`<button data-acceso-copiar="${escHtml(x.cod)}" title="Copiar para compartir" style="background:#f0f2f7;color:#374151;border:none;border-radius:6px;padding:5px 9px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;">${icons.link.replace('currentColor','#374151')}</button>`:''}
+        </div>`;
+      return `<tr style="border-bottom:1px solid #f0f2f7;">
+        <td style="padding:11px 16px;font-weight:600;color:#1e3564;">${escHtml(x.nombre)}</td>
+        <td style="padding:11px 16px;color:#9ca3af;font-family:monospace;font-size:12px;">${escHtml(x.cod)}</td>
+        <td style="padding:11px 16px;color:#6b7280;font-size:12.5px;">${rolZona}</td>
+        <td style="padding:11px 16px;">${pinCell}</td>
+        <td style="padding:11px 16px;">${acciones}</td>
+      </tr>`;
+    }).join('');
+    contenido = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:640px;">
+      <thead><tr style="background:#f8f9fc;">
+        <th style="padding:11px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Empleado</th>
+        <th style="padding:11px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Código</th>
+        <th style="padding:11px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">Zona / Rol</th>
+        <th style="padding:11px 16px;text-align:left;color:#6b7280;font-weight:600;font-size:12px;">PIN</th>
+        <th style="padding:11px 16px;"></th>
+      </tr></thead>
+      <tbody>${rows || emptyRow(5,'Sin resultados')}</tbody>
+    </table></div>`;
+  }
+
+  return `<div style="padding:24px;display:flex;flex-direction:column;gap:18px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h2 style="font-size:18px;font-weight:700;color:#1a2340;margin-bottom:4px;">Accesos al Portal del Empleado</h2>
+        <p style="font-size:13px;color:#6b7280;max-width:640px;">Cada empleado entra al <a href="/portal" target="_blank" style="color:#2563eb;">portal</a> con <strong>su nombre</strong> y el PIN de 6 dígitos que ves aquí. Puedes cambiar cualquiera. El PIN por defecto es el <strong>mes y año de nacimiento</strong> (MMAAAA); si no hay fecha de nacimiento registrada, se genera uno al azar.</p>
+      </div>
+      <button id="btn-reload-accesos" style="display:flex;align-items:center;gap:6px;background:#f0f2f7;color:#374151;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;">${icons.refresh.replace('currentColor','#374151')} Actualizar</button>
+    </div>
+    ${items ? `<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+      <div style="background:#f0fdf4;border-radius:10px;padding:10px 16px;font-size:13px;color:#166534;"><strong>${conPin}</strong> con PIN</div>
+      <div style="background:${sinPin?'#fffbeb':'#f8f9fc'};border-radius:10px;padding:10px 16px;font-size:13px;color:${sinPin?'#b45309':'#6b7280'};"><strong>${sinPin}</strong> sin PIN</div>
+      ${sinPin ? `<button id="btn-generar-faltantes" ${S.accesoGenerando?'disabled':''} style="background:#2563eb;color:white;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;${S.accesoGenerando?'opacity:.6;':''}">${S.accesoGenerando?'Generando…':`Generar PIN a los ${sinPin} que faltan`}</button>` : `<span style="font-size:13px;color:#166534;">Todos tienen PIN asignado ✓</span>`}
+    </div>` : ''}
+    ${S.accesoMsg ? `<div style="font-size:13px;font-weight:600;color:${S.accesoMsg.startsWith('✓')?'#166534':'#b91c1c'};background:${S.accesoMsg.startsWith('✓')?'#dcfce7':'#fee2e2'};border-radius:8px;padding:10px 14px;">${escHtml(S.accesoMsg)}</div>` : ''}
+    <input id="acceso-buscar" type="text" value="${escHtml(S.accesoBusqueda||'')}" placeholder="Buscar empleado por nombre o código…" style="padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;max-width:420px;" />
+    <div style="background:white;border-radius:14px;border:1px solid #e8eaf2;overflow:hidden;">${contenido}</div>
+  </div>`;
+}
+async function loadAccesos() {
+  try {
+    const { data:{ session } } = await S.sbClient.auth.getSession();
+    const r = await fetch('/api/admin-pin', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${session?.access_token||''}` }, body: JSON.stringify({ accion:'list' }) });
+    const data = await r.json();
+    S._accesos = r.ok ? (data.items||[]) : [];
+    if (!r.ok) S.accesoMsg = data.error || 'Error al cargar los accesos.';
+  } catch(e) { S._accesos = []; S.accesoMsg = 'Error de conexión: '+e.message; }
+  S._accesosLoading = false;
+  render();
 }
 
 /* ---- ORGANIZACIÓN DE IGLESIAS ---- */
@@ -3060,7 +3143,7 @@ function bindEvents() {
       const r = await fetch('/api/admin-pin', {
         method:'POST',
         headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${session?.access_token||''}` },
-        body: JSON.stringify({ cod: S.perfilCod, pin })
+        body: JSON.stringify({ accion:'set', cod: S.perfilCod, pin })
       });
       const data = await r.json();
       S.pinGuardando=false;
@@ -3075,6 +3158,42 @@ function bindEvents() {
     S.showNotaModal=true; S.notaModalMode='add'; S.editNotaId=null;
     S.formNota={ pastor_cod: el.dataset.perfilNuevaNota, nota:'' };
     render();
+  }));
+
+  /* ACCESOS AL PORTAL (PINs) */
+  if (S.view==='accesos' && isAdmin() && !S._accesos && !S._accesosLoading) { S._accesosLoading=true; loadAccesos(); }
+  q('#btn-reload-accesos', el => el.addEventListener('click', () => { S._accesos=null; S._accesosLoading=true; S.accesoMsg=''; S.accesoEditCod=null; render(); loadAccesos(); }));
+  q('#acceso-buscar', el => el.addEventListener('input', () => { S.accesoBusqueda = el.value; renderPreservingFocus(); }));
+  async function accesoAPI(payload) {
+    const { data:{ session } } = await S.sbClient.auth.getSession();
+    const r = await fetch('/api/admin-pin', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${session?.access_token||''}` }, body: JSON.stringify(payload) });
+    return { ok:r.ok, data: await r.json() };
+  }
+  document.querySelectorAll('[data-acceso-editar]').forEach(el => el.addEventListener('click', () => { S.accesoEditCod = el.dataset.accesoEditar; S.accesoMsg=''; render(); setTimeout(()=>document.getElementById('acceso-pin-input')?.focus(),30); }));
+  q('#acceso-pin-input', el => el.addEventListener('input', () => { el.value = el.value.replace(/\D/g,'').slice(0,6); }));
+  document.querySelectorAll('[data-acceso-cancelar]').forEach(el => el.addEventListener('click', () => { S.accesoEditCod=null; render(); }));
+  document.querySelectorAll('[data-acceso-guardar]').forEach(el => el.addEventListener('click', async () => {
+    const cod = el.dataset.accesoGuardar;
+    const pin = (document.getElementById('acceso-pin-input')?.value||'').trim();
+    if (!/^\d{6}$/.test(pin)) { S.accesoMsg='El PIN debe ser de 6 dígitos.'; render(); return; }
+    const { ok, data } = await accesoAPI({ accion:'set', cod, pin });
+    if (!ok) { S.accesoMsg = data.error || 'Error al guardar.'; render(); return; }
+    const it = (S._accesos||[]).find(x=>x.cod===cod); if (it) { it.pin = pin; it.bloqueado=false; }
+    S.accesoEditCod=null; S.accesoMsg='✓ PIN actualizado.'; render();
+  }));
+  q('#btn-generar-faltantes', el => el.addEventListener('click', async () => {
+    S.accesoGenerando=true; S.accesoMsg=''; render();
+    const { ok, data } = await accesoAPI({ accion:'generar_faltantes' });
+    S.accesoGenerando=false;
+    if (!ok) { S.accesoMsg = data.error || 'Error al generar.'; render(); return; }
+    S.accesoMsg = `✓ Se generaron ${data.generados} PIN(es). Compártelos con cada empleado.`;
+    S._accesos=null; S._accesosLoading=true; render(); loadAccesos();
+  }));
+  document.querySelectorAll('[data-acceso-copiar]').forEach(el => el.addEventListener('click', async () => {
+    const it = (S._accesos||[]).find(x=>x.cod===el.dataset.accesoCopiar); if (!it) return;
+    const texto = `Portal del Empleado — Asociación Dominicana del Sureste\n${window.location.origin}/portal\n\nNombre: ${it.nombre}\nPIN: ${it.pin}`;
+    try { await navigator.clipboard.writeText(texto); S.accesoMsg=`✓ Copiado el acceso de ${it.nombre}.`; render(); }
+    catch(e) { S.accesoMsg='No se pudo copiar automáticamente.'; render(); }
   }));
   q('#btn-nota-close',  el => el.addEventListener('click', () => { S.showNotaModal=false; render(); }));
   q('#btn-nota-cancel', el => el.addEventListener('click', () => { S.showNotaModal=false; render(); }));

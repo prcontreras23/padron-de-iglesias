@@ -48,7 +48,7 @@ let S = {
   _solicitudes: null, _solicitudesLoading: false, _flujoCfg: null,
   _permisos: null, _permisosLoading: false,
   showPermisoModal: false, permisoModalMode: 'add', editPermisoId: null,
-  formPermiso: { nombre:'', email:'', fecha_solicitud:'', motivo:'enfermedad', lugar:'', fecha_ausencia:'', estado:'pendiente', observaciones:'' },
+  formPermiso: { pastor_cod:'', nombre:'', email:'', fecha_solicitud:'', motivo:'enfermedad', lugar:'', fecha_ausencia:'', estado:'pendiente', observaciones:'' },
   showDeletePermisoConfirm: false, deletePermisoId: null, deletePermisoNombre: null,
   // Vacaciones
   _vacaciones: null, _vacacionesLoading: false, _vacBalance: null,
@@ -1191,7 +1191,7 @@ function buildPermisoModal() {
         <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Vincular con personal <span style="font-weight:400;color:#9ca3af;">(recomendado — habilita alertas de zona)</span></label>
           <select id="permiso-pastor-cod" style="width:100%;padding:10px 14px;border:1.5px solid #e8eaf2;border-radius:8px;font-size:14px;outline:none;background:white;">
             <option value="">— Escribir nombre manualmente —</option>
-            ${[...RAW.pastores].sort((a,b)=>a.nombre.localeCompare(b.nombre,'es')).map(p=>`<option value="${escHtml(p.cod)}" ${f.nombre===p.nombre?'selected':''}>${escHtml(p.nombre)}${p.zona?' · '+escHtml(p.zona):''}</option>`).join('')}
+            ${[...RAW.pastores].sort((a,b)=>a.nombre.localeCompare(b.nombre,'es')).map(p=>`<option value="${escHtml(p.cod)}" ${(f.pastor_cod?f.pastor_cod===p.cod:f.nombre===p.nombre)?'selected':''}>${escHtml(p.nombre)}${p.zona?' · '+escHtml(p.zona):''}</option>`).join('')}
           </select></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div><label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Nombre <span style="color:#ef4444;">*</span></label>
@@ -1756,7 +1756,7 @@ function buildPerfilPanel() {
 
   // Datos ligados a la persona
   const vacs  = (S._vacaciones||[]).filter(v => v.pastor_cod===cod || v.nombre===p.nombre);
-  const perms = (S._permisos||[]).filter(x => x.nombre===p.nombre);
+  const perms = (S._permisos||[]).filter(x => x.pastor_cod===cod || (!x.pastor_cod && x.nombre===p.nombre));
   const notas = (S._notas||[]).filter(n => n.pastor_cod===cod);
   const bal   = getVacBalance(cod);
   const loadingV = S._vacacionesLoading, loadingP = S._permisosLoading, loadingN = S._notasLoading;
@@ -2911,7 +2911,7 @@ function bindEvents() {
   q('#btn-reload-permisos', el => el.addEventListener('click', () => { S._permisos=null; S._permisosLoading=true; render(); loadPermisos(); }));
   q('#btn-add-permiso', el => el.addEventListener('click', () => {
     S.showPermisoModal=true; S.permisoModalMode='add'; S.editPermisoId=null;
-    S.formPermiso={ nombre:'', fecha_solicitud:new Date().toISOString().slice(0,10), motivo:'enfermedad', lugar:'', fecha_ausencia:'', estado:'pendiente', observaciones:'' };
+    S.formPermiso={ pastor_cod:'', nombre:'', fecha_solicitud:new Date().toISOString().slice(0,10), motivo:'enfermedad', lugar:'', fecha_ausencia:'', estado:'pendiente', observaciones:'' };
     render();
   }));
   q('#permiso-pastor-cod', el => el.addEventListener('change', () => {
@@ -2919,10 +2919,17 @@ function bindEvents() {
     const nomI = document.getElementById('permiso-nombre'), mailI = document.getElementById('permiso-email');
     if (p) { if(nomI) nomI.value = p.nombre; if(mailI && p.email) mailI.value = p.email; }
   }));
+  q('#permiso-nombre', el => el.addEventListener('input', () => {
+    // Si el nombre se edita a mano, ya no confiar en el pastor_cod seleccionado antes
+    const sel = document.getElementById('permiso-pastor-cod');
+    const p = sel && sel.value ? RAW.pastores.find(x => x.cod === sel.value) : null;
+    if (sel && p && el.value.trim() !== p.nombre) sel.value = '';
+  }));
   q('#btn-permiso-close',  el => el.addEventListener('click', () => { S.showPermisoModal=false; render(); }));
   q('#btn-permiso-cancel', el => el.addEventListener('click', () => { S.showPermisoModal=false; render(); }));
   q('#permiso-modal-bg',   el => el.addEventListener('click', e => { if(e.target===el){S.showPermisoModal=false;render();} }));
   q('#btn-permiso-save', el => el.addEventListener('click', async () => {
+    const pastor_cod = document.getElementById('permiso-pastor-cod')?.value||'';
     const nombre = document.getElementById('permiso-nombre')?.value.trim()||'';
     const email           = document.getElementById('permiso-email')?.value.trim()||'';
     const fecha_solicitud = document.getElementById('permiso-fecha-solicitud')?.value||'';
@@ -2934,7 +2941,7 @@ function bindEvents() {
     if (!nombre) { showToast('El nombre es requerido','error'); return; }
     if (!fecha_solicitud) { showToast('La fecha de solicitud es requerida','error'); return; }
     if (!fecha_ausencia)  { showToast('La fecha de ausencia es requerida','error'); return; }
-    const payload = { nombre, email: email||null, fecha_solicitud, fecha_ausencia, motivo, lugar: lugar||null, estado, observaciones: observaciones||null };
+    const payload = { pastor_cod: pastor_cod||null, nombre, email: email||null, fecha_solicitud, fecha_ausencia, motivo, lugar: lugar||null, estado, observaciones: observaciones||null };
     if (S.permisoModalMode==='add') {
       const { data, error } = await S.sbClient.from('permisos_ausencia').insert([payload]).select();
       if (error) { showToast('Error: '+error.message,'error'); return; }
@@ -2967,7 +2974,7 @@ function bindEvents() {
 
     // Si aprobó, abrir WhatsApp del pastor
     if (nuevoEstado === 'aprobado') {
-      const pastor = (RAW.pastores||[]).find(ps => ps.nombre === p.nombre);
+      const pastor = (RAW.pastores||[]).find(ps => ps.cod === p.pastor_cod) || (RAW.pastores||[]).find(ps => ps.nombre === p.nombre);
       if (pastor && pastor.telefono) {
         const tel = pastor.telefono.replace(/\D/g, '');
         const msg = encodeURIComponent('Tu permiso de salida ha sido aprobado ✅');
@@ -2982,7 +2989,7 @@ function bindEvents() {
   document.querySelectorAll('[data-edit-permiso]').forEach(el => el.addEventListener('click', () => {
     const p = (S._permisos||[]).find(p=>p.id===el.dataset.editPermiso); if(!p) return;
     S.showPermisoModal=true; S.permisoModalMode='edit'; S.editPermisoId=p.id;
-    S.formPermiso={ nombre:p.nombre, email:p.email||'', fecha_solicitud:p.fecha_solicitud||'', motivo:p.motivo, lugar:p.lugar||'', fecha_ausencia:p.fecha_ausencia||'', estado:p.estado||'pendiente', observaciones:p.observaciones||'' };
+    S.formPermiso={ pastor_cod:p.pastor_cod||'', nombre:p.nombre, email:p.email||'', fecha_solicitud:p.fecha_solicitud||'', motivo:p.motivo, lugar:p.lugar||'', fecha_ausencia:p.fecha_ausencia||'', estado:p.estado||'pendiente', observaciones:p.observaciones||'' };
     render();
   }));
   document.querySelectorAll('[data-del-permiso]').forEach(el => el.addEventListener('click', () => {

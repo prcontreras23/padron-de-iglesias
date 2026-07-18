@@ -148,7 +148,7 @@ function mostrarLista(query = '') {
       document.getElementById('email').value = p.email || '';
       selectedPastor = p;
       lista.style.display = 'none';
-      cargarHistorialPastor(p.nombre, p.email);
+      cargarHistorialPastor(p.nombre, p.cod);
     });
   });
 }
@@ -194,9 +194,10 @@ document.querySelectorAll('.motivo-opt input[type=radio]').forEach(r => {
 // Fecha por defecto: hoy
 document.getElementById('fecha_solicitud').value = new Date().toISOString().slice(0, 10);
 
-async function cargarHistorialPastor(nombre, email) {
+async function cargarHistorialPastor(nombre, cod) {
   try {
-    const r = await fetch(`${SB_URL}/rest/v1/permisos_ausencia?nombre=eq.${encodeURIComponent(nombre)}&select=*&order=fecha_solicitud.desc`, {
+    const filtro = cod ? `pastor_cod=eq.${encodeURIComponent(cod)}` : `nombre=eq.${encodeURIComponent(nombre)}`;
+    const r = await fetch(`${SB_URL}/rest/v1/permisos_ausencia?${filtro}&select=*&order=fecha_solicitud.desc`, {
       headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
     });
     const solicitudes = await r.json();
@@ -256,10 +257,11 @@ async function enviar() {
 
   try {
     await guardarEmailSiNecesario(nombre, email);
+    const pastor_cod = (pastoresMap[nombre] && pastoresMap[nombre].cod) || (selectedPastor && selectedPastor.cod) || null;
     const r = await fetch('/api/nueva-permiso', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accion:'crear', nombre, email, fecha_solicitud, fecha_ausencia, motivo, lugar, observaciones })
+      body: JSON.stringify({ accion:'crear', pastor_cod, nombre, email, fecha_solicitud, fecha_ausencia, motivo, lugar, observaciones })
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'Error al enviar');

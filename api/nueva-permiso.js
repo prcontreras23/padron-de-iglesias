@@ -53,7 +53,7 @@ async function crear(req, res) {
     return res.status(500).json({ error: 'Error de configuración: variables de entorno no disponibles. Contacta al admin.' });
   }
 
-  const { nombre, email, fecha_solicitud, fecha_ausencia, motivo, lugar, observaciones } = req.body || {};
+  const { pastor_cod, nombre, email, fecha_solicitud, fecha_ausencia, motivo, lugar, observaciones } = req.body || {};
   if (!nombre || !email || !fecha_solicitud || !fecha_ausencia || !motivo) {
     return res.status(400).json({ error: 'Faltan campos requeridos' });
   }
@@ -68,7 +68,7 @@ async function crear(req, res) {
         'Content-Type': 'application/json',
         'Prefer': 'return=representation',
       },
-      body: JSON.stringify({ nombre, email, fecha_solicitud, fecha_ausencia, motivo, lugar: lugar||null, observaciones: observaciones||null, estado: 'pendiente' }),
+      body: JSON.stringify({ pastor_cod: pastor_cod||null, nombre, email, fecha_solicitud, fecha_ausencia, motivo, lugar: lugar||null, observaciones: observaciones||null, estado: 'pendiente' }),
     });
 
     const text = await r.text();

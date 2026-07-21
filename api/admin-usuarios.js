@@ -3,7 +3,7 @@
 import { cors } from './_helpers2.js';
 
 const SB_URL     = process.env.SUPABASE_URL;
-const SB_SERVICE = process.env.SUPABASE_SERVICE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2YmtuYWJucmxsaW9mYmNoY3p2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTMyODcxNywiZXhwIjoyMDk2OTA0NzE3fQ.PapeVOE0xnIA5SijAhBkOVQjOfkbze26xxWBL0JRfMk';
+const SB_SERVICE = process.env.SUPABASE_SERVICE_KEY;
 const SITE       = (process.env.SITE_URL || 'https://gestion-secretaria.vercel.app').replace(/\/$/, '');
 
 async function adminFetch(path, method = 'GET', body = null) {

@@ -3,8 +3,7 @@ import crypto from 'crypto';
 
 export const SB_URL = process.env.SUPABASE_URL;
 export const SB_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-export const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
-  || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2YmtuYWJucmxsaW9mYmNoY3p2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTMyODcxNywiZXhwIjoyMDk2OTA0NzE3fQ.PapeVOE0xnIA5SijAhBkOVQjOfkbze26xxWBL0JRfMk';
+export const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
 // Firma de tokens del portal. Nunca se expone al cliente; reutiliza la service key como secreto.
 const TOKEN_SECRET = SERVICE_KEY;
 const SESSION_MINUTES = 45;
